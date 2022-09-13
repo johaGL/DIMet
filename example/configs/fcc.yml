@@ -1,0 +1,5 @@
+mywdir : "~/DIMet/example/"
+pickedTable : "data/rawAbundances_cycloser_normalized.tsv"
+osuffix : "abundance"
+metadata : "data/metadata_cycloser.csv"
+levelstime : ["T0", "T1h","T2h", "T4h","T6h","T24h"]
