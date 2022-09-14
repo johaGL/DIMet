@@ -10,15 +10,12 @@ import argparse
 
 import yaml
 
-from extruder import *
-
-from isotopologcontrib_stacked import *
-from frac_contrib_lineplot import *
 from abund_frompercentages import *
-from differential_univariate import *
 from abundances_bars import *
-import argparse
-
+from differential_univariate import *
+from extruder import *
+from frac_contrib_lineplot import *
+from isotopologcontrib_stacked import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir")

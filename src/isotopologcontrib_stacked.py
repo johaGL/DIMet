@@ -7,12 +7,12 @@ Created on Wed May 18 11:14:34 2022
 """
 
 import os
-import pandas as pd
-import seaborn as sns
+
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.patches as mpatches
-
+import pandas as pd
+import seaborn as sns
 
 
 def icontrib_2df4plot(dicos, tablePicked, co, levelstimepoints_):

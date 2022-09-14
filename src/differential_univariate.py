@@ -12,6 +12,7 @@ import statsmodels.stats.multitest as ssm
 
 from fun_fm import *
 
+
 def compute_reduction(df, ddof):
     res = df.copy()
     for protein in df.index.values:

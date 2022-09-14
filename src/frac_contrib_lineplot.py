@@ -6,10 +6,11 @@ Created on Mon May  9 11:20:09 2022
 @author: johanna
 """
 import os
-import pandas as pd
-import seaborn as sns
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 
 def yieldcolorsbymet():

@@ -6,10 +6,12 @@ Created on Tue Sep 13 19:44:26 2022
 @author: johanna
 """
 
-import yaml
-from extruder import *
 import argparse
 import sys
+
+import yaml
+
+from extruder import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir")

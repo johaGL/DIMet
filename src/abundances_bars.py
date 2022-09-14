@@ -9,11 +9,13 @@ This script exploits species and compartment specific tables at 'data/abufromper
 """
 
 import os
-import pandas as pd
-import seaborn as sns
+
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.patches as mpatches
+import pandas as pd
+import seaborn as sns
+
 from fun_fm import *
 
 

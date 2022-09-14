@@ -11,7 +11,6 @@ Calculates absolute abundances of isotopologues
 
 from fun_fm import *
 
-
 ################# fun
 
 def correction_prop_df(prop_df):
