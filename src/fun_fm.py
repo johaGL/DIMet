@@ -8,12 +8,7 @@ Created on Tue May 31 12:24:01 2022
 
 import os
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 import numpy as np
-import scipy.stats
-import matplotlib.patches as mpatches
-import statsmodels.stats.multitest as ssm
 
 
 

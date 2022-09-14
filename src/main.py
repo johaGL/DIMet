@@ -7,11 +7,14 @@ Created on Tue Sep 13 19:44:26 2022
 """
 
 import yaml
-import matplotlib as plt
 from extruder import *
 from isotopologcontrib_stacked import *
+from frac_contrib_lineplot import *
+from abund_frompercentages import *
+from differential_univariate import *
+from abundances_bars import *
 import argparse
-import sys
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir")
@@ -22,7 +25,7 @@ confifile = os.path.expanduser(args.config)
 with open(confifile, 'r') as f:
     confidic = yaml.load(f, Loader=yaml.Loader)
 
-print(" 1. Preparing dataset for analysis\n")
+print(" 0. Preparing dataset for analysis\n")
 
 os.chdir(os.path.expanduser(args.mywdir))
 namesuffix = confidic['namesuffix']
@@ -49,19 +52,152 @@ for filename in tsvfi:
 print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
 
 
-print(" 2. Isotopologue contributions : stacked bars\n")
+print(" 1. Isotopologue contributions : stacked bars\n")
 
 levelstimepoints_ = confidic['levelstime']
-cnds_ = confidic['conditions']
-tablePicked = confidic['Config_Isotopologue_Contribs']['pickedTable']  
+condilevels = confidic['conditions']
+tableIC = confidic['name_isotopologue_contribs']
 
 # NOTE: Leuven called "CorrectedIsotopologues" to isotopologueContributions (%) !
-assert "isotopol" in tablePicked.lower(), "Error!: your table here must have \
+assert "isotopol" in tableIC.lower(), "Error!: your table here must have \
     isotopologues percentages, we try to do the stacked bars"
     
 darkbarcolor, palsD = default_colors_stacked()  
  
-selbycompD = confidic['Config_Isotopologue_Contribs']['groups_toplot_isotopol_contribs']
-saveisotopologcontriplot(dirtmpdata, tablePicked, names_compartments,
-             levelstimepoints_, 
-             namesuffix, metadata, selbycompD, palsD, cnds_ )
+selbycompD = confidic['groups_toplot_isotopol_contribs']
+#saveisotopologcontriplot(dirtmpdata, tableIC, names_compartments,
+#             levelstimepoints_, namesuffix, metadata, selbycompD,
+ #            darkbarcolor, palsD, condilevels )
+
+
+print("\n 2. Fractional contributions : line plots\n")
+tableFC = confidic['name_fractional_contribs']
+gbycompD = confidic['groups_toplot_frac_contribs']
+coloreachmetab = yieldcolorsbymet()
+
+#savefraccontriplots(dirtmpdata, names_compartments,
+ #                   metadata, tableFC, namesuffix,
+  #           gbycompD, coloreachmetab)
+
+
+# NOTE : for abundances bars and Differential,
+# preliminary step: calculate isotopologues abundances from IC percentages
+tableAbund = confidic['name_abundances']
+abunda_species_4diff_dir = dirtmpdata+"abufromperc/"
+max_m_species = confidic['max_m_species']
+saveabundfrompercentagesIC(dirtmpdata, tableAbund, tableIC, metadata, names_compartments,
+                            namesuffix, abunda_species_4diff_dir, max_m_species )
+all_m_species_ = ["m+"+str(i) for i in range(max_m_species+1)]
+all_m_species_.append("totmk")
+spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
+
+print("\n 3. Abundances : bar plots\n")
+
+time_sel = confidic['time_sel']
+
+
+selectedmetsD = confidic['selectedmets_forbars']
+
+odirbars = "results/plots/abundbars/"
+if not os.path.exists(odirbars):
+    os.makedirs(odirbars)
+
+SMX = "TOTAL" # marked and unmarked
+for CO in names_compartments.values():
+    file_total_co_ = [i for i in os.listdir(dirtmpdata) if tableAbund in i and CO in i]
+    assert len(file_total_co_) == 1 , 'error, multiple abundance files for same comparment'
+    abutab = pd.read_csv(dirtmpdata+file_total_co_[0] , sep="\t", index_col=0)
+    metada_sel = metadata.loc[metadata['sample'].isin(abutab.columns), :]
+
+    # metadata and abundances time of interest
+    metada_sel = metada_sel.loc[metadata['timepoint'].isin(time_sel), :]
+    abu_sel = abutab[metada_sel['sample']]
+
+    # total piled-up data:
+    piled_sel = stackallabundace(abu_sel, metada_sel)
+    piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
+    piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
+
+    plotwidth = 3.5 * len(selectedmetsD[CO])
+    print(f"sending to plot file  :  {selectedmetsD[CO]}")
+
+    printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, SMX, plotwidth, odirbars)
+
+# the legend alone :
+oD = mean_sd_D(abu_sel, metada_sel)
+piled_alt = tmpstack(oD)
+piled_alt['condition'] = pd.Categorical(piled_alt['condition'], condilevels)
+piled_alt["timepoint"] = pd.Categorical(piled_alt["timepoint"], time_sel)
+printtestpluslegend(piled_alt, selectedmetsD[CO][:2], CO, SMX, 10, odirbars)
+
+# plot bars for the different isotopologues:
+for myfi in spefiles:
+    SMX, CO = fi2_smx_compartment(myfi, 2, 3)  # also used as titles of the plot
+    print(f"running abundances in {CO} : {SMX} ")
+    abutab = pd.read_csv(abunda_species_4diff_dir + myfi, sep="\t", index_col=0)
+    # metadata selection
+    metada_sel = metadata.loc[metadata['sample'].isin(abutab.columns), :]
+
+    # metadata and abundances time of interest
+    metada_sel = metada_sel.loc[metadata['timepoint'].isin(time_sel), :]
+    abu_sel = abutab[metada_sel['sample']]
+
+    # total piled-up data:
+    piled_sel = stackallabundace(abu_sel, metada_sel)
+    piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
+    piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
+
+    plotwidth = 3.5 * len(selectedmetsD[CO])
+    print(f"sending to plot file  :  {selectedmetsD[CO]}")
+    print("")
+    printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, SMX, plotwidth, odirbars)
+
+
+##############################################################################
+############              DIFFERENTIAL  ANALYSIS            ##################
+##############################################################################
+
+print("\n 4. Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
+
+whichtest = confidic['whichtest']
+ordercontrast = confidic['ordercontrast']  # example 'Control_T0'
+contrast = confidic['contrast']
+technical_toexclude = confidic['technical_toexclude']
+
+
+outdiffdir = "results/tables/"
+if not os.path.exists(outdiffdir):
+    os.makedirs(outdiffdir)
+
+for co in names_compartments.values():
+    rundiffer(dirtmpdata,
+              tableAbund,
+              namesuffix,
+              metadata,
+              ordercontrast,
+              contrast,
+              whichtest,
+             technical_toexclude,
+              co,
+              outdiffdir, "TOTAL")
+
+    tableabuspecies_co_ = [i for i in spefiles if co in i]
+    for tabusp in tableabuspecies_co_:
+        rundiffer(abunda_species_4diff_dir,
+                  tabusp,
+                  namesuffix,
+                  metadata,
+                  ordercontrast,
+                  contrast,
+                  whichtest,
+                  technical_toexclude,
+                  co,
+                  outdiffdir, "species")
+print("\nended analysis")
+########## END
+
+
+
+
+
+

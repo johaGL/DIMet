@@ -1,0 +1,21 @@
+	mets	stat	pval	padj	FC_geommu	log2FC
+0	L-Lactic_acid	0.7585772761922422	0.49034605453437435	1.0	1.0367569551947038	0.05207772575002319
+1	Hexose				1.0	0.0
+2	Hexose-phosphate				1.0	0.0
+3	Pyruvic_acid				1.0	0.0
+4	L-Glutamine	0.4415368154109291	0.681643194768297	1.0	747.5754458795553	9.546075374307842
+5	L-Methionine				1.0	0.0
+6	L-Phenylalanine				1.0	0.0
+7	Glycine				1.0	0.0
+8	L-Alanine				1.0	0.0
+9	L-Histidine				1.0	0.0
+10	L-Proline	0.002551190801207151	0.9980866094935614	1.0	0.6840574443551944	-0.5478106130414968
+11	L-Serine				1.0	0.0
+12	L-Tryptophan				1.0	0.0
+13	L-Valine				1.0	0.0
+14	L-Arginine				1.0	0.0
+15	L-Asparagine				1.0	0.0
+16	L-Threonine				1.0	0.0
+17	L-Lysine				1.0	0.0
+18	Ile_Leu				1.0	0.0
+19	L-Tyrosine				1.0	0.0

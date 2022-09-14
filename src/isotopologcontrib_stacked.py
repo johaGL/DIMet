@@ -72,8 +72,7 @@ def massageisotopologues(df4plot):
     # dealing with weird values: bigger than 100 and less than 0 :
     df4plot.loc[df4plot['Isotopologue Contribution (%)'] > 100 , \
         'Isotopologue Contribution (%)' ]  = 100
-    #amin = min([ x for x in df4plot['Isotopologue Contribution (%)'].tolist() if x > 0])
-    #print(amin)
+
     df4plot.loc[df4plot['Isotopologue Contribution (%)'] < 0 , \
         'Isotopologue Contribution (%)' ]  = 0  
 
@@ -98,7 +97,8 @@ def preparemeansreplicates(df4plot, cnd, selectedmets, levelstimepoints_):
         
 
  
-def complexstacked(co, cnd, selectedmets, ohmeh, palsD, outfilename, figuziz):
+def complexstacked(co, cnd, selectedmets, ohmeh,
+                   darkbarcolor, palsD, outfilename, figuziz):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
     ### set font style
     sns.set_style({ 'font.family': 'sans-serif', 
@@ -132,7 +132,7 @@ def complexstacked(co, cnd, selectedmets, ohmeh, palsD, outfilename, figuziz):
         axs[z].tick_params(axis='y', length=11, labelsize = 28)
     
         for bar in axs[z].patches:
-            selcol = "black" # black, but if color is in whitelist, do different
+            selcol = "black"
             #print(bar.get_facecolor())
             herergba = bar.get_facecolor()
             if herergba in darkbarcolor:
@@ -164,14 +164,14 @@ def complexstacked(co, cnd, selectedmets, ohmeh, palsD, outfilename, figuziz):
         plt.yticks(np.arange(0,100,20), np.arange(100,0,-20)) # invert, step2
         axs[z].set_ylabel('Isotopologue\nContribution (%)', size=26)
         axs[z].set_xlabel('', size=22)
-        
-        # ax.legend() no legend because goes into grid
+
         meh += 1
     # end for z
     f.subplots_adjust(hspace=0)
     f.suptitle(f'{co.upper()} {cnd.upper()}\n', fontsize=  18)
     
     f.savefig(outfilename, format="pdf")
+    plt.close()
     return 0
 
 
@@ -190,7 +190,8 @@ def default_colors_stacked():
 
 def saveisotopologcontriplot(datadi, tablePicked, names_compartments,
              levelstimepoints_, 
-             namesuffix, metadata, selbycompD, palsD,  cnds_ ) :
+             namesuffix, metadata, selbycompD,
+            darkbarcolor, palsD,  cnds_ ) :
     for co in names_compartments.values(): #
         print(co)  
         
@@ -204,37 +205,38 @@ def saveisotopologcontriplot(datadi, tablePicked, names_compartments,
         dicos[co][tablePicked] = adf[dicos[co]["metadata"]["sample"]]
         
         # call complicated functions
-        
+
         df4plot = icontrib_2df4plot(dicos, tablePicked, co, levelstimepoints_)
         df4plot = massageisotopologues(df4plot)
         ####
         # conditions to plot in desired order : 
         ####
-       
-        cnd = cnds_[0]  # test with only the first one
-        
+        odiric = 'results/plots/ic/'
+        if not os.path.exists(odiric):
+            os.makedirs(odiric)
         metscustomgroups = selbycompD[co]
-        print(sorted(list(set(df4plot["timepoint"]))))
         for cnd in cnds_:
             for j in range(len(metscustomgroups)):
                 selectedmets = metscustomgroups[j]
                 print(selectedmets)
-                outfname = 'ic_{}_{}_group{}.pdf'.format(co,cnd,j)
+                outfname = '{}ic_{}_{}_group{}.pdf'.format(odiric,co,cnd,j)
                 print(outfname)
                 ohmeh = preparemeansreplicates(df4plot, cnd, selectedmets, levelstimepoints_)       
                 ohmeh.keys()  # just the metabolites subframes, one co, one cnd
                 figuziz = 7.5 * len(selectedmets) # note, change width  
-                complexstacked(co, cnd, selectedmets, ohmeh, palsD, outfname, figuziz)
+                complexstacked(co, cnd, selectedmets, ohmeh,
+                               darkbarcolor, palsD, outfname, figuziz)
         
-        #plt.show()
+        #plt.close()
+        plt.figure()
         # legend alone
         myhandless = []
         for c in palsD.keys():   
             paobj = mpatches.Patch(color = palsD[c], label= c)
             myhandless.append(paobj)
         plt.legend(handles=myhandless)  
-        plt.savefig("ic_legendTEST.pdf", format="pdf")
-        print("ended blahblahcontributio")
+        plt.savefig(f"{odiric}ic_legend.pdf", format="pdf")
+
     return 0
 
 
