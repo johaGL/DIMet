@@ -1,0 +1,28 @@
+mywdir : "~/DIMEt/example/"
+datadi : "data/"
+extrulist_fi : "mets_toexclude.csv"
+
+names_compartments : 
+  Cell_extracts : "cell"
+  Medium : "med"
+  
+namesuffix : "cycloser"
+metadata_fi : "metadata_cycloser.csv"
+
+levelstime : ["T0", "T1h","T2h", "T4h","T6h","T24h"]
+
+conditions : ["Control", "L-Cycloserine"]
+
+Config_Isotopologue_Contribs:
+  pickedTable : "CorrectedIsotopologues"
+  groups_toplot_isotopol_contribs:
+    cell :  
+      0: ["L-Lactic_acid", "Pyruvic_acid" , "L-Malic_acid", 
+                    "Fumaric_acid"] 
+      1 : [ "L-Alanine", "L-Glutamic_acid", 
+                "L-Glutamine",  "L-Aspartic_acid"]    
+    med : 
+      0 : [ "L-Lactic_acid", "Pyruvic_acid" ]
+      1 : ["L-Alanine", "L-Glutamine","L-Asparagine"] 
+
+
