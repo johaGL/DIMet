@@ -7,8 +7,10 @@ Created on Fri Jun 17 20:38:00 2022
 """
 
 import os
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
 
 def extrulist2dico(extrulist):
     extruD = dict()
