@@ -9,7 +9,7 @@ Calculates absolute abundances of isotopologues
 """
 
 
-from fun_fm import *
+from .fun_fm import *
 
 ################# fun
 
