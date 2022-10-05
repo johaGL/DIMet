@@ -29,14 +29,14 @@ def yieldrowdata(newdf):
     return rowdata
 
 
-def prepare4contrast(idf, ametadata, ordercontrast, contrast):
+def prepare4contrast(idf, ametadata, newcateg, contrast):
     """
-    ordercontrast : example :  ['condition', 'timepoint' ]
+    newcateg : example :  ['condition', 'timepoint' ]
     contrast : example : ["treatment_t12h", "control_t12h" ]
-    creates column "newcol" : aa_bb <as in ordercontrast> suitable to contrast
+    creates column "newcol" : aa_bb <as in newcateg> suitable to contrast
     """
     cc = ametadata.copy()
-    l_ = (ametadata[ordercontrast[0]] + "_" + ametadata[ordercontrast[1]]).tolist()
+    l_ = (ametadata[newcateg[0]] + "_" + ametadata[newcateg[1]]).tolist()
     cc["newcol"] = l_
     metas = cc.loc[cc["newcol"].isin(contrast), :]
     newdf = idf[metas["sample"]]

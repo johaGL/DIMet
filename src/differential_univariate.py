@@ -161,7 +161,7 @@ def rundiffer(
     tablePicked,
     namesuffix,
     metadata,
-    ordercontrast,
+    newcateg,
     contrast,
     whichtest,
     technical_toexclude,
@@ -192,7 +192,7 @@ def rundiffer(
     metadahere = metadata.loc[metadata.short_comp == co]
     selecols = metadahere["sample"]
 
-    newdf_tot, metas_tot = prepare4contrast(abun, metadahere, ordercontrast, contrast)
+    newdf_tot, metas_tot = prepare4contrast(abun, metadahere, newcateg, contrast)
     if reduce:
         df = newdf_tot.copy()
         mets = df.index
