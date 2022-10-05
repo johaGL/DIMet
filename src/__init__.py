@@ -49,6 +49,7 @@ allfi = os.listdir(datadi)
 print()
 
 if not os.path.exists(dirtmpdata):
+    os.makedirs(dirtmpdata)
     print(" 0. Preparing dataset for analysis\n")
     tsvfi = [i for i in allfi if ".tsv" in i]
     print("Your .tsv files in data folder: ", tsvfi, "\n")
@@ -74,7 +75,10 @@ if not os.path.exists(dirtmpdata):
         max_m_species,
     )
 else:
-    spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
+    print()
+    
+    
+spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]    
 
 if args.mode == "diffabund":
     print("\n 4. Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
@@ -82,32 +86,29 @@ if args.mode == "diffabund":
     whichtest = confidic["whichtest"]
     newcateg = confidic["newcateg"]  # see yml in example/configs/
     technical_toexclude = confidic["technical_toexclude"]
-    contrast = confidic["contrast"]
+    contrasts_ = confidic["contrasts"]
 
     outdiffdir = "results/tables/"
     if not os.path.exists(outdiffdir):
         os.makedirs(outdiffdir)
+    outputsubdirs = ["m+"+str(i)+"/" for i in range(max_m_species+1)]
+    outputsubdirs.append("totmk/")
+    outputsubdirs.append("TOTAL/")
+    alloutdirs = list()
+    for exte_sig in ["extended/", "significant/"]:
+        for subdir_spec in outputsubdirs:
+            x = outdiffdir + exte_sig + subdir_spec
+            alloutdirs.append(x)
+            if not os.path.exists(x):
+                os.makedirs(x) 
 
-    for co in names_compartments.values():
-        rundiffer(
-            dirtmpdata,
-            tableAbund,
-            namesuffix,
-            metadata,
-            newcateg,
-            contrast,
-            whichtest,
-            technical_toexclude,
-            co,
-            outdiffdir,
-            "TOTAL",
-        )
-
-        tableabuspecies_co_ = [i for i in spefiles if co in i]
-        for tabusp in tableabuspecies_co_:
+    outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
+    for contrast in contrasts_:
+        print("\n    comparison ==>", contrast[0] ,"vs",contrast[1] )
+        for co in names_compartments.values():
             rundiffer(
-                abunda_species_4diff_dir,
-                tabusp,
+                dirtmpdata,
+                tableAbund,
                 namesuffix,
                 metadata,
                 newcateg,
@@ -115,12 +116,35 @@ if args.mode == "diffabund":
                 whichtest,
                 technical_toexclude,
                 co,
-                outdiffdir,
-                "species",
+                outdirs_total_abund_res_,
+                "TOTAL",
             )
-            # end for tabusp
-        # end for co
-
+    
+            tableabuspecies_co_ = [i for i in spefiles if co in i]
+            # any "m+x" where x > max_m_species, must be excluded
+            donotuse = [ k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
+                        and int(k.split("_")[2].split("+")[-1]) > max_m_species ]
+            tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
+            tableabuspecies_co_good_ = list(tabusp_tmp_)
+            for tabusp in tableabuspecies_co_good_:            
+                outkey = tabusp.split("_")[2]  # the species m+x as saved
+                outdiffdirs = [d for d in alloutdirs if outkey in d]
+                rundiffer(
+                    abunda_species_4diff_dir,
+                    tabusp,
+                    namesuffix,
+                    metadata,
+                    newcateg,
+                    contrast,
+                    whichtest,
+                    technical_toexclude,
+                    co,
+                    outdiffdirs,
+                    outkey,
+                )
+                # end for tabusp
+            # end for co
+        # end for contrast
     print("\nended analysis")
     # end if args.mode == "diffabund"
 

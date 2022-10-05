@@ -60,6 +60,7 @@ selectedmets_forbars:
 # Differential Analysis configuration
 max_m_species : 4
 whichtest : "Tt"
+technical_toexclude : ['13C5-D5-15N_Glutamic_acid', 'Myristic_acid_d27']
 # newcateg: column that is a combination of 2 or more metadata categories,
 # new category thus generated, is ready for comparison to its counterpart;
 # example :
@@ -67,12 +68,7 @@ whichtest : "Tt"
 #  L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
 # 	so now, we are able to compare L-Cyclo_T0 against Control_T0 .
 newcateg : ["condition", "timepoint"]  # example 'Control_T0'
-contrast : ['L-Cycloserine_T1h', 'Control_T1h'] # last must be control
-technical_toexclude : ['13C5-D5-15N_Glutamic_acid', 'Myristic_acid_d27']
 
-
-
-
-
-
-
+contrasts : [ ['L-Cycloserine_T0', 'Control_T0'], # for each pair,last must be control
+              ['L-Cycloserine_T6h', 'Control_T6h'],
+              ['L-Cycloserine_T24h', 'Control_T24h'] ]

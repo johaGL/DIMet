@@ -150,7 +150,7 @@ def detect_and_create_dir(namenesteddir):
 
 
 def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
-                   whichtest, technical_toexclude, co, outdiffdir, choice):
+                   whichtest, technical_toexclude, co, outdiffdirs, choice):
     """
     runs functions above,
     saves DAM (Differentially abundant metabolites/isotopologues)
@@ -210,16 +210,14 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     OUTPUT = DIFFRESULT[ocols]
     contrastword = "_".join(contrast)
 
-    extended_dir = outdiffdir + "extended/"
-    signi_dir = outdiffdir + "significant/"
-    detect_and_create_dir(extended_dir)
-    detect_and_create_dir(signi_dir)
+    extended_dir = [ i for i in outdiffdirs if "extended" in i]
+    signi_dir = [i for i in outdiffdirs if "significant" in i]
 
-    ofi = f"{extended_dir}{co}_{outkey}_{contrastword}_{whichtest}.tsv"
+    ofi = f"{extended_dir[0]}{co}_{outkey}_{contrastword}_{whichtest}.tsv"
     OUTPUT.to_csv(ofi, sep="\t")
 
     sigoutput = OUTPUT.loc[OUTPUT["padj"] <= 0.05,:]
     if sigoutput.shape[0] > 0:
-        ofisig = f"{signi_dir}{co}_{outkey}_{contrastword}_{whichtest}_sig.tsv"
+        ofisig = f"{signi_dir[0]}{co}_{outkey}_{contrastword}_{whichtest}_sig.tsv"
         sigoutput.to_csv(ofisig, sep="\t")
     return 0
