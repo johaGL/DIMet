@@ -30,10 +30,10 @@ extrulist_fi = confidic["extrulist_fi"]
 names_compartments = confidic["names_compartments"]
 metadata_fi = confidic["metadata_fi"]
 levelstimepoints_ = confidic["levelstime"]
-condilevels = confidic["conditions"] # <= locate where it is used
+
 tableIC = confidic["name_isotopologue_contribs"]
-time_sel = confidic["time_sel"]  # locate where it is used
-selectedmetsD = confidic["selectedmets_forbars"] # locate where it is used
+
+
 tableAbund = confidic["name_abundances"]
 max_m_species = confidic["max_m_species"]
 
@@ -149,5 +149,8 @@ if args.mode == "diffabund":
     # end if args.mode == "diffabund"
 
 if args.mode == "abundplots":
+    time_sel = confidic["time_sel"]  # locate where it is used
+    selectedmetsD = confidic["selectedmets_forbars"]  # locate where it is used
+    condilevels = confidic["conditions"]  # <= locate where it is used
     print("!n!n!n!")
 

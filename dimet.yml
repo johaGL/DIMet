@@ -5,6 +5,7 @@ dependencies:
   - pip  
   - numpy
   - pandas
+  - openpyxl
   - pyyaml
   - scikit-learn
   - scipy

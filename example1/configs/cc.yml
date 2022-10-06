@@ -12,10 +12,11 @@ metadata_fi : "metadata_cycloser.csv"
 # global configuration for plotting
 levelstime : ["T0", "T1h","T2h", "T4h","T6h","T24h"]
 conditions : ["Control", "L-Cycloserine"] # first must be control
-
+name_abundances : "rawAbundances"
+name_isotopologue_contribs : "CorrectedIsotopologues"
 
 # Isotopologue Contribution plot configuration
-name_isotopologue_contribs : "CorrectedIsotopologues"
+
 groups_toplot_isotopol_contribs:
   cell :
     0: ["L-Lactic_acid", "Pyruvic_acid" , "L-Malic_acid",
@@ -46,7 +47,7 @@ groups_toplot_frac_contribs:
 
 
 # Abundances plot configuration
-name_abundances : "rawAbundances"
+
 time_sel : ["T0", "T24h"]
 selectedmets_forbars:
   cell: ["L-Lactic_acid", "Pyruvic_acid", "L-Malic_acid",
