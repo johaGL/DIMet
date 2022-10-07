@@ -3,7 +3,7 @@ needed for DIMet/__main__.py to be able to import .py files in this location (DI
 """
 import argparse
 import os
-
+import shutil
 import yaml
 from .differential_univariate import *
 from .abund_frompercentages import *
@@ -26,15 +26,15 @@ with open(confifile, "r") as f:
 
 namesuffix = confidic["namesuffix"]
 datadi = confidic["datadi"]
-extrulist_fi = confidic["extrulist_fi"]
+extrudf_fi = confidic["extrulist_fi"]
 names_compartments = confidic["names_compartments"]
 metadata_fi = confidic["metadata_fi"]
 levelstimepoints_ = confidic["levelstime"]
 
-tableIC = confidic["name_isotopologue_contribs"]
+tableIC = confidic["name_isotopologue_contribs"].split(".")[0] # no extension
 
 
-tableAbund = confidic["name_abundances"]
+tableAbund = confidic["name_abundances"].split(".")[0] # no extension
 max_m_species = confidic["max_m_species"]
 
 # set working directory as current
@@ -42,46 +42,54 @@ os.chdir(os.path.expanduser(args.mywdir))
 
 metadata = pd.read_csv(datadi + metadata_fi, index_col=False)
 
-# whatever the option is, prepare output tmp data folder for intermediary files
+print("\nPreparing dataset for analysis\n")
+# whatever the option is, prepare output n data folder for intermediary files
+allfi = os.listdir(datadi)
 dirtmpdata = "tmp/"
 abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
-allfi = os.listdir(datadi)
-print()
+print(" [any temporary files (tmp) are being deleted by default]")
+if os.path.exists(dirtmpdata):
+    shutil.rmtree(dirtmpdata) # clear at each run
 
-if not os.path.exists(dirtmpdata):
-    os.makedirs(dirtmpdata)
-    print(" 0. Preparing dataset for analysis\n")
-    tsvfi = [i for i in allfi if ".tsv" in i]
-    print("Your .tsv files in data folder: ", tsvfi, "\n")
+os.makedirs(dirtmpdata)
 
-    # using list of metabolites to exclude, compartment aware:
-    print("using list of undesired metabolites to drop off from data")
-    for filename in tsvfi:
+tsvfi = [i for i in allfi if ".tsv" in i]
+print("Your .tsv files in data folder: ", tsvfi, "\n")
+
+# using list of metabolites to exclude, compartment aware:
+print("using list of undesired metabolites to drop off from data")
+extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
+print(extrudf.shape)
+for filename in tsvfi:
+    if extrudf.shape[0] > 1:
         save_new_dfs(datadi, names_compartments,
-                     filename, metadata, extrulist_fi, dirtmpdata)
+                     filename, metadata, extrudf, dirtmpdata)
+    else:
+        save_new_dfs_simple(datadi, names_compartments, filename,
+                     namesuffix, metadata,  dirtmpdata)
 
-    print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
+print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
 
-    # NOTE : for abundances bars and Differential,
-    # compulsory step: calculate isotopologues abundances from IC percentages
-    saveabundfrompercentagesIC(
-        dirtmpdata,
-        tableAbund,
-        tableIC,
-        metadata,
-        names_compartments,
-        namesuffix,
-        abunda_species_4diff_dir,
-        max_m_species,
-    )
-else:
-    print()
-    
-    
+# NOTE : for abundances bars and Differential,
+# compulsory step: calculate isotopologues abundances from IC percentages
+saveabundfrompercentagesIC(
+    dirtmpdata,
+    tableAbund,
+    tableIC,
+    metadata,
+    names_compartments,
+    namesuffix,
+    abunda_species_4diff_dir,
+    max_m_species,
+)
 spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]    
 
+    
+    
+
+
 if args.mode == "diffabund":
-    print("\n 4. Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
+    print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
 
     whichtest = confidic["whichtest"]
     newcateg = confidic["newcateg"]  # see yml in example/configs/
@@ -154,3 +162,5 @@ if args.mode == "abundplots":
     condilevels = confidic["conditions"]  # <= locate where it is used
     print("!n!n!n!")
 
+if args.mode == "timeseriesplots":
+    tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension

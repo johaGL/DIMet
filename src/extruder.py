@@ -12,9 +12,9 @@ import numpy as np
 import pandas as pd
 
 
-def extrulist2dico(extrulist):
+def extrudf2dico(extrudf):
     extruD = dict()
-    for i, r in extrulist.iterrows():
+    for i, r in extrudf.iterrows():
         metaboliteok = r["metabolite"].replace('"', "")
         if r["compartment"] not in extruD.keys():
             extruD[r["compartment"]] = [metaboliteok]
@@ -34,10 +34,10 @@ def detectifinbadlist(al_, amet):
 
 
 def save_new_dfs(
-    datadi, names_compartments, filename, metadata, extrulist_fi, diroutput
+    datadi, names_compartments, filename, metadata, extrudf, diroutput
 ):
-    extrulist = pd.read_csv(datadi + extrulist_fi, sep=",")
-    extruD = extrulist2dico(extrulist)
+    
+    extruD = extrudf2dico(extrudf)
     pa_i = pd.read_csv(datadi + filename, sep="\t", index_col=0)
 
     for compartment in names_compartments.values():
@@ -61,5 +61,20 @@ def save_new_dfs(
         pxpx_o = pxpx[pxpx["todelete"] != 0]
         pxpx_o = pxpx_o.drop(columns=["todelete"])
         pxpx_o.to_csv(diroutput + f_o, sep="\t")
+    # end for
+    return 0
+
+def save_new_dfs_simple(datadi, names_compartments, filename, namesuffix,
+                        metadata,  diroutput):
+    pa_i = pd.read_csv(datadi + filename, sep="\t", index_col=0)
+
+    for compartment in names_compartments.values():
+        f_o = filename.split(".")[0] + "_" + namesuffix +"_" + compartment + ".tsv"
+
+        # using metadata, to set apart (pxpx) compartment specific samples
+        samplestokeep = metadata.loc[metadata["short_comp"] == compartment, "sample"]
+        pxpx = pa_i[samplestokeep]
+
+        pxpx.to_csv(diroutput + f_o, sep="\t")
     # end for
     return 0
