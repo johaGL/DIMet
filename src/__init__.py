@@ -150,8 +150,8 @@ if args.mode == "diffabund":
                     outkey,
                 )
                 # end for tabusp
-            end for co
-        end for contrast
+            # end for co
+        # end for contrast
     print("\nended analysis")
     # end if args.mode == "diffabund"
 
