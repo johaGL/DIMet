@@ -11,12 +11,25 @@ import os
 import numpy as np
 import pandas as pd
 
+def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
+    icdf = pd.read_csv(datadi + tableIC + "_" + namesuffix +".tsv", sep="\t", index_col=0)
+    isotopololist_ = icdf.index.tolist()
+    vibg1 = [i for i in isotopololist_ if  "_C13-label-" in i]
+    vibg2 = [i for i in isotopololist_ if "_PARENT" in i]
+    if (len(vibg1) + len(vibg2)) == len(isotopololist_):
+        return "VIB"
+    else:
+        styuni = [ i for i in isotopololist_ if "_label" in i]
+        if len(styuni) == len(isotopololist_):
+            return "generic"
+        else:
+            return "style not recognized"
 
 def yieldrowdata(newdf):
     xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
     for ch in newdf.index:
-        if "_C13-" in ch:
-            elems = ch.split("_C13-")
+        if "_C13-label-" in ch:
+            elems = ch.split("_C13-label-")
             xu["metabolite"].append(elems[0])
             xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
             xu["isotopolgFull"].append(ch)

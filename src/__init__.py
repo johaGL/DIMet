@@ -42,6 +42,8 @@ os.chdir(os.path.expanduser(args.mywdir))
 
 metadata = pd.read_csv(datadi + metadata_fi, index_col=False)
 
+isotopolog_style = autodetect_isotop_nomenclature(datadi, tableIC, namesuffix)
+
 print("\nPreparing dataset for analysis\n")
 # whatever the option is, prepare output n data folder for intermediary files
 allfi = os.listdir(datadi)
@@ -59,14 +61,14 @@ print("Your .tsv files in data folder: ", tsvfi, "\n")
 # using list of metabolites to exclude, compartment aware:
 print("using list of undesired metabolites to drop off from data")
 extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
-print(extrudf.shape)
+
 for filename in tsvfi:
     if extrudf.shape[0] > 1:
         save_new_dfs(datadi, names_compartments,
-                     filename, metadata, extrudf, dirtmpdata)
-    else:
-        save_new_dfs_simple(datadi, names_compartments, filename,
-                     namesuffix, metadata,  dirtmpdata)
+                     filename, metadata, extrudf, dirtmpdata, isotopolog_style)
+    else: # table of mets to exclude is empty
+        print(save_new_dfs_simple(datadi, names_compartments, filename,
+                      metadata,  dirtmpdata))
 
 print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
 
@@ -83,9 +85,6 @@ saveabundfrompercentagesIC(
     max_m_species,
 )
 spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]    
-
-    
-    
 
 
 if args.mode == "diffabund":
@@ -134,7 +133,7 @@ if args.mode == "diffabund":
                         and int(k.split("_")[2].split("+")[-1]) > max_m_species ]
             tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
             tableabuspecies_co_good_ = list(tabusp_tmp_)
-            for tabusp in tableabuspecies_co_good_:            
+            for tabusp in tableabuspecies_co_good_:
                 outkey = tabusp.split("_")[2]  # the species m+x as saved
                 outdiffdirs = [d for d in alloutdirs if outkey in d]
                 rundiffer(
@@ -151,8 +150,8 @@ if args.mode == "diffabund":
                     outkey,
                 )
                 # end for tabusp
-            # end for co
-        # end for contrast
+            end for co
+        end for contrast
     print("\nended analysis")
     # end if args.mode == "diffabund"
 

@@ -1,1 +1,11 @@
 compartment,metabolite
+cell,GMP
+cell,CMP
+cell,AMP
+cell,UMP
+cell,GDP
+cell,UDP
+cell,CDP
+cell,GTP
+cell,UTP
+cell,CTP
