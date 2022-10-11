@@ -1,0 +1,16 @@
+name: dimet
+channels:
+  - defaults
+dependencies:
+  - python=3.9.12
+  - pip  
+  - numpy
+  - pandas
+  - openpyxl
+  - pyyaml
+  - scikit-learn
+  - scipy
+  - matplotlib
+  - seaborn
+  - statsmodels
+

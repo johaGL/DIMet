@@ -1,0 +1,76 @@
+# Note: for any indentation use space (never tab!)
+mywdir : "~/DIMEt/example/"
+datadi : "data/"
+extrulist_fi : "mets_toexclude.csv"
+
+names_compartments : # set abreviations (better), or rewrite the same compartment names
+  Cell_extracts : "cell"
+  Medium : "med"
+  
+namesuffix : "cycloser"
+metadata_fi : "metadata_cycloser.csv"
+
+# global configuration for plotting
+levelstime : ["T0", "T1h","T2h", "T4h","T6h","T24h"]
+conditions : ["Control", "L-Cycloserine"] # first must be control
+name_abundances : "rawAbundances"
+name_isotopologue_contribs : "CorrectedIsotopologues"
+
+# Isotopologue Contribution plot configuration
+
+groups_toplot_isotopol_contribs:
+  cell :
+    0: ["L-Lactic_acid", "Pyruvic_acid" , "L-Malic_acid",
+                  "Fumaric_acid"]
+    1 : [ "L-Alanine", "L-Glutamic_acid",
+              "L-Glutamine",  "L-Aspartic_acid"]
+  med :
+    0 : [ "L-Lactic_acid", "Pyruvic_acid" ]
+    1 : ["L-Alanine", "L-Glutamine","L-Asparagine"]
+
+
+
+# Fractional Contributions plot configuration
+name_fractional_contribs : "FracContribution_C"
+# try to group them by similarity in values !!!
+groups_toplot_frac_contribs:
+  cell:
+    0: [ "L-Lactic_acid" , "Pyruvic_acid" ]
+    1: [ "L-Alanine" ]
+    2: [ "Fumaric_acid", "L-Malic_acid" ]
+    3: [ "L-Glutamic_acid", "L-Glutamine" ]
+    4: [ "L-Aspartic_acid" ]
+  med:
+    0: [ "L-Lactic_acid" , "Pyruvic_acid" ]
+    1: [ "L-Alanine" ]
+    2: [ "L-Glutamine" ,"L-Asparagine" ]
+
+
+
+# Abundances plot configuration
+
+time_sel : ["T0", "T24h"]
+selectedmets_forbars:
+  cell: ["L-Lactic_acid", "Pyruvic_acid", "L-Malic_acid",
+                          "Fumaric_acid", "L-Alanine", "L-Glutamic_acid",
+                          "L-Glutamine", "L-Aspartic_acid"]
+  med:  ["L-Lactic_acid", "Pyruvic_acid", "L-Alanine",
+                         "L-Glutamine", "L-Asparagine"]
+
+
+
+# Differential Analysis configuration
+max_m_species : 4
+whichtest : "Tt"
+technical_toexclude : ['13C5-D5-15N_Glutamic_acid', 'Myristic_acid_d27']
+# newcateg: column that is a combination of 2 or more metadata categories,
+# new category thus generated, is ready for comparison to its counterpart;
+# example :
+#  Control (a condition) combined with T0 (a timepoint), yields Control_T0
+#  L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
+# 	so now, we are able to compare L-Cyclo_T0 against Control_T0 .
+newcateg : ["condition", "timepoint"]  # example 'Control_T0'
+
+contrasts : [ ['L-Cycloserine_T0', 'Control_T0'], # for each pair,last must be control
+              ['L-Cycloserine_T6h', 'Control_T6h'],
+              ['L-Cycloserine_T24h', 'Control_T24h'] ]

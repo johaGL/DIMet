@@ -10,16 +10,14 @@ Created on Thu Jul 21 14:32:27 2022
 import scipy.stats
 import statsmodels.stats.multitest as ssm
 
-from fun_fm import *
+from .fun_fm import *
 
 
 def compute_reduction(df, ddof):
     res = df.copy()
     for protein in df.index.values:
         # get array with abundances values
-        protein_values = np.array(
-            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x)
-        )
+        protein_values = np.array(df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
         # return array with each value divided by standard deviation of the whole array
         reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
 
@@ -38,9 +36,7 @@ def outFC_df(newdf, metas, contrast, eps):
     metaboliteshere = newdf.index
     for i in metaboliteshere:
         mets.append(i)
-        row = newdf.loc[
-            i,
-        ]  # remember row is a seeries, colnames pass to index
+        row = newdf.loc[i,:]  # remember row is a seeries, colnames pass to index
 
         columnsInterest = metas.loc[metas["newcol"] == contrast[0], "sample"]
         columnsBaseline = metas.loc[metas["newcol"] == contrast[1], "sample"]
@@ -65,7 +61,6 @@ def outFC_df(newdf, metas, contrast, eps):
 
 def outStat_df(newdf, metas, contrast, whichtest):
     """
-
     Parameters
     ----------
     newdf : pandas
@@ -73,7 +68,6 @@ def outStat_df(newdf, metas, contrast, whichtest):
     metas : pandas
         2nd element output of prepare4contrast..
     contrast : a list
-
     Returns
     -------
     DIFFRESULT : pandas
@@ -99,7 +93,8 @@ def outStat_df(newdf, metas, contrast, whichtest):
         if whichtest == "MW":
             # vInterest = jitterzero(vInterest)
             # vBaseline = jitterzero(vBaseline)
-            # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test, or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
+            # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
+            # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
             # DO NOT : use_continuity False AND method "auto" at the same time.
             # because "auto" will set continuity depending on ties and sample size.
             # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
@@ -141,9 +136,7 @@ def outStat_df(newdf, metas, contrast, whichtest):
             pval.append(stap_tup[1])
 
         elif whichtest == "Tt":
-            tstav, pvaltv = scipy.stats.ttest_ind(
-                vInterest, vBaseline, alternative="two-sided"
-            )
+            tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
             stare.append(tstav)
             pval.append(pvaltv)
 
@@ -156,19 +149,8 @@ def detect_and_create_dir(namenesteddir):
         os.makedirs(namenesteddir)
 
 
-def rundiffer(
-    datadi,
-    tablePicked,
-    namesuffix,
-    metadata,
-    ordercontrast,
-    contrast,
-    whichtest,
-    technical_toexclude,
-    co,
-    outdiffdir,
-    choice,
-):
+def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
+                   whichtest, technical_toexclude, co, outdiffdirs, choice):
     """
     runs functions above,
     saves DAM (Differentially abundant metabolites/isotopologues)
@@ -192,7 +174,7 @@ def rundiffer(
     metadahere = metadata.loc[metadata.short_comp == co]
     selecols = metadahere["sample"]
 
-    newdf_tot, metas_tot = prepare4contrast(abun, metadahere, ordercontrast, contrast)
+    newdf_tot, metas_tot = prepare4contrast(abun, metadahere, newcateg, contrast)
     if reduce:
         df = newdf_tot.copy()
         mets = df.index
@@ -205,12 +187,8 @@ def rundiffer(
     prediffresult = outStat_df(newdf_tot_red, metas_tot, contrast, whichtest)
 
     cpdiff = prediffresult.copy()
-    cpdiff["pval"] = cpdiff[["pval"]].fillna(
-        1
-    )  # inspired from R documentation in p.adjust
-    (sgs, corrP, _, _) = ssm.multipletests(
-        cpdiff["pval"], method="fdr_bh"
-    )  # Benjamini-Hochberg
+    cpdiff["pval"] = cpdiff[["pval"]].fillna(1)  # inspired from R documentation in p.adjust
+    (sgs, corrP, _, _) = ssm.multipletests(cpdiff["pval"], method="fdr_bh")  # Benjamini-Hochberg
     cpdiff["padj"] = corrP
     truepadj = []
     for v, w in zip(prediffresult["pval"], cpdiff["padj"]):
@@ -226,25 +204,20 @@ def rundiffer(
     DIFFRESULT = pd.concat(
         [prediffresult.set_index("mets"), FCresult.set_index("mets")],
         axis=1,
-        join="inner",
-    ).reset_index()
+        join="inner").reset_index()
 
     ocols = ["mets", "stat", "pval", "padj", "FC_geommu", "log2FC"]
     OUTPUT = DIFFRESULT[ocols]
     contrastword = "_".join(contrast)
 
-    extended_dir = outdiffdir + "extended/"
-    signi_dir = outdiffdir + "significant/"
-    detect_and_create_dir(extended_dir)
-    detect_and_create_dir(signi_dir)
+    extended_dir = [ i for i in outdiffdirs if "extended" in i]
+    signi_dir = [i for i in outdiffdirs if "significant" in i]
 
-    ofi = f"{extended_dir}{co}_{outkey}_{contrastword}_{whichtest}.tsv"
+    ofi = f"{extended_dir[0]}{co}_{outkey}_{contrastword}_{whichtest}.tsv"
     OUTPUT.to_csv(ofi, sep="\t")
 
-    sigoutput = OUTPUT.loc[
-        OUTPUT["padj"] <= 0.05,
-    ]
+    sigoutput = OUTPUT.loc[OUTPUT["padj"] <= 0.05,:]
     if sigoutput.shape[0] > 0:
-        ofisig = f"{signi_dir}{co}_{outkey}_{contrastword}_{whichtest}_sig.tsv"
+        ofisig = f"{signi_dir[0]}{co}_{outkey}_{contrastword}_{whichtest}_sig.tsv"
         sigoutput.to_csv(ofisig, sep="\t")
     return 0

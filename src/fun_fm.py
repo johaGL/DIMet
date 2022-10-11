@@ -11,12 +11,25 @@ import os
 import numpy as np
 import pandas as pd
 
+def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
+    icdf = pd.read_csv(datadi + tableIC + "_" + namesuffix +".tsv", sep="\t", index_col=0)
+    isotopololist_ = icdf.index.tolist()
+    vibg1 = [i for i in isotopololist_ if  "_C13-label-" in i]
+    vibg2 = [i for i in isotopololist_ if "_PARENT" in i]
+    if (len(vibg1) + len(vibg2)) == len(isotopololist_):
+        return "VIB"
+    else:
+        styuni = [ i for i in isotopololist_ if "_label" in i]
+        if len(styuni) == len(isotopololist_):
+            return "generic"
+        else:
+            return "style not recognized"
 
 def yieldrowdata(newdf):
     xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
     for ch in newdf.index:
-        if "_C13-" in ch:
-            elems = ch.split("_C13-")
+        if "_C13-label-" in ch:
+            elems = ch.split("_C13-label-")
             xu["metabolite"].append(elems[0])
             xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
             xu["isotopolgFull"].append(ch)
@@ -29,14 +42,14 @@ def yieldrowdata(newdf):
     return rowdata
 
 
-def prepare4contrast(idf, ametadata, ordercontrast, contrast):
+def prepare4contrast(idf, ametadata, newcateg, contrast):
     """
-    ordercontrast : example :  ['condition', 'timepoint' ]
+    newcateg : example :  ['condition', 'timepoint' ]
     contrast : example : ["treatment_t12h", "control_t12h" ]
-    creates column "newcol" : aa_bb <as in ordercontrast> suitable to contrast
+    creates column "newcol" : aa_bb <as in newcateg> suitable to contrast
     """
     cc = ametadata.copy()
-    l_ = (ametadata[ordercontrast[0]] + "_" + ametadata[ordercontrast[1]]).tolist()
+    l_ = (ametadata[newcateg[0]] + "_" + ametadata[newcateg[1]]).tolist()
     cc["newcol"] = l_
     metas = cc.loc[cc["newcol"].isin(contrast), :]
     newdf = idf[metas["sample"]]

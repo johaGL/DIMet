@@ -174,7 +174,7 @@ for myfi in spefiles:
 print("\n 4. Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
 
 whichtest = confidic["whichtest"]
-ordercontrast = confidic["ordercontrast"]  # example 'Control_T0'
+newcateg = confidic["newcateg"]  # example 'Control_T0'
 contrast = confidic["contrast"]
 technical_toexclude = confidic["technical_toexclude"]
 
@@ -189,7 +189,7 @@ for co in names_compartments.values():
         tableAbund,
         namesuffix,
         metadata,
-        ordercontrast,
+        newcateg,
         contrast,
         whichtest,
         technical_toexclude,
@@ -205,7 +205,7 @@ for co in names_compartments.values():
             tabusp,
             namesuffix,
             metadata,
-            ordercontrast,
+            newcateg,
             contrast,
             whichtest,
             technical_toexclude,
