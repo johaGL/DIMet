@@ -44,6 +44,9 @@ def getspecificmk(prop_df, rowdata, selmk):
     output: columns are [samples], rownames metabolites
     """
     tmp = prop_df.copy()
+    print("--")
+    print(prop_df, rowdata, selmk)
+    print("--")
     tmp = tmp.assign(isotopolgFull=tmp.index)
     tmp = pd.merge(tmp, rowdata, on="isotopolgFull", how="inner")
     tmp = tmp.loc[tmp["m+x"] == selmk, :]
@@ -104,32 +107,25 @@ def callfuns_perc2abu(odir, dicos, co, tableAbund, tableIC, selmk, *totalmarked)
     """
     Parameters
     ----------
-    dicos : TYPE
-        DESCRIPTION.
-    co : TYPE
-        DESCRIPTION.
-    tableAbund : TYPE
-        DESCRIPTION.
-    tableIC : TYPE
-        DESCRIPTION.
-    selmk : TYPE
+    dicos :
+    co : compartment
+    tableAbund : pandas
+    tableIC : pandas
+    selmk : "m+3" for example
         DESCRIPTION.
     *totalmarked : string
         "totalmarked" (if willing totalMARKED abundance, set selmk = m+0)
-
-    Returns
-    -------
-    str
-        DESCRIPTION.
 
     """
     total_opt = [o for o in totalmarked]
     abund = dicos[co][tableAbund]
     prop_df = dicos[co][tableIC]
     prop_df = correction_prop_df(prop_df)
-    rowdata = yieldrowdata(prop_df)  # this funciton is from fun_fm
+    rowdata = yieldrowdataB(prop_df)  # this funciton is from fun_fm
 
     prop_mx = getspecificmk(prop_df, rowdata, selmk)
+    print("!!!!")
+    print(prop_mx)
     if len(total_opt) == 0:
         abu_mx = yieldmarkedabu(prop_mx, abund)
         nameout = f"{odir}abux_byProp_{selmk}_{co}.tsv"
@@ -150,7 +146,7 @@ def saveabundfrompercentagesIC(
     names_compartments,
     namesuffix,
     odir,
-    max_m_species,
+    max_m_species
 ):
     if not os.path.exists(odir):
         os.makedirs(odir)
@@ -168,7 +164,6 @@ def saveabundfrompercentagesIC(
             sep="\t",
             index_col=0,
         )
-
         dicos = dict()
         dicos[co] = {}
         dicos[co]["metadata"] = metadata.loc[metadata.short_comp == co]

@@ -63,12 +63,8 @@ print("using list of undesired metabolites to drop off from data")
 extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
 
 for filename in tsvfi:
-    if extrudf.shape[0] > 1:
-        save_new_dfs(datadi, names_compartments,
+    save_new_dfsB(datadi, names_compartments,
                      filename, metadata, extrudf, dirtmpdata, isotopolog_style)
-    else: # table of mets to exclude is empty
-        print(save_new_dfs_simple(datadi, names_compartments, filename,
-                      metadata,  dirtmpdata))
 
 print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
 
@@ -82,10 +78,10 @@ saveabundfrompercentagesIC(
     names_compartments,
     namesuffix,
     abunda_species_4diff_dir,
-    max_m_species,
-)
-spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]    
+    max_m_species)
 
+
+spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
 if args.mode == "diffabund":
     print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
