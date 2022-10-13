@@ -15,7 +15,7 @@ def dimet_message():
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir")
 parser.add_argument("--config", help = "configuration in yaml file")
-parser.add_argument("--mode", help = "timeseriesplots or abundplots or diffabund")
+parser.add_argument("--mode", help = "prepare or timeseriesplots or abundplots or diffabund")
 args = parser.parse_args()
 
 
@@ -44,47 +44,49 @@ metadata = pd.read_csv(datadi + metadata_fi, index_col=False)
 
 isotopolog_style = autodetect_isotop_nomenclature(datadi, tableIC, namesuffix)
 
-print("\nPreparing dataset for analysis\n")
-# whatever the option is, prepare output n data folder for intermediary files
 allfi = os.listdir(datadi)
 dirtmpdata = "tmp/"
 abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
-print(" [any temporary files (tmp) are being deleted by default]")
-if os.path.exists(dirtmpdata):
-    shutil.rmtree(dirtmpdata) # clear at each run
 
-os.makedirs(dirtmpdata)
+if args.mode == "prepare":
+    print("\nPreparing dataset for analysis\n")
+    # whatever the option is, prepare output n data folder for intermediary files
 
-tsvfi = [i for i in allfi if ".tsv" in i]
-print("Your .tsv files in data folder: ", tsvfi, "\n")
+    print(" [any temporary files (tmp) are being deleted by default]")
+    if os.path.exists(dirtmpdata):
+        shutil.rmtree(dirtmpdata) # clear at each run
 
-# using list of metabolites to exclude, compartment aware:
-print("using list of undesired metabolites to drop off from data")
-extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
+    os.makedirs(dirtmpdata)
 
-for filename in tsvfi:
-    save_new_dfsB(datadi, names_compartments,
-                     filename, metadata, extrudf, dirtmpdata, isotopolog_style)
+    tsvfi = [i for i in allfi if ".tsv" in i]
+    print("Your .tsv files in data folder: ", tsvfi, "\n")
 
-print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
+    # using list of metabolites to exclude, compartment aware:
+    print("using list of undesired metabolites to drop off from data")
+    extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
 
-# NOTE : for abundances bars and Differential,
-# compulsory step: calculate isotopologues abundances from IC percentages
-saveabundfrompercentagesIC(
-    dirtmpdata,
-    tableAbund,
-    tableIC,
-    metadata,
-    names_compartments,
-    namesuffix,
-    abunda_species_4diff_dir,
-    max_m_species)
+    for filename in tsvfi:
+        save_new_dfsB(datadi, names_compartments,
+                         filename, metadata, extrudf, dirtmpdata, isotopolog_style)
+
+    # NOTE : for abundances bars and Differential,
+    # compulsory step: calculate isotopologues abundances from IC percentages
+    saveabundfrompercentagesIC(
+        dirtmpdata,
+        tableAbund,
+        tableIC,
+        metadata,
+        names_compartments,
+        namesuffix,
+        abunda_species_4diff_dir,
+        max_m_species)
+    print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
 
 
-spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
 if args.mode == "diffabund":
     print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
+    spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
     whichtest = confidic["whichtest"]
     newcateg = confidic["newcateg"]  # see yml in example/configs/

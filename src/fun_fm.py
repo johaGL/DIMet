@@ -49,7 +49,6 @@ def yieldrowdataB(newdf):
         xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
         xu["isotopolgFull"].append(ch)
     rowdata = pd.DataFrame.from_dict(xu)
-    print(rowdata)
     return rowdata
 
 def prepare4contrast(idf, ametadata, newcateg, contrast):

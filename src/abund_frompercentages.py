@@ -44,9 +44,7 @@ def getspecificmk(prop_df, rowdata, selmk):
     output: columns are [samples], rownames metabolites
     """
     tmp = prop_df.copy()
-    print("--")
-    print(prop_df, rowdata, selmk)
-    print("--")
+
     tmp = tmp.assign(isotopolgFull=tmp.index)
     tmp = pd.merge(tmp, rowdata, on="isotopolgFull", how="inner")
     tmp = tmp.loc[tmp["m+x"] == selmk, :]
@@ -124,8 +122,7 @@ def callfuns_perc2abu(odir, dicos, co, tableAbund, tableIC, selmk, *totalmarked)
     rowdata = yieldrowdataB(prop_df)  # this funciton is from fun_fm
 
     prop_mx = getspecificmk(prop_df, rowdata, selmk)
-    print("!!!!")
-    print(prop_mx)
+
     if len(total_opt) == 0:
         abu_mx = yieldmarkedabu(prop_mx, abund)
         nameout = f"{odir}abux_byProp_{selmk}_{co}.tsv"
