@@ -147,8 +147,11 @@ Here the first lines of a metadata table, which must be saved in a .csv (comma d
 | Control\_cell\_T0-2 | T0        | Control   | 0     | cell       |
 | Control\_cell\_T0-3 | T0        | Control   | 0     | cell       |
 
-Column names in metadata must be exactly: sample, timepoint, condition, short_comp.
+Column names in metadata must be exactly: sample, timepoint, condition, short\_comp.
 Include a column Hours if desiring to obtain FracContribs line-plots.
+Please do not use underscore `_` inside any of the columns other than 'sample' ( 'T\_0' not! , 'Control\_oxy' not!). 
+DIMet uses underscore as a separator to join and split terms, depending on the needs.
+The 'sample' column in metadata must match perfectly with the column names of your .tsv files
 The column ordering is free. 
 
 **Regarding the configuration file**
@@ -170,9 +173,13 @@ By default, we apply Benjamini-Hochberg procedure to correct for multiple testin
 * `technical_toexclude` : optional, just if any internal technical molecule remains which was not excluded before
 * `newcateg` : column that is a combination of 2 or more metadata categories. 
 	The new category thus generated, is ready for comparison to its counterpart/opposite, example :
-		Control (a condition) combined with T0 (a timepoint), yields Control_T0
-		L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
-		so now, we are able to compare L-Cyclo_T0 against Control_T0 .
+		
+		- Control (a condition) combined with T0 (a timepoint), yields Control_T0.  
+		
+		- L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0.
+		
+		
+		So now, we are able to compare L-Cyclo_T0 against Control_T0.
 You only have to set the columns to combine to create that new category.
 		
 * `contrasts` : all your comparisons to be performed, in the form of a list of pairs, where each pair is a comparison.
