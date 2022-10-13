@@ -41,6 +41,15 @@ def yieldrowdata(newdf):
     rowdata = pd.DataFrame.from_dict(xu)
     return rowdata
 
+def yieldrowdataB(newdf):
+    xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
+    for ch in newdf.index:
+        elems = ch.split("_m+")
+        xu["metabolite"].append(elems[0])
+        xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
+        xu["isotopolgFull"].append(ch)
+    rowdata = pd.DataFrame.from_dict(xu)
+    return rowdata
 
 def prepare4contrast(idf, ametadata, newcateg, contrast):
     """
