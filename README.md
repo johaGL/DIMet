@@ -16,9 +16,9 @@ DIMet supports the analysis of full metabolite abundances and isotopologue contr
 
 
 ### Requirements
-You need a UNIX system, with conda or miniconda installed, see [https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html)
+You need a UNIX system, with conda or miniconda3 installed, see [https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
-Then clone DIMet repo in your `$HOME` directory and set the virtual environment by running (from terminal):
+Then clone DIMet repository in your `$HOME` directory, and set the virtual environment by running (from terminal):
 ```
 cd $HOME
 git clone 
@@ -26,7 +26,7 @@ conda env create --file DIMet/dimet.yml
 conda activate dimet 
 ```
 
-Check you get the help menu
+To visualize the help menu:
 ```
 python3 DIMet --help
 ```
@@ -44,25 +44,25 @@ Perform a differential analysis using the example1/:
 python3 DIMet --mode prepare --config example1/configs/cc.yml --mywdir example1 
 python3 DIMet --mode diffabund --config example1/configs/cc.yml --mywdir example1 
 ```
- Sections *Prepare your analysis* and *Run your analysis* will guide you step by step.
+
+Sections *Prepare your analysis* and *Run your analysis* will guide you step by step.
 
 ## Prepare your analysis
 
-### create your project folder
-This project folder must be completely outside of DIMet, with the minimal required structure : 
+### Create your project folder
+Your project folder must be completely outside of DIMet, with the minimal required structure : 
 ```
-MYPROJECT
+MYPROJECT_MYSUFFIX
 ├── configs <-- your configuration file 
 │   └── config_MYSUFFIX.yml
 ├── data
+│   ├── Abundances_MYSUFFIX.tsv
 │   ├── CorrectedIsotopologues_MYSUFFIX.tsv
-│   ├── FracContribution_MYSUFFIX.tsv
-│   ├── metadata_MYSUFFIX.csv
-│   └── rawAbundances_MYSUFFIX.tsv
+│   └── metadata_MYSUFFIX.csv
 └── results
 ```
 
-The `results/` is an empty folder.
+The `results/` is an empty folder, where your results will be written.
 
 The `data/` folder contains:
 - The Isotopologues Contributions file
@@ -71,11 +71,11 @@ The `data/` folder contains:
 
 For details about appropriate formatting these three types of files, see Notes.
 
-### create your configuration file
+### Create your configuration file
 
 The `configs` folder contains all your "instructions" for running the analysis. 
 These instructions must be written in a `.yaml` file.
-Example of such a file (any word precedded by `#` is ignored): 
+Example of such a file (any word(s) precedded by `#` is ignored): 
 ```
 mywdir : "~/DIMEt/example/" # the full path of MYPROJECT
 datadi : "data/"
@@ -106,9 +106,9 @@ contrasts : [ ['L-Cycloserine_T0', 'Control_T0'], # for each pair,last must be c
               ['L-Cycloserine_T24h', 'Control_T24h'] ]
 ```
 
-See Notes for detailed explanation, that will help you to write down your own configuration file.
-Feel free to check the full configuration files that show how to write down the parameters 
-for `timeseriesplots` and `abundplots`. 
+See Notes for a detailed explanation, which will help you to write down your own configuration file.
+Please check the full configuration files located in both example folders, which are provided with our DIMet pipeline.
+These files give you nice examples of how to include the parameters for `timeseriesplots` and `abundplots` in your configuration file. 
 
 ## Run your analysis
 
@@ -118,7 +118,7 @@ DIMet `--mode` options are:
 - `timeseriesplots` : isotopologues' stacked bars and fractional contributions line-plots
 - `abundplots` : comparative bars of isotopologue's and total metabolites abundances
 
-So the mode `prepare` is compulsory to be the first, the others can be made in any order you want.
+So the mode `prepare` is compulsory to be the first, the others can be made in any desired order.
 
 ```
 python3 DIMet --mode prepare --config example1/configs/cc.yml --mywdir example1 
@@ -127,10 +127,7 @@ python3 DIMet --mode diffabund --config example1/configs/cc.yml --mywdir example
 
 ### Notes
 
-**files extensions**
-The files .csv are comma separated, whereas the .tsv are tabular separat
-
-**regarding the project folder**
+**Regarding the project folder**
 
 MYSUFFIX is just a short word describing your experiment.
 
@@ -140,7 +137,7 @@ You will notice in the examples provided by our pipeline, that there is also a f
 - A correct samples naming: unambiguous and the most detailed possible.
 All three requirements must be assured manually or by custom bioiformatic scripts ('example1/smpls\_raw/formatter\_be.py' is such an example). 
 
-**regarding the metadata file**
+**Regarding the metadata file**
 
 Here the first lines of a metadata table, which must be saved in a .csv (comma delimited) file : 
 
@@ -150,35 +147,43 @@ Here the first lines of a metadata table, which must be saved in a .csv (comma d
 | Control\_cell\_T0-2 | T0        | Control   | 0     | cell       |
 | Control\_cell\_T0-3 | T0        | Control   | 0     | cell       |
 
+Column names in metadata must be exactly: sample, timepoint, condition, short_comp.
+Include a column Hours if desiring to obtain FracContribs line-plots.
+The column ordering is free. 
 
-**regarding the configuration file**
+**Regarding the configuration file**
 
 The yaml example above has two sections: 
 
-#### global configuration
-`extrulist_fi` : a file which contains metabolites that you decide to exclude owing to bad quality or technical issues.
-`names_compartments` : if available, fill them all. If no information about compartment, set to `cell : "cell"`
-`namesuffix` : the same short word to describe your experiment that you used (MYSUFFIX) for file names
-`levelstime` : the order of your time points
-`conditions` : your conditions or genotypes or treatments, first must be the control
-`name_abundances` and `name_isotopologue_contribs` : The names of the files must be given without suffix nor extension
+*global configuration*:
+* `extrulist_fi` : a file which contains metabolites that you decided to exclude owing to bad quality or technical issues. Comma delimited .csv
+* `names_compartments` : if available, fill them all. If no information about compartment, set to `cell : "cell"`
+* `namesuffix` : the same short word to describe your experiment that you used (MYSUFFIX) for file names
+* `levelstime` : the order of your time points
+* `conditions` : your conditions or genotypes or treatments, first must be the control
+* `name_abundances` and `name_isotopologue_contribs` : The names of the files must be given without suffix nor extension
 
-#### Differential analysis configuration:
-`max_m_species` : in the case of isotopologues the maximal n+x species to be subjected to comparison
-`which_test` : we support currently the parametric t-test "Tt" and the non-parametric Wilcoxon-Mann-Whitney test "MW".
-By default, Benjamini-Hochberg procedure is applied to correct for multiple testing.
-`technical_toexclude` : optional, just if any internal technical molecule remains which was not excluded before
-`newcateg` : column that is a combination of 2 or more metadata categories, 
-	new category thus generated, is ready for comparison to its counterpart;
- 	example :
+*Differential analysis configuration*:
+* `max_m_species` : in the case of isotopologues the maximal n+x species to be subjected to comparison
+* `which_test` : we support currently the parametric t-test "Tt" and the non-parametric Wilcoxon-Mann-Whitney test "MW".
+By default, we apply Benjamini-Hochberg procedure to correct for multiple testing.
+* `technical_toexclude` : optional, just if any internal technical molecule remains which was not excluded before
+* `newcateg` : column that is a combination of 2 or more metadata categories. 
+	The new category thus generated, is ready for comparison to its counterpart/opposite, example :
 		Control (a condition) combined with T0 (a timepoint), yields Control_T0
 		L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
 		so now, we are able to compare L-Cyclo_T0 against Control_T0 .
+You only have to set the columns to combine to create that new category.
 		
-`contrasts` : all your comparisons to be performed, in the form of a list of pairs, where each pair is a comparison.
+* `contrasts` : all your comparisons to be performed, in the form of a list of pairs, where each pair is a comparison.
 	For each pair, the last element must be the control.	
 
+A very common error is to use 'tab' to create your indentations in the yaml file, but this can make the file unreadable. To create indentations, use spaces instead.
 
+**Files' extensions**:
+
+The files .csv are comma separated, whereas the .tsv are tabular delimited.
+Excel files are not allowed, as sheets organization is too customized. Please imitate the style of the examples, using .tsv files (for isotopologues contributions and metabolites abundances) , and .csv files (for metadata and list of metabolites to exclude)
 
 ### References
 
