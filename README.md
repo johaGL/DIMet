@@ -77,7 +77,7 @@ The `configs` folder contains all your "instructions" for running the analysis.
 These instructions must be written in a `.yaml` file.
 Example of such a file (any word(s) precedded by `#` is ignored): 
 ```
-mywdir : "~/DIMEt/example/" # the full path of MYPROJECT
+mywdir : "~/example1/" # the full path of MYPROJECT
 datadi : "data/"
 extrulist_fi : "mets_toexclude.csv" 
 

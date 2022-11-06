@@ -8,6 +8,7 @@ import yaml
 from .differential_univariate import *
 from .abund_frompercentages import *
 from .extruder import *
+from .abundances_bars import *
 
 def dimet_message():
     return "DIMet: *D*ifferential *I*sotopically-labeled targeted *Met*abolomics\n"
@@ -154,10 +155,45 @@ if args.mode == "diffabund":
     # end if args.mode == "diffabund"
 
 if args.mode == "abundplots":
+    odirbars = "results/plots/abundbars/"
+    if not os.path.exists(odirbars):
+        os.makedirs(odirbars)
+
     time_sel = confidic["time_sel"]  # locate where it is used
     selectedmetsD = confidic["selectedmets_forbars"]  # locate where it is used
     condilevels = confidic["conditions"]  # <= locate where it is used
-    print("!n!n!n!")
+    # in a first time print the TOTAL abundances, selectedmets_forbars
+    for CO in names_compartments.values():
+        file_total_co_ = [i for i in os.listdir(dirtmpdata) if tableAbund in i and CO in i]
+        assert (
+                len(file_total_co_) == 1
+        ), "error, multiple abundance files for same compartment"
+        abutab = pd.read_csv(dirtmpdata + file_total_co_[0], sep="\t", index_col=0)
+        metada_sel = metadata.loc[metadata["sample"].isin(abutab.columns), :]
+
+        # metadata and abundances time of interest
+        metada_sel = metada_sel.loc[metadata["timepoint"].isin(time_sel), :]
+        abu_sel = abutab[metada_sel["sample"]]
+
+        # total piled-up data:
+        piled_sel = stackallabundace(abu_sel, metada_sel)
+        piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
+        piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
+
+        plotwidth = 5.5 * len(selectedmetsD[CO])
+        print(f"sending to plot file  :  {selectedmetsD[CO]}")
+        printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, "TOTAL", plotwidth, odirbars)
+
+    # the legend alone :
+    oD = mean_sd_D(abu_sel, metada_sel)
+    piled_alt = tmpstack(oD)
+    piled_alt["condition"] = pd.Categorical(piled_alt["condition"], condilevels)
+    piled_alt["timepoint"] = pd.Categorical(piled_alt["timepoint"], time_sel)
+    print(piled_alt.head())
+    printtestpluslegend(piled_alt, selectedmetsD["cell"][:2], "cell", "TOTAL", 10, odirbars)
+
+    # in a second time, m+x species as selected
+# end if abundplots
 
 if args.mode == "timeseriesplots":
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension

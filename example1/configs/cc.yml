@@ -1,5 +1,5 @@
 # Note: for any indentation use space (never tab!)
-mywdir : "~/DIMEt/example/"
+mywdir : "~/example1/"
 datadi : "data/"
 extrulist_fi : "mets_toexclude.csv"
 

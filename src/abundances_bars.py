@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from fun_fm import *
+from .fun_fm import *
 
 
 def fi2_smx_compartment(filename, indexsmx, indexcompartment):
