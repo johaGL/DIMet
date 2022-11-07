@@ -162,12 +162,16 @@ if args.mode == "abundplots":
     time_sel = confidic["time_sel"]  # locate where it is used
     selectedmetsD = confidic["selectedmets_forbars"]  # locate where it is used
     condilevels = confidic["conditions"]  # <= locate where it is used
+    vizorder = confidic["bar-x_barcolor"]
+    col1 = vizorder[0]
+    col2 = vizorder[1]
     # in a first time print the TOTAL abundances, selectedmets_forbars
     for CO in names_compartments.values():
         file_total_co_ = [i for i in os.listdir(dirtmpdata) if tableAbund in i and CO in i]
-        assert (
-                len(file_total_co_) == 1
-        ), "error, multiple abundance files for same compartment"
+        print(file_total_co_)
+        #assert (
+        #        len(file_total_co_) == 1
+        #), "error, multiple abundance files for same compartment"
         abutab = pd.read_csv(dirtmpdata + file_total_co_[0], sep="\t", index_col=0)
         metada_sel = metadata.loc[metadata["sample"].isin(abutab.columns), :]
 
@@ -180,17 +184,12 @@ if args.mode == "abundplots":
         piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
         piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
 
-        plotwidth = 5.5 * len(selectedmetsD[CO])
+        plotwidth = 4 * len(selectedmetsD[CO])
         print(f"sending to plot file  :  {selectedmetsD[CO]}")
-        printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, "TOTAL", plotwidth, odirbars)
+        printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, "TOTAL",
+                               col1, col2, plotwidth, odirbars)
 
-    # the legend alone :
-    oD = mean_sd_D(abu_sel, metada_sel)
-    piled_alt = tmpstack(oD)
-    piled_alt["condition"] = pd.Categorical(piled_alt["condition"], condilevels)
-    piled_alt["timepoint"] = pd.Categorical(piled_alt["timepoint"], time_sel)
-    print(piled_alt.head())
-    printtestpluslegend(piled_alt, selectedmetsD["cell"][:2], "cell", "TOTAL", 10, odirbars)
+
 
     # in a second time, m+x species as selected
 # end if abundplots
