@@ -9,6 +9,7 @@ from .differential_univariate import *
 from .abund_frompercentages import *
 from .extruder import *
 from .abundances_bars import *
+from .frac_contrib_lineplot import *
 
 def dimet_message():
     return "DIMet: *D*ifferential *I*sotopically-labeled targeted *Met*abolomics\n"
@@ -189,10 +190,37 @@ if args.mode == "abundplots":
         printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, "TOTAL",
                                col1, col2, plotwidth, odirbars)
 
-
-
     # in a second time, m+x species as selected
 # end if abundplots
 
 if args.mode == "timeseriesplots":
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension
+    gbycompD = confidic["groups_toplot_frac_contribs"]
+
+    def yieldcolorsbymet():
+        # coloreachmetab dictionary: contains many metabolites, just defines colors.
+        coloreachmetab = {
+            "L-Lactic_acid": "blue",
+            "Citric_acid": "green",
+            "Oxoglutaric_acid": "#903ee0",
+            "Succinic_acid": "#019085",
+            "Fumaric_acid": "#01668a",
+            "L-Malic_acid": "#afc98f",
+            "L-Alanine": "blueviolet",
+            "Pyruvic_acid": "#33d3e3",
+            "L-Glutamic_acid": "#643561",
+            "L-Glutamine": "#950065",
+            "L-Aspartic_acid": "#9d6d00",
+            "L-Asparagine": "#ff7c7c",  # greenfluo : '#11dc79'
+            "Stearic_acid" : "gray",
+            "Palmitic_acid" : "orange",
+            "Coenzyme_A" : "gray",
+            "Acetyl-CoA" : "orange"
+        }
+        return coloreachmetab
+    coloreachmetab = yieldcolorsbymet()
+
+    savefraccontriplots(dirtmpdata, names_compartments,
+                       metadata, tableFC, namesuffix,
+             gbycompD, coloreachmetab)
+
