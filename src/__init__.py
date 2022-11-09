@@ -6,7 +6,7 @@ import os
 import shutil
 import yaml
 from .differential_univariate import *
-from .abund_frompercentages import *
+from .abund_frompercentages import calculate_meanEnri, split_mspecies_files
 from .extruder import *
 from .abundances_bars import *
 from .frac_contrib_lineplot import *
@@ -19,7 +19,6 @@ parser.add_argument("--mywdir")
 parser.add_argument("--config", help = "configuration in yaml file")
 parser.add_argument("--mode", help = "prepare or timeseriesplots or abundplots or diffabund")
 args = parser.parse_args()
-
 
 
 confifile = os.path.expanduser(args.config)
@@ -52,7 +51,6 @@ abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 
 if args.mode == "prepare":
     print("\nPreparing dataset for analysis\n")
-    # whatever the option is, prepare output n data folder for intermediary files
 
     print(" [any temporary files (tmp) are being deleted by default]")
     if os.path.exists(dirtmpdata):
@@ -64,7 +62,7 @@ if args.mode == "prepare":
     print("Your .tsv files in data folder: ", tsvfi, "\n")
 
     # using list of metabolites to exclude, compartment aware:
-    print("using list of undesired metabolites to drop off from data")
+    print("using list of undesired metabolites to drop off from data\t")
     extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
 
     for filename in tsvfi:
@@ -73,16 +71,20 @@ if args.mode == "prepare":
 
     # NOTE : for abundances bars and Differential,
     # compulsory step: calculate isotopologues abundances from IC percentages
-    saveabundfrompercentagesIC(
+    calculate_meanEnri(
         dirtmpdata,
         tableAbund,
         tableIC,
         metadata,
         names_compartments,
         namesuffix,
-        abunda_species_4diff_dir,
-        max_m_species)
-    print("splited (by compartment) and clean files in tmp/ ready for analysis\n")
+        dirtmpdata
+    )
+
+    split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
+                   abunda_species_4diff_dir)
+
+    print("\nsplited (by compartment) and clean files in tmp/ ready for analysis\n")
 
 
 
@@ -224,3 +226,13 @@ if args.mode == "timeseriesplots":
                        metadata, tableFC, namesuffix,
              gbycompD, coloreachmetab)
 
+if args.mode == "experimental":
+    calculate_meanEnri(
+        dirtmpdata,
+        tableAbund,
+        tableIC,
+        metadata,
+        names_compartments,
+        namesuffix,
+        dirtmpdata
+    )
