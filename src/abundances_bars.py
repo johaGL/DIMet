@@ -8,18 +8,12 @@ This script exploits species and compartment specific tables at 'data/abufromper
 @author: johanna
 """
 
-import os
 
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+
 import seaborn as sns
 
 from .fun_fm import *
-
-
-
 
 def stackallabundace(abu_sel, metada_sel):
     """

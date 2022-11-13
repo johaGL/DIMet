@@ -10,6 +10,7 @@ from .abund_frompercentages import calculate_meanEnri, split_mspecies_files
 from .extruder import *
 from .abundances_bars import *
 from .frac_contrib_lineplot import *
+from .isotopologcontrib_stacked import *
 
 def dimet_message():
     return "DIMet: *D*ifferential *I*sotopically-labeled targeted *Met*abolomics\n"
@@ -196,10 +197,11 @@ if args.mode == "abundplots":
 # end if abundplots
 
 if args.mode == "timeseriesplots":
+    print(" Fractional contributions plots \n")
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension
     gbycompD = confidic["groups_toplot_frac_contribs"]
 
-    def yieldcolorsbymet():
+    def yieldcolorsbymet(): # TODO: get out colors from here, set them in yaml
         # coloreachmetab dictionary: contains many metabolites, just defines colors.
         coloreachmetab = {
             "L-Lactic_acid": "blue",
@@ -222,17 +224,24 @@ if args.mode == "timeseriesplots":
         return coloreachmetab
     coloreachmetab = yieldcolorsbymet()
 
-    savefraccontriplots(dirtmpdata, names_compartments,
-                       metadata, tableFC, namesuffix,
+    savefraccontriplots(dirtmpdata, names_compartments, metadata, tableFC, namesuffix,
              gbycompD, coloreachmetab)
 
-if args.mode == "experimental":
-    calculate_meanEnri(
-        dirtmpdata,
-        tableAbund,
-        tableIC,
-        metadata,
-        names_compartments,
-        namesuffix,
-        dirtmpdata
-    )
+    print(" Isotopologue's Contributions plots \n")
+    condilevels = confidic["conditions"]  # <= locate where it is used
+
+    darkbarcolor, palsD = default_colors_stacked()
+    selbycompD = confidic["groups_toplot_isotopol_contribs"]
+    saveisotopologcontriplot(dirtmpdata, tableIC, names_compartments,
+                             levelstimepoints_, namesuffix, metadata, selbycompD,
+                             darkbarcolor, palsD, condilevels)
+
+if args.mode == "debugIsotopolContri":
+
+    condilevels = confidic["conditions"]  # <= locate where it is used
+
+    darkbarcolor, palsD = default_colors_stacked()
+    selbycompD = confidic["groups_toplot_isotopol_contribs"]
+    saveisotopologcontriplot(dirtmpdata, tableIC, names_compartments,
+                 levelstimepoints_, namesuffix, metadata, selbycompD,
+                darkbarcolor, palsD, condilevels )

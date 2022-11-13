@@ -13,20 +13,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import matplotlib.ticker as mticker
 
-def icontrib_2df4plot(dicos, tablePicked, co, levelshours_str):
+
+def icontrib_2df4plot(dicos, tablePicked, co, levelstimepoints_):
     """
     Imitates de behaviour of a 'melt', but this function is more secure
     example:
       pd.merge output, where 1st column has the values we want:
 
-        L-Phenylalanine_C13-label-2    Hours   condition ...  sample descr...
-        0.01                           0          Control        xxxxxx
+        L-Phenylalanine_C13-label-2    timepoint   condition ...  sample descr...
+        0.01                           T0          Control        xxxxxx
 
       is transformed into:
-          Hours    condition    isotopolgFull        Isotopologue Contrib
-          0           control      L-Phenylala...    0.01
+          timepoint    condition    isotopolgFull        Isotopologue Contrib
+          T0           control      L-Phenylala...    0.01
 
     """
     dfcompartment = dicos[co][tablePicked].T
@@ -37,36 +37,41 @@ def icontrib_2df4plot(dicos, tablePicked, co, levelshours_str):
     # empty dataframe to fill
     df4plot = pd.DataFrame(
         columns=[
-            "Hours",
+            "timepoint",
             "condition",
             "isotopolgFull",
             "Isotopologue Contribution (%)",
         ]
     )
-    df4plot["Hours"] = pd.Categorical(df4plot["Hours"], levelshours_str)
+
+    df4plot["timepoint"] = pd.Categorical(df4plot["timepoint"], levelstimepoints_)
     # iteratively pile up
     for z in range(len(metabolites)):  # corrected! error I had : -30)): now ok :)
-        subdf = dfcompartment.loc[:, [metabolites[z], "Hours", "condition"]]
-        subdf['Hours'] = subdf['Hours'].astype(str)
+        subdf = dfcompartment.loc[:, [metabolites[z], "timepoint", "condition"]]
         subdf["isotopolgFull"] = metabolites[z]  # 1st colname as cell value, reps
         subdf["Isotopologue Contribution (%)"] = subdf[metabolites[z]] * 100
         subdf = subdf.drop(columns=[metabolites[z]])  # 1st col no longer needed
         df4plot = pd.concat([df4plot, subdf])
         del subdf
-
     return df4plot
 
 
 def massageisotopologues(df4plot):
     """
-    returns dataframe splitting metabolite and m+x into two separate columns
+    # dealing with name style : isotopolog(variable)_C13_label-xx and .._PARENT
+    C13 and PARENT are mutually exclusive
     and also correcting weird values
     """
     xu = {"name": [], "m+x": []}
     for ch in df4plot["isotopolgFull"]:
-        elems = ch.split("_m+")
-        xu["name"].append(elems[0])
-        xu["m+x"].append("m+" + elems[1])
+        if "_C13-" in ch:
+            elems = ch.split("_C13-")
+            xu["name"].append(elems[0])
+            xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
+        elif "_PARENT" in ch:
+            elems = ch.split("_PARENT")
+            xu["name"].append(elems[0])
+            xu["m+x"].append("m+0")
     df4plot["metabolite"] = xu["name"]
     df4plot["m+x"] = xu["m+x"]
     # dealing with weird values: bigger than 100 and less than 0 :
@@ -81,76 +86,61 @@ def massageisotopologues(df4plot):
     return df4plot
 
 
-def preparemeansreplicates(df4plot, selectedmets):
+def preparemeansreplicates(df4plot, cnd, selectedmets, levelstimepoints_):
     """
-    returns a dictionary of dataframes, keys are metabolites
+    condition : 'Control', or another
     """
-    dfcopy = df4plot.copy()
-    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "Hours"]).mean()
-    dfcopy = dfcopy.reset_index()
+    secnd = df4plot.loc[df4plot["condition"] == cnd]
+    secnd = secnd.groupby(["condition", "metabolite", "m+x", "timepoint"]).mean()
+    secnd = secnd.reset_index()
 
-    dfs_Dico = dict()
+    ohmeh = dict()
     for i in selectedmets:
-        tmp = dfcopy.loc[dfcopy["metabolite"] == i, ].reset_index()
-        dfs_Dico[i] = tmp.sort_values(by="m+x", axis=0, ascending=True, inplace=False)
-    return dfs_Dico
-
-def addcombinedconditime(dfs_Dico, combined_tc_levels ):
-    """
-    add column string '{timepoint} : {condition}' to each dataframe
-
-    """
-    for metab in dfs_Dico.keys():
-        #dfs_Dico['time_cat'] = dfs_Dico['timepoint'].astype(str).replace("T", "")
-        #dfs_Dico['time_cat'] = dfs_Dico['time_cat'].str.replace("h", "")
-        dfs_Dico[metab]["timeANDcondi"] = dfs_Dico[metab]["Hours"] + " : " + \
-            dfs_Dico[metab]["condition"]
-        dfs_Dico[metab]["timeANDcondi"] = pd.Categorical(dfs_Dico[metab]["timeANDcondi"],
-                                                         combined_tc_levels)
-    return dfs_Dico
-
-
-
+        tmp = secnd.loc[
+            secnd["metabolite"] == i,
+        ].reset_index()
+        tmp["timepoint"] = pd.Categorical(tmp["timepoint"], levelstimepoints_)
+        ohmeh[i] = tmp.sort_values(by="m+x", axis=0, ascending=True, inplace=False)
+    return ohmeh
 
 
 def complexstacked(
-    co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfilename, figu_width
+    co, cnd, selectedmets, ohmeh, darkbarcolor, palsD, outfilename, figuziz
 ):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
     ### set font style
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
-    f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 8))
+    f, axs = plt.subplots(1, len(selectedmets), sharey=True, figsize=(figuziz, 7))
     plt.rcParams.update({"font.size": 24})
-
+    meh = 0
     for z in range(len(selectedmets)):
         # sns.set_style({ 'font.family': 'sans-serif',
         #                'font.sans-serif' : 'Liberation Sans'   })
-        axs[z].set_title(selectedmets[z])
+        axs[z].set_title(selectedmets[meh])
         sns.histplot(
             ax=axs[z],
-            data=dfs_Dico[selectedmets[z]],
-            x="timeANDcondi",
+            data=ohmeh[selectedmets[meh]],
+            x="timepoint",
             # Use the value variable here to turn histogram counts into weighted
             # values.
             weights="Isotopologue Contribution (%)",
             hue="m+x",
             multiple="stack",
             palette=palsD,  # ['#0000c0',  '#410257' ] , # '#440154FF'],
-            # Add  borders to the bars.
+            # Add white borders to the bars.
             edgecolor="black",
             # Shrink the bars a bit so they don't touch.
-            shrink=0.85,
+            shrink=0.8,
             alpha=1,
             legend=False,
-        )
-        #
-        axs[z].tick_params(axis="x", labelrotation=90, labelsize=20)
-        axs[z].tick_params(axis="y", length=11, labelsize=25, )
-        axs[z].set_ylim([0,100])
+        )  # end sns.histplot
+        axs[z].tick_params(axis="x", labelrotation=45)
+        axs[z].tick_params(axis="y", length=11, labelsize=28)
+
         for bar in axs[z].patches:
             selcol = "black"
             # print(bar.get_facecolor())
-            herergba = bar.get_facecolor() # returns rgba !
+            herergba = bar.get_facecolor()
             if herergba in darkbarcolor:
                 selcol = "white"
             thebarvalue = round(bar.get_height(), 1)
@@ -169,33 +159,23 @@ def complexstacked(
                     # Center the labels and style them a bit.
                     ha="center",
                     color=selcol,
-                    size=int((figu_width / len(selectedmets)) * 1.8) ,
+                    size=int((figuziz / len(selectedmets)) * 3) + 1,
                 )  # end axs[z].text
             else:
                 continue
             # end if round(...)
         # end for bar
+        plt.ylim(0, 100)
+        plt.gca().invert_yaxis()  # invert, step1
+        plt.yticks(np.arange(0, 100, 20), np.arange(100, 0, -20))  # invert, step2
+        axs[z].set_ylabel("Isotopologue\nContribution (%)", size=26)
+        axs[z].set_xlabel("", size=22)
 
-        axs[z].set_ylabel("", size=26)
-        axs[z].xaxis.set_tick_params(length=0) # no need of x ticks
-        axs[z].set_xlabel("", size=14)
+        meh += 1
     # end for z
+    f.subplots_adjust(hspace=0)
+    f.suptitle(f"{co.upper()} {cnd.upper()}\n", fontsize=18)
 
-    # plt.gca().invert_yaxis()  # invert, step1
-    # plt.yticks(np.arange(0, 100, 20), np.arange(100, 0, -20))  # invert, step2
-    # plt.gca().set_ylim([100, 0])
-    [ax.invert_yaxis() for ax in axs]
-
-    for ax in axs:
-        ylabels = ax.get_yticks().tolist()
-        ax.yaxis.set_major_locator(mticker.FixedLocator(ylabels))
-        ax.set_yticklabels(np.arange(100, -20, -20).tolist())  # invert, step2
-    #for axi in axs:
-    #    axi.set_ylim((0,100))
-
-    f.subplots_adjust(hspace=0.01, top = 0.85, bottom=0.26, left=0.17, right=0.95)
-    f.suptitle(f"compartment : {co.upper()}  \n", fontsize=24)
-    f.text(0.05, 0.53, "Isotopologue Contribution (%)\n", va="center", rotation="vertical", size=26)
     f.savefig(outfilename, format="pdf")
     plt.close()
     return 0
@@ -204,11 +184,10 @@ def complexstacked(
 def default_colors_stacked():
     """
     Returns colors defined by default
-     important : darkbarcolor sets which rgba obliges text inside bar to be white color
     """
     darkbarcolor = [
-        (0.0, 0.0, 0.7529411764705882, 1.0), # equivalent to #410257
-        (0.2549019607843137, 0.00784313725490196, 0.3411764705882353, 1.0), # equivalent to #0000c0
+        (0.0, 0.0, 0.7529411764705882, 1.0),
+        (0.2549019607843137, 0.00784313725490196, 0.3411764705882353, 1.0),
     ]
     palsD = {
         "m+0": "#410257",
@@ -232,19 +211,8 @@ def saveisotopologcontriplot(
     selbycompD,
     darkbarcolor,
     palsD,
-    condilevels,
+    cnds_,
 ):
-    levelshours_str = [str(i) for i in sorted(metadata['Hours'].unique())]
-    condilevels += ["joker"]  # joker to add space among time categories
-    combined_tc_levels = list()
-    for x in levelshours_str:
-        for y in condilevels:
-            if y == "joker":
-                combined_tc_levels.append(str(x))
-            else:
-                combined_tc_levels.append(f'{x} : {y}')
-    print(combined_tc_levels)
-
     for co in names_compartments.values():  #
         print(co)
 
@@ -262,7 +230,7 @@ def saveisotopologcontriplot(
 
         # call complicated functions
 
-        df4plot = icontrib_2df4plot(dicos, tablePicked, co, levelshours_str)
+        df4plot = icontrib_2df4plot(dicos, tablePicked, co, levelstimepoints_)
         df4plot = massageisotopologues(df4plot)
         ####
         # conditions to plot in desired order :
@@ -271,27 +239,27 @@ def saveisotopologcontriplot(
         if not os.path.exists(odiric):
             os.makedirs(odiric)
         metscustomgroups = selbycompD[co]
+        for cnd in cnds_:
+            for j in range(len(metscustomgroups)):
+                selectedmets = metscustomgroups[j]
+                print(selectedmets)
+                outfname = "{}ic_{}_{}_group{}.pdf".format(odiric, co, cnd, j)
+                print(outfname)
+                ohmeh = preparemeansreplicates(
+                    df4plot, cnd, selectedmets, levelstimepoints_
+                )
+                ohmeh.keys()  # just the metabolites subframes, one co, one cnd
+                figuziz = 7.5 * len(selectedmets)  # note, change width
+                complexstacked(
+                    co, cnd, selectedmets, ohmeh, darkbarcolor, palsD, outfname, figuziz
+                )
 
-
-        for j in range(len(metscustomgroups)):
-            selectedmets = metscustomgroups[j]
-            print(selectedmets)
-            outfname = "{}ic_{}_group{}.pdf".format(odiric, co,  j)
-            print(outfname)
-            dfs_Dico = preparemeansreplicates( df4plot,  selectedmets )
-
-            dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
-            dfs_Dico.keys()  # just the metabolites subframes, one co
-            figu_width = 6.7 * len(selectedmets)  # note, change width
-            complexstacked(
-                co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfname, figu_width
-            )
         # plt.close()
         plt.figure()
         # legend alone
         myhandless = []
         for c in palsD.keys():
-            paobj = mpatches.Patch(facecolor=palsD[c], label=c, edgecolor="black")
+            paobj = mpatches.Patch(color=palsD[c], label=c)
             myhandless.append(paobj)
         plt.legend(handles=myhandless)
         plt.savefig(f"{odiric}ic_legend.pdf", format="pdf")
