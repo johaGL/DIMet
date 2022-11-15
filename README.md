@@ -12,7 +12,7 @@ Closely related to conventional metabolomics, stable isotope-resolved metabolomi
 
 DIMet supports the analysis of full metabolite abundances and isotopologue contributions, and allows to perform it either in the differential comparison mode or as a time-series analysis. As input, the DIMet accepts three types of measures: a) isotopologues’ contributions, b) fractional contributions, c) full metabolites’ abundances. Specific functions process each of the three types of measures separately:  
 
-![schema](imgs/schema.PNG)
+![schema](imgs/schemaAlone4github.png)
 
 
 ### Requirements
@@ -108,15 +108,17 @@ contrasts : [ ['L-Cycloserine_T0', 'Control_T0'], # for each pair,last must be c
 
 See Notes for a detailed explanation, which will help you to write down your own configuration file.
 Please check the full configuration files located in both example folders, which are provided with our DIMet pipeline.
-These files give you nice examples of how to include the parameters for `timeseriesplots` and `abundplots` in your configuration file. 
+These files give you nice examples of how to include the parameters for any of the time series plots and `abundplots` in your configuration file. 
 
 ## Run your analysis
 
 DIMet `--mode` options are:
 - `prepare` : need to be executed before any other type of analysis, because it checks your input files and creates tmp/ folder with clean, compartment specific versions of your input files.
 - `diffabund` : differential abundances of metabolites and isotopologues
-- `timeseriesplots` : isotopologues' stacked bars and fractional contributions line-plots
 - `abundplots` : comparative bars of isotopologue's and total metabolites abundances
+- `timeseries_isotopologues` : isotopologues' stacked bars and
+- `timeseries_fractional` : fractional contributions line-plots
+
 
 So the mode `prepare` is compulsory to be the first, the others can be made in any desired order.
 
@@ -139,16 +141,18 @@ All three requirements must be assured manually or by custom bioiformatic script
 
 **Regarding the metadata file**
 
-Here the first lines of a metadata table, which must be saved in a .csv (comma delimited) file : 
+Here the first lines of the minimal required metadata columns, which must be saved in a .csv (comma delimited) file : 
 
-| sample            | timepoint | condition | Hours | short_comp |
+| sample            | timepoint | condition | timenum | short_comp |
 |-------------------|-----------|-----------|-------|------------|
 | Control\_cell\_T0-1 | T0        | Control   | 0     | cell       |
 | Control\_cell\_T0-2 | T0        | Control   | 0     | cell       |
 | Control\_cell\_T0-3 | T0        | Control   | 0     | cell       |
 
-Column names in metadata must be exactly: sample, timepoint, condition, short\_comp.
-Include a column Hours if desiring to obtain FracContribs line-plots.
+Column names in metadata must be exactly: sample, timepoint, condition, short\_comp, timenum.
+The column *timenum* contains only the number, without letters ("T", "t", "s", "h" etc) , only numeric data, of your timepoint column.
+
+
 Please do not use underscore `_` inside any of the columns other than 'sample' ( 'T\_0' not! , 'Control\_oxy' not!). 
 DIMet uses underscore as a separator to join and split terms, depending on the needs.
 The 'sample' column in metadata must match perfectly with the column names of your .tsv files
@@ -187,10 +191,19 @@ You only have to set the columns to combine to create that new category.
 
 A very common error is to use 'tab' to create your indentations in the yaml file, but this can make the file unreadable. To create indentations, use spaces instead.
 
-**Files' extensions**:
+**Files' format and extensions**:
 
-The files .csv are comma separated, whereas the .tsv are tabular delimited.
-Excel files are not allowed, as sheets organization is too customized. Please imitate the style of the examples, using .tsv files (for isotopologues contributions and metabolites abundances) , and .csv files (for metadata and list of metabolites to exclude)
+
+Excel files are not allowed, as sheets organization is too customized. Please imitate the style of the examples, giving allowed format and extension to files:
+- **.tsv** (tabular delimited), for: 
+    * isotopologues contributions 
+    * metabolites abundances
+    * and, if available, the fractional contributions
+-  **.csv** (comma delimited) for:
+    * metadata 
+    * table of metabolites to exclude
+    
+See example1/ and example2/
 
 ### References
 

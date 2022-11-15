@@ -21,11 +21,11 @@ def icontrib_2df4plot(dicos, tablePicked, co, levelshours_str):
     example:
       pd.merge output, where 1st column has the values we want:
 
-        L-Phenylalanine_C13-label-2    Hours   condition ...  sample descr...
+        L-Phenylalanine_C13-label-2    timenum   condition ...  sample descr...
         0.01                           0          Control        xxxxxx
 
       is transformed into:
-          Hours    condition    isotopolgFull        Isotopologue Contrib
+          timenum    condition    isotopolgFull        Isotopologue Contrib
           0           control      L-Phenylala...    0.01
 
     """
@@ -37,17 +37,17 @@ def icontrib_2df4plot(dicos, tablePicked, co, levelshours_str):
     # empty dataframe to fill
     df4plot = pd.DataFrame(
         columns=[
-            "Hours",
+            "timenum",
             "condition",
             "isotopolgFull",
             "Isotopologue Contribution (%)",
         ]
     )
-    df4plot["Hours"] = pd.Categorical(df4plot["Hours"], levelshours_str)
+    df4plot["timenum"] = pd.Categorical(df4plot["timenum"], levelshours_str)
     # iteratively pile up
     for z in range(len(metabolites)):  # corrected! error I had : -30)): now ok :)
-        subdf = dfcompartment.loc[:, [metabolites[z], "Hours", "condition"]]
-        subdf['Hours'] = subdf['Hours'].astype(str)
+        subdf = dfcompartment.loc[:, [metabolites[z], "timenum", "condition"]]
+        subdf['timenum'] = subdf['timenum'].astype(str)
         subdf["isotopolgFull"] = metabolites[z]  # 1st colname as cell value, reps
         subdf["Isotopologue Contribution (%)"] = subdf[metabolites[z]] * 100
         subdf = subdf.drop(columns=[metabolites[z]])  # 1st col no longer needed
@@ -86,7 +86,7 @@ def preparemeansreplicates(df4plot, selectedmets):
     returns a dictionary of dataframes, keys are metabolites
     """
     dfcopy = df4plot.copy()
-    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "Hours"]).mean()
+    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "timenum"]).mean()
     dfcopy = dfcopy.reset_index()
 
     dfs_Dico = dict()
@@ -103,7 +103,7 @@ def addcombinedconditime(dfs_Dico, combined_tc_levels ):
     for metab in dfs_Dico.keys():
         #dfs_Dico['time_cat'] = dfs_Dico['timepoint'].astype(str).replace("T", "")
         #dfs_Dico['time_cat'] = dfs_Dico['time_cat'].str.replace("h", "")
-        dfs_Dico[metab]["timeANDcondi"] = dfs_Dico[metab]["Hours"] + " : " + \
+        dfs_Dico[metab]["timeANDcondi"] = dfs_Dico[metab]["timenum"] + " : " + \
             dfs_Dico[metab]["condition"]
         dfs_Dico[metab]["timeANDcondi"] = pd.Categorical(dfs_Dico[metab]["timeANDcondi"],
                                                          combined_tc_levels)
@@ -114,13 +114,14 @@ def addcombinedconditime(dfs_Dico, combined_tc_levels ):
 
 
 def complexstacked(
-    co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfilename, figu_width
+    co, selectedmets, dfs_Dico, darkbarcolor, palsD,
+        outfilename, figu_width, xlabyesno
 ):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
     ### set font style
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
-    f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 8))
-    plt.rcParams.update({"font.size": 24})
+    f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 4.8))
+    plt.rcParams.update({"font.size": 20})
 
     for z in range(len(selectedmets)):
         # sns.set_style({ 'font.family': 'sans-serif',
@@ -144,8 +145,8 @@ def complexstacked(
             legend=False,
         )
         #
-        axs[z].tick_params(axis="x", labelrotation=90, labelsize=20)
-        axs[z].tick_params(axis="y", length=11, labelsize=25, )
+        axs[z].tick_params(axis="x", labelrotation=90, labelsize=18)
+        axs[z].tick_params(axis="y", length=11, labelsize=19 )
         axs[z].set_ylim([0,100])
         for bar in axs[z].patches:
             selcol = "black"
@@ -169,33 +170,34 @@ def complexstacked(
                     # Center the labels and style them a bit.
                     ha="center",
                     color=selcol,
-                    size=int((figu_width / len(selectedmets)) * 1.8) ,
+                    size=int((figu_width / len(selectedmets)) * 2) ,
                 )  # end axs[z].text
             else:
                 continue
             # end if round(...)
         # end for bar
 
-        axs[z].set_ylabel("", size=26)
+        axs[z].set_ylabel("", size=20)
         axs[z].xaxis.set_tick_params(length=0) # no need of x ticks
-        axs[z].set_xlabel("", size=14)
+        axs[z].set_xlabel("", size=13)
     # end for z
 
-    # plt.gca().invert_yaxis()  # invert, step1
-    # plt.yticks(np.arange(0, 100, 20), np.arange(100, 0, -20))  # invert, step2
-    # plt.gca().set_ylim([100, 0])
-    [ax.invert_yaxis() for ax in axs]
+    [ax.invert_yaxis() for ax in axs] # invert y, step 1
+
 
     for ax in axs:
         ylabels = ax.get_yticks().tolist()
         ax.yaxis.set_major_locator(mticker.FixedLocator(ylabels))
-        ax.set_yticklabels(np.arange(100, -20, -20).tolist())  # invert, step2
-    #for axi in axs:
-    #    axi.set_ylim((0,100))
+        ax.set_yticklabels([100 - int(i) for i in ylabels])  # invert y , step2
 
-    f.subplots_adjust(hspace=0.01, top = 0.85, bottom=0.26, left=0.17, right=0.95)
-    f.suptitle(f"compartment : {co.upper()}  \n", fontsize=24)
-    f.text(0.05, 0.53, "Isotopologue Contribution (%)\n", va="center", rotation="vertical", size=26)
+    if xlabyesno == "no":
+        for ax in axs:
+            xlabelshere = ax.get_xticks()
+            ax.set_xticklabels(["" for i in xlabelshere])
+
+    f.subplots_adjust(hspace=0.5, wspace=0.25, top = 0.85, bottom=0.26, left=0.15, right=0.99)
+    f.suptitle(f"compartment : {co.upper()}  \n", fontsize=20)
+    f.text(0.03, 0.57, "Isotopologue Contribution (%)\n", va="center", rotation="vertical", size=20)
     f.savefig(outfilename, format="pdf")
     plt.close()
     return 0
@@ -221,6 +223,23 @@ def default_colors_stacked():
     }
     return darkbarcolor, palsD
 
+def add_joker_tolabs(condilevels, levelshours_str):
+    condilevels += ["joker"]  # joker to add space among time categories
+    combined_tc_levels = list()
+    for x in levelshours_str:
+        for y in condilevels:
+            if y == "joker":
+                combined_tc_levels.append(str(x))
+            else:
+                combined_tc_levels.append(f'{x} : {y}')
+    return condilevels, combined_tc_levels
+
+def simplelabs(condilevels, levelshours_str):
+    combined_tc_levels = list()
+    for x in levelshours_str:
+        for y in condilevels:
+            combined_tc_levels.append(f'{x} : {y}')
+    return condilevels, combined_tc_levels
 
 def saveisotopologcontriplot(
     datadi,
@@ -234,16 +253,10 @@ def saveisotopologcontriplot(
     palsD,
     condilevels,
 ):
-    levelshours_str = [str(i) for i in sorted(metadata['Hours'].unique())]
-    condilevels += ["joker"]  # joker to add space among time categories
-    combined_tc_levels = list()
-    for x in levelshours_str:
-        for y in condilevels:
-            if y == "joker":
-                combined_tc_levels.append(str(x))
-            else:
-                combined_tc_levels.append(f'{x} : {y}')
-    print(combined_tc_levels)
+    levelshours_str = [str(i) for i in sorted(metadata['timenum'].unique())]
+
+    # condilevels, combined_tc_levels = add_joker_tolabs(condilevels, levelshours_str)
+    condilevels, combined_tc_levels = simplelabs(condilevels, levelshours_str)
 
     for co in names_compartments.values():  #
         print(co)
@@ -282,13 +295,21 @@ def saveisotopologcontriplot(
 
             dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
             dfs_Dico.keys()  # just the metabolites subframes, one co
-            figu_width = 6.7 * len(selectedmets)  # note, change width
+            figu_width = 4.3 * len(selectedmets)  # note, change width
             complexstacked(
-                co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfname, figu_width
+                co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfname,
+                figu_width, xlabyesno="yes"
             )
-        # plt.close()
-        plt.figure()
+            plt.close()
+            # new :
+            outfnameNoXlab = "{}ic_{}_group{}_noxlab.pdf".format(odiric, co,  j)
+            complexstacked(
+                co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfnameNoXlab,
+                figu_width, xlabyesno="no"
+            )
+
         # legend alone
+        plt.figure()
         myhandless = []
         for c in palsD.keys():
             paobj = mpatches.Patch(facecolor=palsD[c], label=c, edgecolor="black")

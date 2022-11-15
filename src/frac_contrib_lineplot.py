@@ -30,11 +30,11 @@ def yieldfraccountrib(dicos, tablePicked, co):
 
     # empty dataframe to fill
     df4plot = pd.DataFrame(
-        columns=["Hours", "condition", "metabolite", "Fractional Contribution (%)"]
+        columns=["timenum", "condition", "metabolite", "Fractional Contribution (%)"]
     )
 
     for z in range(len(metabolites)):
-        subdf = dfcompartment.loc[:, [metabolites[z], "Hours", "condition"]]
+        subdf = dfcompartment.loc[:, [metabolites[z], "timenum", "condition"]]
         subdf["metabolite"] = metabolites[z]
         subdf["Fractional Contribution (%)"] = subdf[metabolites[z]] * 100
         subdf = subdf.drop(columns=[metabolites[z]])
@@ -54,10 +54,10 @@ def nestedDi2list(anestedD):
 def df2musddf(one_m):
     """
     input: dataframe by one metabolite:
-      "Hours", "condition", "metabolite" "Fractional Contribution (%)"
+      "timenum", "condition", "metabolite" "Fractional Contribution (%)"
     returns :
         dataframe by one metabolite, metabolite column deleted:
-                condition  Hours    mean    sd
+                condition  timenum    mean    sd
     108        Control     0  0.000893  0.002611
     111        Control     1  0.236453  0.023246
     ...
@@ -67,24 +67,24 @@ def df2musddf(one_m):
     ...
     141  L-Cycloserine    24  0.815613  0.050756
     """
-    m_s = one_m[["condition", "Hours"]].drop_duplicates()
+    m_s = one_m[["condition", "timenum"]].drop_duplicates()
     m_s["mean"] = 0
     m_s["sd"] = 0
     for kc in m_s["condition"]:
-        for hou in one_m["Hours"]:
-            ss = one_m.loc[(one_m["Hours"] == hou) & (one_m["condition"] == kc), :]
+        for hou in one_m["timenum"]:
+            ss = one_m.loc[(one_m["timenum"] == hou) & (one_m["condition"] == kc), :]
             mymean = np.mean(ss["Fractional Contribution (%)"])
             mysd = np.std(ss["Fractional Contribution (%)"])
-            m_s.loc[(m_s["condition"] == kc) & (m_s["Hours"] == hou), "mean"] = mymean
-            m_s.loc[(m_s["condition"] == kc) & (m_s["Hours"] == hou), "sd"] = mysd
+            m_s.loc[(m_s["condition"] == kc) & (m_s["timenum"] == hou), "mean"] = mymean
+            m_s.loc[(m_s["condition"] == kc) & (m_s["timenum"] == hou), "sd"] = mysd
     return m_s
 
 
 def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
     themets = nestedDi2list(grmetsD)
-    hoursticks = df4plot['Hours'].unique()
+    hoursticks = df4plot['timenum'].unique()
     somem = df4plot.loc[df4plot["metabolite"].isin(themets)]
-    m_s = pd.DataFrame(columns=["condition", "Hours", "mean", "sd", "metabolite"])
+    m_s = pd.DataFrame(columns=["condition", "timenum", "mean", "sd", "metabolite"])
     for k in set(somem["metabolite"]):
         one_m = somem[somem["metabolite"] == k]
         m_s1 = df2musddf(one_m)
@@ -102,7 +102,7 @@ def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
     for z in range(len(grmetsD)):
         sns.lineplot(
             ax=axs[1,z],
-            x="Hours",
+            x="timenum",
             y="Fractional Contribution (%)",
             hue="metabolite",
             style="condition",
@@ -116,10 +116,10 @@ def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
         axs[1,z].set_xticks([int(i) for i in hoursticks])
         m_s1 = m_s.loc[m_s["metabolite"].isin(grmetsD[z])]
         axs[1,z].scatter(
-            m_s1["Hours"], m_s1["mean"], s=22, facecolors="none", edgecolors="black"
+            m_s1["timenum"], m_s1["mean"], s=22, facecolors="none", edgecolors="black"
         )
         axs[1,z].errorbar(
-            m_s1["Hours"],
+            m_s1["timenum"],
             m_s1["mean"],
             yerr=m_s1["sd"],
             fmt="none",
@@ -188,7 +188,7 @@ def savefraccontriplots(
         )
         g.map(
             sns.lineplot,
-            "Hours",
+            "timenum",
             "Fractional Contribution (%)",
             marker="o",
             err_style="bars",

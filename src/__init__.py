@@ -5,6 +5,7 @@ import argparse
 import os
 import shutil
 import yaml
+from .pca_fun import massage_datadf_4pca, calcPCAand2Dplot
 from .differential_univariate import *
 from .abund_frompercentages import calculate_meanEnri, split_mspecies_files
 from .extruder import *
@@ -12,13 +13,15 @@ from .abundances_bars import *
 from .frac_contrib_lineplot import *
 from .isotopologcontrib_stacked import *
 
+
 def dimet_message():
     return "DIMet: *D*ifferential *I*sotopically-labeled targeted *Met*abolomics\n"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir")
-parser.add_argument("--config", help = "configuration in yaml file")
-parser.add_argument("--mode", help = "prepare or timeseriesplots or abundplots or diffabund")
+parser.add_argument("--config", help = "path to configuration yaml file")
+parser.add_argument("--mode", help = "prepare | PCA | diffabund | abundplots \
+                            | timeseries_isotopologues |  timeseries_fractional")
 args = parser.parse_args()
 
 
@@ -85,8 +88,32 @@ if args.mode == "prepare":
     split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
                    abunda_species_4diff_dir)
 
+    if detect_fraccontrib_missing(tsvfi) == False:
+        print("Warning !: you do not have fractional contributions file")
+
+
     print("\nsplited (by compartment) and clean files in tmp/ ready for analysis\n")
 
+
+if args.mode == "PCA":
+    odirpca = "results/plots/pca/"
+    if not os.path.exists(odirpca):
+        os.makedirs(odirpca)
+    print(f"\n plotting pca(s) to: {odirpca}\n")
+    for k in names_compartments.keys():
+        co = names_compartments[k]
+        df = pd.read_csv(f"{dirtmpdata}meanEnrich_{namesuffix}_{co}.tsv", sep='\t', header=0, index_col=0)
+        metadatasub = metadata.loc[metadata['short_comp'] == co, :]
+        dfa = massage_datadf_4pca(df, metadatasub)
+        pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
+                         "", f'{namesuffix}-{k}', odirpca, 6)
+        pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
+                         "sample_descrip", f'{namesuffix}-{k}', odirpca, 6)
+        for tp in levelstimepoints_:
+            metadatasub = metadata.loc[(metadata['short_comp'] == co) & (metadata['timepoint'] == tp), :]
+            dfb = massage_datadf_4pca(df, metadatasub)
+            pc_df, dfvare = calcPCAand2Dplot(dfb, metadatasub, "condition", "condition",
+                             "sample_descrip", f'{namesuffix}-{k}-{tp}', odirpca, 6)
 
 
 if args.mode == "diffabund":
@@ -158,24 +185,24 @@ if args.mode == "diffabund":
     print("\nended analysis")
     # end if args.mode == "diffabund"
 
+
 if args.mode == "abundplots":
     odirbars = "results/plots/abundbars/"
     if not os.path.exists(odirbars):
         os.makedirs(odirbars)
-
+    xticks_text_ = confidic["xticks_text"]
+    axisx_labeltilt = confidic["axisx_labeltilt"]
     time_sel = confidic["time_sel"]  # locate where it is used
     selectedmetsD = confidic["selectedmets_forbars"]  # locate where it is used
     condilevels = confidic["conditions"]  # <= locate where it is used
-    vizorder = confidic["bar-x_barcolor"]
+    vizorder = confidic["axisx_barcolor"]
     col1 = vizorder[0]
     col2 = vizorder[1]
     # in a first time print the TOTAL abundances, selectedmets_forbars
     for CO in names_compartments.values():
         file_total_co_ = [i for i in os.listdir(dirtmpdata) if tableAbund in i and CO in i]
         print(file_total_co_)
-        #assert (
-        #        len(file_total_co_) == 1
-        #), "error, multiple abundance files for same compartment"
+
         abutab = pd.read_csv(dirtmpdata + file_total_co_[0], sep="\t", index_col=0)
         metada_sel = metadata.loc[metadata["sample"].isin(abutab.columns), :]
 
@@ -191,12 +218,11 @@ if args.mode == "abundplots":
         plotwidth = 4 * len(selectedmetsD[CO])
         print(f"sending to plot file  :  {selectedmetsD[CO]}")
         printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, "TOTAL",
-                               col1, col2, plotwidth, odirbars)
+                               col1, col2, plotwidth, odirbars, xticks_text_ , axisx_labeltilt)
 
-    # in a second time, m+x species as selected
-# end if abundplots
 
-if args.mode == "timeseriesplots":
+
+if args.mode == "timeseries_fractional":
     print(" Fractional contributions plots \n")
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension
     gbycompD = confidic["groups_toplot_frac_contribs"]
@@ -224,24 +250,19 @@ if args.mode == "timeseriesplots":
         return coloreachmetab
     coloreachmetab = yieldcolorsbymet()
 
-    savefraccontriplots(dirtmpdata, names_compartments, metadata, tableFC, namesuffix,
-             gbycompD, coloreachmetab)
+    savefraccontriplots(dirtmpdata, names_compartments,
+                        metadata, tableFC, namesuffix,
+                        gbycompD, coloreachmetab)
 
+
+
+if args.mode == "timeseries_isotopologues":
     print(" Isotopologue's Contributions plots \n")
-    condilevels = confidic["conditions"]  # <= locate where it is used
-
-    darkbarcolor, palsD = default_colors_stacked()
-    selbycompD = confidic["groups_toplot_isotopol_contribs"]
-    saveisotopologcontriplot(dirtmpdata, tableIC, names_compartments,
-                             levelstimepoints_, namesuffix, metadata, selbycompD,
-                             darkbarcolor, palsD, condilevels)
-
-if args.mode == "debugIsotopolContri":
 
     condilevels = confidic["conditions"]  # <= locate where it is used
 
     darkbarcolor, palsD = default_colors_stacked()
     selbycompD = confidic["groups_toplot_isotopol_contribs"]
     saveisotopologcontriplot(dirtmpdata, tableIC, names_compartments,
-                 levelstimepoints_, namesuffix, metadata, selbycompD,
-                darkbarcolor, palsD, condilevels )
+                              levelstimepoints_, namesuffix, metadata, selbycompD,
+                              darkbarcolor, palsD, condilevels )

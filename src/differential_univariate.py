@@ -9,17 +9,25 @@ Created on Thu Jul 21 14:32:27 2022
 
 import scipy.stats
 import statsmodels.stats.multitest as ssm
-
+import locale
 from .fun_fm import *
 
 
 def compute_reduction(df, ddof):
+    """
+    modified, original from ProteomiX
+    johaGL 2022: if all row is zeroes, set same protein_values
+    """
     res = df.copy()
     for protein in df.index.values:
         # get array with abundances values
-        protein_values = np.array(df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
+        protein_values = np.array(
+            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
         # return array with each value divided by standard deviation of the whole array
-        reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
+        if np.nanstd(protein_values, ddof=ddof) == 0:
+            reduced_abundances = protein_values  # because all row is zeroes
+        else:
+            reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
 
         # replace values in result df
         res.loc[protein] = reduced_abundances
@@ -127,11 +135,11 @@ def outStat_df(newdf, metas, contrast, whichtest):
             for t in pretups:  # make list of tuples with no-nan pvalues
                 if not np.isnan(t[1]):
                     tups.append(t)
+
             if len(tups) == 0:  # if all pvalues are nan assign two sided result
                 tups = [(usta3, p3)]
-            stap_tup = min(
-                tups, key=lambda x: x[1]
-            )  # if any nan, will always pick nan as min
+
+            stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
             stare.append(stap_tup[0])
             pval.append(stap_tup[1])
 
@@ -139,7 +147,8 @@ def outStat_df(newdf, metas, contrast, whichtest):
             tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
             stare.append(tstav)
             pval.append(pvaltv)
-
+        # end if
+    # end for
     prediffr = pd.DataFrame(data={"mets": mets, "stat": stare, "pval": pval})
     return prediffr
 

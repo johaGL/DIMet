@@ -25,21 +25,6 @@ def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
         else:
             return "style not recognized"
 
-def yieldrowdata(newdf):
-    xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
-    for ch in newdf.index:
-        if "_C13-label-" in ch:
-            elems = ch.split("_C13-label-")
-            xu["metabolite"].append(elems[0])
-            xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
-            xu["isotopolgFull"].append(ch)
-        elif "_PARENT" in ch:
-            elems = ch.split("_PARENT")
-            xu["metabolite"].append(elems[0])
-            xu["m+x"].append("m+0")
-            xu["isotopolgFull"].append(ch)
-    rowdata = pd.DataFrame.from_dict(xu)
-    return rowdata
 
 def yieldrowdataB(newdf):
     xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
@@ -63,49 +48,6 @@ def prepare4contrast(idf, ametadata, newcateg, contrast):
     metas = cc.loc[cc["newcol"].isin(contrast), :]
     newdf = idf[metas["sample"]]
     return newdf, metas
-
-
-def fi2_smx_compartment(filename, indexsmx, indexcompartment):
-    """example output: 'm+3' , 'cell'"""
-    elems = filename.replace(".tsv", "").split("_")
-    smx = elems[indexsmx]
-    compartment = elems[indexcompartment]
-    return smx, compartment
-
-
-def reducebysd_2(avector, eps):
-    """
-    avector : list
-    eps : value to replace zero
-    returns :  numpy array
-    """
-    Y = np.array(avector)
-    Y = np.where(Y == 0, eps, Y)
-    stdevi = np.std(Y)
-    if stdevi == 0:
-        stdevi = eps
-    # try:
-    #     output = Y / np.std(Y)
-    # except ZeroDivisionError():
-    #     output = Y / 1e-05
-    return Y / stdevi
-
-
-def compute_reduction(df, ddof):
-    """from proteomiX"""
-    res = df.copy()
-    for protein in df.index.values:
-        # get array with abundances values
-        protein_values = np.array(
-            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x)
-        )
-
-        # return array with each value divided by standard deviation of the whole array
-        reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
-
-        # replace values in result df
-        res.loc[protein] = reduced_abundances
-    return res
 
 
 def calcgeommean(avector, eps):
@@ -153,3 +95,30 @@ def a12(lst1, lst2, rev=True):
             elif not rev and x < y:
                 more += 1
     return (more + 0.5 * same) / (len(lst1) * len(lst2))
+
+def detect_fraccontrib_missing(the_tsv_files_):
+    fraccontribfile = ""
+    for fi in the_tsv_files_:
+        if "frac" in fi.lower():
+            fraccontribfile = fi
+    if fraccontribfile != "":
+        return True
+    return False
+
+
+##################
+# def yieldrowdata_old(newdf):
+#     xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
+#     for ch in newdf.index:
+#         if "_C13-label-" in ch:
+#             elems = ch.split("_C13-label-")
+#             xu["metabolite"].append(elems[0])
+#             xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
+#             xu["isotopolgFull"].append(ch)
+#         elif "_PARENT" in ch:
+#             elems = ch.split("_PARENT")
+#             xu["metabolite"].append(elems[0])
+#             xu["m+x"].append("m+0")
+#             xu["isotopolgFull"].append(ch)
+#     rowdata = pd.DataFrame.from_dict(xu)
+#     return rowdata

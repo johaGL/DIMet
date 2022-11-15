@@ -31,12 +31,13 @@ def stackallabundace(abu_sel, metada_sel):
         subdf = subdf.drop(columns=[metabolites[z]])
         dafull = pd.concat(
             [dafull, subdf], ignore_index=True
-        )  # TODO : replace df4plot.append by pd.concat([]) elsewhere
+        )
     return dafull
 
 
 
-def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, col1, col2, plotwidth, odirbars):
+def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, col1, col2,
+                           plotwidth, odirbars, xticks_text_, axisx_labeltilt):
     li_ = selectedmets
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
     plt.rcParams.update({"font.size": 21})
@@ -73,11 +74,12 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, col1, col2, plotwid
             alpha=1,
         )
         axs[il].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        axs[il].set_xticklabels(xticks_text_)
         axs[il].set(title=" " + li_[il] + "\n")
         axs[il].set(ylabel="")
         axs[il].set(xlabel="")
         sns.despine(ax=axs[il])
-        axs[il].tick_params(axis="x", labelrotation=20)
+        axs[il].tick_params(axis="x", labelrotation=axisx_labeltilt)
         axs[il].set_ylim(bottom=0)  # set minimal val display : y axis : 0
 
     thehandles, thelabels = axs[-1].get_legend_handles_labels()
