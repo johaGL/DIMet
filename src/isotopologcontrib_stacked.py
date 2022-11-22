@@ -92,13 +92,22 @@ def preparemeansreplicates(df4plot, selectedmets):
     dfs_Dico = dict()
     for i in selectedmets:
         tmp = dfcopy.loc[dfcopy["metabolite"] == i, ].reset_index()
-        dfs_Dico[i] = tmp.sort_values(by="m+x", axis=0, ascending=True, inplace=False)
+        # set m+x as numeric to avoid any bad reordering of stacked m+x
+        tmp["m+x"] = tmp["m+x"].str.split("m+", regex=False).str[1]
+        tmp["m+x"] = tmp["m+x"].astype(int)
+
+        #tmp = tmp.sort_values(by="m+x", axis=0, ascending=True, inplace=False)
+        # spnumbers = [k.split("m+")[1] for k in tmp["m+x"].unique()]
+        # maxmx = max([ int(i) for i in spnumbers ])
+        # levelsspecies = ["m+"+str(k) for k in range(maxmx)]
+        # tmp["m+x"] = pd.Categorical(tmp["m+x"], levelsspecies)
+        dfs_Dico[i] = tmp
     return dfs_Dico
+
 
 def addcombinedconditime(dfs_Dico, combined_tc_levels ):
     """
-    add column string '{timepoint} : {condition}' to each dataframe
-
+    add column 'timeANDcondi' to each  metabolite dataframe in Dico
     """
     for metab in dfs_Dico.keys():
         #dfs_Dico['time_cat'] = dfs_Dico['timepoint'].astype(str).replace("T", "")
@@ -110,14 +119,37 @@ def addcombinedconditime(dfs_Dico, combined_tc_levels ):
     return dfs_Dico
 
 
-
+def yieldpalsauto():
+    n = 25
+    species = [i for i in range(n)]
+    # first 0 to n_a: spectral
+    n_a = 7
+    print(f"this DIMet version supports isotopologues coloring until m+{n} species")
+    spectralPal = sns.color_palette("Spectral", n_a)
+    spectralPal = list(spectralPal)[::-1]
+    palsautoD = dict()
+    k = 0
+    while k < n_a:
+        palsautoD[species[k]] = spectralPal[k]
+        k += 1
+    # last until 24
+    n_b = n
+    addedpal = sns.color_palette("PuOr", 25-n_a)
+    addedpal = list(addedpal)
+    j = 0
+    while k < n_b: # k starts in 12
+        palsautoD[species[k]] = addedpal[j]
+        k += 1
+        j += 1
+    return palsautoD
 
 
 def complexstacked(
-    co, selectedmets, dfs_Dico, darkbarcolor, palsD,
+        co, selectedmets, dfs_Dico,
         outfilename, figu_width, xlabyesno
 ):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
+    palsautoD = yieldpalsauto()
     ### set font style
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
     f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 4.8))
@@ -136,7 +168,7 @@ def complexstacked(
             weights="Isotopologue Contribution (%)",
             hue="m+x",
             multiple="stack",
-            palette=palsD,  # ['#0000c0',  '#410257' ] , # '#440154FF'],
+            palette=palsautoD,
             # Add  borders to the bars.
             edgecolor="black",
             # Shrink the bars a bit so they don't touch.
@@ -146,14 +178,11 @@ def complexstacked(
         )
         #
         axs[z].tick_params(axis="x", labelrotation=90, labelsize=18)
-        axs[z].tick_params(axis="y", length=11, labelsize=19 )
-        axs[z].set_ylim([0,100])
+        axs[z].tick_params(axis="y", length=3, labelsize=19)
+        axs[z].set_ylim([0, 100])
         for bar in axs[z].patches:
-            selcol = "black"
-            # print(bar.get_facecolor())
-            herergba = bar.get_facecolor() # returns rgba !
-            if herergba in darkbarcolor:
-                selcol = "white"
+            # assign stacked bars text color
+
             thebarvalue = round(bar.get_height(), 1)
             if thebarvalue >= 100:
                 thebarvalue = 100  # no decimals if 100
@@ -169,8 +198,8 @@ def complexstacked(
                     thebarvalue,
                     # Center the labels and style them a bit.
                     ha="center",
-                    color=selcol,
-                    size=int((figu_width / len(selectedmets)) * 2) ,
+
+                    size=int((figu_width / len(selectedmets)) * 2),
                 )  # end axs[z].text
             else:
                 continue
@@ -178,12 +207,11 @@ def complexstacked(
         # end for bar
 
         axs[z].set_ylabel("", size=20)
-        axs[z].xaxis.set_tick_params(length=0) # no need of x ticks
+        axs[z].xaxis.set_tick_params(length=0)  # no need of x ticks
         axs[z].set_xlabel("", size=13)
     # end for z
 
-    [ax.invert_yaxis() for ax in axs] # invert y, step 1
-
+    [ax.invert_yaxis() for ax in axs]  # invert y, step 1
 
     for ax in axs:
         ylabels = ax.get_yticks().tolist()
@@ -195,33 +223,13 @@ def complexstacked(
             xlabelshere = ax.get_xticks()
             ax.set_xticklabels(["" for i in xlabelshere])
 
-    f.subplots_adjust(hspace=0.5, wspace=0.25, top = 0.85, bottom=0.26, left=0.15, right=0.99)
+    f.subplots_adjust(hspace=0.5, wspace=0.25, top=0.85, bottom=0.26, left=0.15, right=0.99)
     f.suptitle(f"compartment : {co.upper()}  \n", fontsize=20)
     f.text(0.03, 0.57, "Isotopologue Contribution (%)\n", va="center", rotation="vertical", size=20)
     f.savefig(outfilename, format="pdf")
     plt.close()
-    return 0
+    return 0  # end the new version foo
 
-
-def default_colors_stacked():
-    """
-    Returns colors defined by default
-     important : darkbarcolor sets which rgba obliges text inside bar to be white color
-    """
-    darkbarcolor = [
-        (0.0, 0.0, 0.7529411764705882, 1.0), # equivalent to #410257
-        (0.2549019607843137, 0.00784313725490196, 0.3411764705882353, 1.0), # equivalent to #0000c0
-    ]
-    palsD = {
-        "m+0": "#410257",
-        "m+1": "#0000c0",
-        "m+2": "#55a0fb",
-        "m+3": "#41f0ae",
-        "m+4": "#addead",
-        "m+5": "#eec046",
-        "m+6": "#ffa040",
-    }
-    return darkbarcolor, palsD
 
 def add_joker_tolabs(condilevels, levelshours_str):
     condilevels += ["joker"]  # joker to add space among time categories
@@ -234,6 +242,7 @@ def add_joker_tolabs(condilevels, levelshours_str):
                 combined_tc_levels.append(f'{x} : {y}')
     return condilevels, combined_tc_levels
 
+
 def simplelabs(condilevels, levelshours_str):
     combined_tc_levels = list()
     for x in levelshours_str:
@@ -241,18 +250,24 @@ def simplelabs(condilevels, levelshours_str):
             combined_tc_levels.append(f'{x} : {y}')
     return condilevels, combined_tc_levels
 
+
+def givelabelstopalsD(palsautoD):
+    tmp = dict()
+    for k in palsautoD.keys():
+        tmp["m+"+str(k)] = palsautoD[k]
+    return tmp
+
+
 def saveisotopologcontriplot(
     datadi,
     tablePicked,
     names_compartments,
-    levelstimepoints_,
     namesuffix,
     metadata,
     selbycompD,
-    darkbarcolor,
-    palsD,
-    condilevels,
+    condilevels
 ):
+
     levelshours_str = [str(i) for i in sorted(metadata['timenum'].unique())]
 
     # condilevels, combined_tc_levels = add_joker_tolabs(condilevels, levelshours_str)
@@ -297,24 +312,28 @@ def saveisotopologcontriplot(
             dfs_Dico.keys()  # just the metabolites subframes, one co
             figu_width = 4.3 * len(selectedmets)  # note, change width
             complexstacked(
-                co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfname,
+                co, selectedmets, dfs_Dico, outfname,
                 figu_width, xlabyesno="yes"
             )
             plt.close()
             # new :
             outfnameNoXlab = "{}ic_{}_group{}_noxlab.pdf".format(odiric, co,  j)
             complexstacked(
-                co, selectedmets, dfs_Dico, darkbarcolor, palsD, outfnameNoXlab,
+                co, selectedmets, dfs_Dico,  outfnameNoXlab,
                 figu_width, xlabyesno="no"
             )
 
         # legend alone
         plt.figure()
+        palsautoD = yieldpalsauto()
+        palsautoD_labeled = givelabelstopalsD(palsautoD)
         myhandless = []
-        for c in palsD.keys():
-            paobj = mpatches.Patch(facecolor=palsD[c], label=c, edgecolor="black")
+        for c in palsautoD_labeled.keys():
+            paobj = mpatches.Patch(facecolor=palsautoD_labeled[c], label=c, edgecolor="black")
             myhandless.append(paobj)
-        plt.legend(handles=myhandless)
+        plt.legend(handles=myhandless, labelspacing=0.01)
+        plt.axis("off")
         plt.savefig(f"{odiric}ic_legend.pdf", format="pdf")
 
     return 0
+

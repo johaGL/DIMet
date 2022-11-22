@@ -90,7 +90,7 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, col1, col2,
     # fig.text(0.1, 0.5, YLABE, va = "center", rotation = 'vertical', size=26)
     # xlaloc = (0.025 * len(selectedmets)) - 0.15
 
-    fig.text(0.1, 0.5, YLABE, va="center", rotation="vertical", size=26)
+    fig.text(x=0.02, y=0.5, s=YLABE, va="center", rotation="vertical", size=26)
     fig.suptitle(f"{CO} {SMX}".upper())
     plt.subplots_adjust(top=0.76, bottom=0.2, wspace=0.3, hspace=1)
     plt.legend(handles=thehandles, labels=thelabels, loc='upper right',

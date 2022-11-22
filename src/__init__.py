@@ -182,7 +182,7 @@ if args.mode == "diffabund":
                 # end for tabusp
             # end for co
         # end for contrast
-    print("\nended analysis")
+    print("\nended differential analysis")
     # end if args.mode == "diffabund"
 
 
@@ -261,8 +261,21 @@ if args.mode == "timeseries_isotopologues":
 
     condilevels = confidic["conditions"]  # <= locate where it is used
 
-    darkbarcolor, palsD = default_colors_stacked()
+    #darkbarcolor, palsD = custom_colors_stacked()
     selbycompD = confidic["groups_toplot_isotopol_contribs"]
-    saveisotopologcontriplot(dirtmpdata, tableIC, names_compartments,
-                              levelstimepoints_, namesuffix, metadata, selbycompD,
-                              darkbarcolor, palsD, condilevels )
+    # saveisotopologcontriplot_old(dirtmpdata, tableIC, names_compartments,
+    #                           namesuffix, metadata, selbycompD,
+    #                          darkbarcolor, palsD, condilevels )
+    for co in selbycompD.keys():
+        #mets_byco = get_metabolites(tableIC) # TODO: make this function
+        for group in selbycompD[co].keys():
+            pass
+            #print([met for met in selbycompD[co][group]])
+            #notfound = set([met for met in group]) - set(mets_byco)
+    saveisotopologcontriplot(  dirtmpdata,
+    tableIC,
+    names_compartments,
+    namesuffix,
+    metadata,
+    selbycompD,
+    condilevels )
