@@ -49,6 +49,16 @@ https://rayblick.gitbooks.io/my-python-scrapbook/content/analysis/plotting/scatt
 
 def massage_datadf_4pca(df, metadatasub):
     df = df[metadatasub['sample']]
+
+    advtests = False
+    if advtests == False:
+        df = df[~(df == 0).all(axis=1)] # drop zero rows
+    elif advtests == True:
+        print("Danger: advanced tests  set to true")
+        # if row zero all, replace by nan, then replace by minimal of each col
+        df = df.where(~(df==0).all(axis=1)) # zero row became nan row
+        df = df.fillna(df[df>0].min()) # this is column wise !
+
     df = df.div(df.std(axis=1, ddof=0), axis=0)  # reduce rows
     df = df.dropna(axis=0)
     return df
