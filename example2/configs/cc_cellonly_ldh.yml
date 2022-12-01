@@ -23,7 +23,7 @@ conditions : ["Cont", "A", "B", "AB"] # first must be control
 max_m_species : 4 # ignored if dodiff_allisotopologues set to false
 
 whichtest : "Tt"
-technical_toexclude : []
+
 # newcateg: column that is a combination of 2 or more metadata categories,
 # new category thus generated, is ready for comparison to its counterpart;
 # example :
@@ -33,9 +33,8 @@ technical_toexclude : []
 newcateg : ["condition", "timepoint"]  # example 'Control_T0'
 # comparisons or "contrasts" : 
 # for each pair, last must be control:
-contrasts : [ ['AB_T0', 'Cont_T0'], 
-           ['AB_T24', 'Cont_T24'],
-           ['AB_T48', 'Cont_T48'] ]
+contrasts : [ ['AB_T0', 'Cont_T0'],  ['AB_T24', 'Cont_T24'],  ['AB_T48', 'Cont_T48'], 
+              ['Cont_T24', Cont_T0'], ['Cont_T48', 'Cont_T24'], ['AB_T24', AB_T0'], ['AB_T48', 'AB_T24'] ]
 
 
 ## Isotopologue Contribution plot configuration

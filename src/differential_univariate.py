@@ -159,7 +159,7 @@ def detect_and_create_dir(namenesteddir):
 
 
 def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
-                   whichtest, technical_toexclude, co, outdiffdirs, choice):
+                   whichtest,  co, outdiffdirs, choice):
     """
     runs functions above,
     saves DAM (Differentially abundant metabolites/isotopologues)
@@ -178,8 +178,8 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
         abun = pd.read_csv(datadi + tablePicked, sep="\t", index_col=0)
         outkey = tablePicked.split("_")[2]  # the species m+x as saved
     print("\nprocessing : ", outkey, co)
-    tokeep = [i for i in abun.index if (i not in technical_toexclude)]
-    abun = abun.loc[tokeep, :]
+    #tokeep = [i for i in abun.index if (i not in technical_toexclude)]
+    #abun = abun.loc[tokeep, :]
     metadahere = metadata.loc[metadata.short_comp == co]
     selecols = metadahere["sample"]
 
@@ -187,7 +187,7 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     if reduce:
         df = newdf_tot.copy()
         mets = df.index
-        df.index = range(len(mets))  # to make a 1st column numeric positions
+        df.index = range(len(mets))  # to make a 1st column numeric positions, compute_reduction accepted
         ddof = 0
         tmp = compute_reduction(df, ddof)
         tmp.index = newdf_tot.index

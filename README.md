@@ -97,7 +97,7 @@ name_isotopologue_contribs : "CorrectedIsotopologues"
 # Differential Analysis configuration
 max_m_species : 4
 whichtest : "Tt"
-technical_toexclude : ['13C5-D5-15N_Glutamic_acid', 'Myristic_acid_d27']
+
 
 newcateg : ["condition", "timepoint"]  # example 'Control_T0'
 
@@ -113,7 +113,9 @@ These files give you nice examples of how to include the parameters for any of t
 ## Run your analysis
 
 DIMet `--mode` options are:
+
 - `prepare` : need to be executed before any other type of analysis, because it checks your input files and creates tmp/ folder with clean, compartment specific versions of your input files.
+- `PCA` : principal components analysis
 - `diffabund` : differential abundances of metabolites and isotopologues
 - `abundplots` : comparative bars of isotopologue's and total metabolites abundances
 - `timeseries_isotopologues` : isotopologues' stacked bars and
@@ -174,7 +176,7 @@ The yaml example above has two sections:
 * `max_m_species` : in the case of isotopologues the maximal n+x species to be subjected to comparison
 * `which_test` : we support currently the parametric t-test "Tt" and the non-parametric Wilcoxon-Mann-Whitney test "MW".
 By default, we apply Benjamini-Hochberg procedure to correct for multiple testing.
-* `technical_toexclude` : optional, just if any internal technical molecule remains which was not excluded before
+
 * `newcateg` : column that is a combination of 2 or more metadata categories. 
 	The new category thus generated, is ready for comparison to its counterpart/opposite, example :
 		

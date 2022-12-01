@@ -36,6 +36,8 @@ names_compartments = confidic["names_compartments"]
 metadata_fi = confidic["metadata_fi"]
 levelstimepoints_ = confidic["levelstime"]
 
+whichtest = confidic["whichtest"]
+
 tableIC = confidic["name_isotopologue_contribs"].split(".")[0] # no extension
 
 
@@ -116,13 +118,13 @@ if args.mode == "PCA":
                              "sample_descrip", f'{namesuffix}-{k}-{tp}', odirpca, 6)
 
 
-if args.mode == "diffabund":
+if args.mode == "diffabund" and whichtest != "disfit":
     print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
     spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
-    whichtest = confidic["whichtest"]
+
     newcateg = confidic["newcateg"]  # see yml in example/configs/
-    technical_toexclude = confidic["technical_toexclude"]
+    technical_toexclude = confidic["technical_toexclude"] # TODO : delete this from config and README
     contrasts_ = confidic["contrasts"]
 
     outdiffdir = "results/tables/"
@@ -151,7 +153,6 @@ if args.mode == "diffabund":
                 newcateg,
                 contrast,
                 whichtest,
-                technical_toexclude,
                 co,
                 outdirs_total_abund_res_,
                 "TOTAL",
@@ -174,7 +175,6 @@ if args.mode == "diffabund":
                     newcateg,
                     contrast,
                     whichtest,
-                    technical_toexclude,
                     co,
                     outdiffdirs,
                     outkey,
@@ -221,7 +221,6 @@ if args.mode == "abundplots":
                                col1, col2, plotwidth, odirbars, xticks_text_ , axisx_labeltilt)
 
 
-
 if args.mode == "timeseries_fractional":
     print(" Fractional contributions plots \n")
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension
@@ -255,7 +254,6 @@ if args.mode == "timeseries_fractional":
                         gbycompD, coloreachmetab)
 
 
-
 if args.mode == "timeseries_isotopologues":
     print(" Isotopologue's Contributions plots \n")
 
@@ -279,3 +277,7 @@ if args.mode == "timeseries_isotopologues":
     metadata,
     selbycompD,
     condilevels )
+
+
+if args.mode == "diffabund" and whichtest == "disfit":
+    print("disfit_test")

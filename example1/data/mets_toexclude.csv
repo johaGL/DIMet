@@ -9,6 +9,8 @@ cell,Oxoglutaric_acid
 cell,Succinic_acid
 cell,cis-Aconitic_acid
 cell,L-Asparagine
+cell,13C5-D5-15N_Glutamic_acid
+cell,Myristic_acid_d27
 med,Phosphoenolpyruvic_acid
 med,3-Phosphoglyceric_acid
 med,D-Glyceraldehyde_3-phosphate
@@ -22,3 +24,5 @@ med,Succinic_acid
 med,cis-Aconitic_acid
 med,L-Glutamic_acid
 med,L-Aspartic_acid
+med,13C5-D5-15N_Glutamic_acid
+med,Myristic_acid_d27
