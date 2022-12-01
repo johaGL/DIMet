@@ -159,7 +159,7 @@ def detect_and_create_dir(namenesteddir):
 
 
 def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
-                   whichtest,  co, outdiffdirs, choice):
+                   whichtest,  co, outdiffdirs, autochoice):
     """
     runs functions above,
     saves DAM (Differentially abundant metabolites/isotopologues)
@@ -167,7 +167,7 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     """
     reduce = True
     eps = 1
-    if choice == "TOTAL":
+    if autochoice == "TOTAL":
         abun = pd.read_csv(
             datadi + tablePicked + "_" + namesuffix + "_" + co + ".tsv",
             sep="\t",

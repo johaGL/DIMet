@@ -5,7 +5,7 @@ Created on Tue May 31 12:58:52 2022
 
 @author: johanna
 
-Calculates :
+Calculates and saves:
 1. absolute abundances of isotopologues
 using corrected isotopologues (%)
 

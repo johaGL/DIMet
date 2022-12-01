@@ -177,7 +177,7 @@ if args.mode == "diffabund" and whichtest != "disfit":
                     whichtest,
                     co,
                     outdiffdirs,
-                    outkey,
+                    outkey
                 )
                 # end for tabusp
             # end for co

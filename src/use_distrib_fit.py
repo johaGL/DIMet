@@ -8,7 +8,13 @@ Created on Thu Jul 21 14:32:27 2022
 
 
 import locale
+import pandas as pd
 from scipy.stats.mstats import gmean
+import statsmodels.stats.multitest as smm
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from distrib_fit_fromProteomix import compute_z_score, find_best_distribution, compute_p_value
 from fun_fm import prepare4contrast
 
@@ -43,7 +49,6 @@ def compute_cv(reduced_abund):
         return np.nan
 
 
-
 def give_coefvar_bycond(df_red, red_meta, t):
     condilist = red_meta["condition"].unique()
     tmpdico = dict()
@@ -57,6 +62,7 @@ def give_coefvar_bycond(df_red, red_meta, t):
     dfout = pd.DataFrame.from_dict(tmpdico)
     dfout.index = df_red.index
     return dfout
+
 
 def give_coefvar_new(df_red, red_meta, newcol : str):
     groups_ = red_meta[newcol].unique()
@@ -113,7 +119,44 @@ def detect_and_create_dir(namenesteddir): # TODO: deduplicate, same in other scr
         os.makedirs(namenesteddir)
 
 
-def test_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
+def compute_overlap(df: pd.DataFrame, group1, group2, overlap_method: str) -> pd.DataFrame:
+    # Credits: Claire Lescoat, Macha Nikolski, Benjamin Dartigues, Cedric Usureau, Aurélien Barré, Hayssam Soueidan
+    for i in df.index.values:
+        group1_values = np.array(group1.iloc[i])
+        group2_values = np.array(group2.iloc[i])
+
+        if overlap_method == "symmetric":
+            df.loc[i, 'score_overlap'] = overlap_symmetric(group1_values, group2_values)
+        else:
+            df.loc[i, 'score_overlap'] = overlap_asymmetric(group1_values, group2_values)
+
+    return df
+
+
+def overlap_symmetric(x: np.array, y: np.array) -> int:
+    # Credits: Claire Lescoat, Macha Nikolski, Benjamin Dartigues, Cedric Usureau, Aurélien Barré, Hayssam Soueidan
+    a = [np.nanmin(x), np.nanmax(x)]
+    b = [np.nanmin(y), np.nanmax(y)]
+
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+
+    overlap = np.nanmax([a[0], b[0]]) - np.nanmin([a[1], b[1]])
+    return overlap
+
+
+def overlap_asymmetric(x: np.array, y: np.array) -> int:
+    # Credits: Claire Lescoat, Macha Nikolski, Benjamin Dartigues, Cedric Usureau, Aurélien Barré, Hayssam Soueidan
+    # x is the reference group
+    overlap = np.nanmin(y) - np.nanmax(x)
+    return overlap
+
+def compute_p_adjusted(df: pd.DataFrame, correction_method: str) -> pd.DataFrame:
+    rej, pval_corr = smm.multipletests(df['pvalue'].values, alpha=float('0.05'), method=correction_method)[:2]
+    df['padj'] = pval_corr
+    return df
+
+def red_cv_g_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
                        namesuffix, metadata, levelstimepoints_):
     # calculate and save : reduced data, coefficient of variation, splitting by timepoint, here only T0h test
     ddof = 0
@@ -136,7 +179,6 @@ def test_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
             # add coefficient of variation, by condition
             red_meta = metada_sel.loc[metada_sel["sample"].isin(df_t_red.columns) ,:]
 
-
             df_cv = give_coefvar_bycond(df_t_red, red_meta, t )
             df_t_red_cv = pd.merge(df_t_red, df_cv , left_index=True, right_index=True)
             #outfi_coefvar = f"{dirtmpdata}abund_reduced_coefvar_{t}_{co}.tsv"
@@ -152,13 +194,102 @@ def test_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
             dfo1.to_csv(outfi_geomean, header=True)
     return 0
 
+
+def divide_groups(df4c, metad4c, selected_contrast):
+        """split into two df"""
+        sc = selected_contrast
+        sam0 = metad4c.loc[metad4c['newcol'] == sc[0], "sample"] # interest
+        sam1 = metad4c.loc[metad4c['newcol'] == sc[1], "sample"] # control
+        group1 = df4c[sam0]
+        group2 = df4c[sam1]
+        group1.index = range(group1.shape[0])
+        group2.index = range(group2.shape[0])
+
+        return group1, group2
+
+
+def give_reduced_df( df, ddof ):
+    rownames = df.index
+    df.index = range(len(rownames))  # index must be numeric because compute reduction accepted
+    df_red = compute_reduction(df, ddof)  # reduce
+    df_red.index = rownames
+    return df_red
+
+def plot_overlap_hist(df_overls):
+    values_sym = df_overls["score_overlap_symmetric"]
+    print(["symm" for i in range(len(values_sym))])
+    a = pd.DataFrame({'value' : values_sym,
+                      'type_overlap': ["symm" for i in range(len(values_sym))] })
+    vasym = df_overls["s_o_Assymetric"]
+    b = pd.DataFrame({'value': vasym,
+                      'type_overlap': ["assym" for i in range(len(vasym))]})
+    dfplotov = pd.concat([a,b], ignore_index=True, axis=0)
+
+    #fig, ax = plt.subplots()
+    with sns.axes_style("darkgrid"):
+        sns.displot(data=dfplotov, x = 'value', hue='type_overlap',
+                       kde=False)
+        plt.savefig("histogram_overlaps_interestVScontrol.pdf")
+    return 0
+
+
+
+    def calcs_before_fit(dirtmpdata, filehere, co,
+                         namesuffix, choice, metadata, selected_contrast):
+
+        ddof = 0  # for compute reduction
+        df = pd.read_csv(filehere, sep='\t', header=0, index_col=0)
+
+        metada_sel = metadata.loc[metadata['short_comp'] == co, :]
+
+        df4c, metad4c = prepare4contrast(df, metada_sel, newcateg, selected_contrast)
+
+        # sort them by condition
+        metad4c = metad4c.sort_values("condition")
+        df4c = df4c[metad4c['sample']]
+
+        df4c_red = give_reduced_df(df4c, ddof)
+
+        cv_df = give_coefvar_new(df4c_red, metad4c, 'newcol')
+        df4c_red_cv = pd.merge(df4c_red, cv_df, left_index=True, right_index=True)
+
+        group1, group2 = divide_groups(df4c_red_cv, metad4c, selected_contrast)
+
+        # overlap # TODO : pick symmetric or assymetric
+        rownames = df4c_red_cv.index
+        df4c_red_cv.index = range(len(rownames))
+        o_sym = compute_overlap(df4c_red_cv, group1, group2, "symmetric")
+        o_sym.columns = [*o_sym.columns[:-1], "score_overlap_symmetric"]
+        o_sym = compute_overlap(o_sym, group1, group2, "assymmetric")
+        o_sym.columns = [*o_sym.columns[:-1], "s_o_Assymetric"]
+        o_sym.index = rownames
+
+        # plot overlap
+        plot_overlap_hist(o_sym)
+
+        df4c_red_cv_o = o_sym.copy()
+
+        # geometric means
+        geomdf = give_geommeans_new(df4c_red_cv_o, metad4c, 'newcol')
+        df4c_red_cv_o_g = pd.merge(df4c_red_cv_o, geomdf, left_index=True, right_index=True)
+
+        # ratio (add this column to df in construction)
+
+        c_interest = selected_contrast[0]
+        c_control = selected_contrast[1]
+        interest_gm = c_interest + "_gm"
+        control_gm = c_control + "_gm"
+        ratiosdf = give_ratios_df(df4c_red_cv_o_g, interest_gm, control_gm)
+
+        ratiosdf = compute_z_score(ratiosdf)
+        return ratiosdf
+
+
+
 if __name__ == "__main__":
 
     myconff = "configs/cmyelin.yml"
     import yaml
-    import os
-    import pandas as pd
-    import numpy as np
     os.chdir(os.path.expanduser("~/myelin_metabo/"))
     with open(myconff, "r") as f:
         confidic = yaml.load(f, Loader=yaml.Loader)
@@ -188,17 +319,15 @@ if __name__ == "__main__":
 
     newcateg = confidic["newcateg"]
     contrasts_ = confidic["contrasts"]
+    choice = "TOTAL"
 
-    ddof = 0 # for compute reduction
-
-
-    outdiffdir = "results/tables/"
-    if not os.path.exists(outdiffdir):
-        os.makedirs(outdiffdir)
-    outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
-    outputsubdirs.append("totmk/")
-    outputsubdirs.append("TOTAL/")
-    alloutdirs = list()
+    # outdiffdir = "results/tables/"
+    # if not os.path.exists(outdiffdir):
+    #     os.makedirs(outdiffdir)
+    # outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
+    # outputsubdirs.append("totmk/")
+    # outputsubdirs.append("TOTAL/")
+    # alloutdirs = list()
     # for exte_sig in ["extended/", "significant/"]:
     #     for subdir_spec in outputsubdirs:
     #         x = outdiffdir + exte_sig + subdir_spec
@@ -207,75 +336,66 @@ if __name__ == "__main__":
     #             os.makedirs(x)
 
     print(newcateg)
-    #test_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
+
+    # print a table with reduded values by time
+    # red_cv_g_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
     #                   namesuffix, metadata, levelstimepoints_)
 
-    # new loop for plotting
-    # ...
+    # new loop for plotting?
 
 
     #use contrasts for selecting the data and calculate all
     selected_contrast = ['Myelin_T0h', 'Vehicle_T0h']
     #assert selected_contrast[1] == selected_contrast[1], f"error, geomean table wont be find, check {newcateg}"
+
     for co in names_compartments.values():
-        # for t in ['T0h']:
-        #     outfi_geomean = f"{dirtmpdata}abund_reduced_geomean_{t}_{co}.tsv"
-        #     df_t_red_geomean = pd.read_csv(outfi_geomean, index_col=0)
-        #     c_interest = selected_contrast[0] + "_geomean"
-        #     c_control = selected_contrast[1] +"_geomean"
-        #     ratiosdf = give_ratios_df(df_t_red_geomean, c_interest, c_control)
+        if choice == "TOTAL":
+            filehere = f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv"
+        else:
+            filehere = f"{dirtmpdata}IFORGOTHERE{choice}_{co}.tsv"
 
-        df = pd.read_csv(f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv", sep='\t', header=0, index_col=0)
+        ratiosdf = calcs_before_fit(dirtmpdata, filehere, co,
+                         namesuffix, choice, metadata, selected_contrast)
 
-        metada_sel = metadata.loc[metadata['short_comp'] == co, :]
-
-        df4c, metad4c = prepare4contrast(df, metada_sel, newcateg, selected_contrast)
-
-        # sort them by condition
-        metad4c = metad4c.sort_values("condition")
-        df4c = df4c[metad4c['sample']]
-
-        c_interest = selected_contrast[0]
-        c_control = selected_contrast[1]
-
-        rownames = df4c.index
-        df4c.index = range(len(rownames))  # index must be numeric because compute reduction accepted
-        df4c_red = compute_reduction(df4c, ddof)
-        df4c_red.index = rownames
-        print(metad4c.columns)
-        cv_df = give_coefvar_new(df4c_red, metad4c, 'newcol')
-        df4c_red_cv = pd.merge(df4c_red, cv_df, left_index=True, right_index=True)
-
-        #overlap # TODO
-
-        geomdf = give_geommeans_new(df4c_red_cv, metad4c, 'newcol')
-        df4c_red_cv_g = pd.merge(df4c_red_cv, geomdf, left_index=True, right_index=True)
-
-        interest_gm = c_interest + "_gm"
-        control_gm = c_control + "_gm"
-        ratiosdf = give_ratios_df(df4c_red_cv_g, interest_gm, control_gm )
-
-        ratiosdf = compute_z_score(ratiosdf)
-        print(ratiosdf.head())
-        ratiosdf.to_csv( f"xx_{co}",header=True)
-
-        print("fitting to distributions to find the best ... ")
-        import sys
-        sys.exit()
         strcontrast = "_vs_".join(selected_contrast)
         out_histo_file = f"results/plots/distrib-{strcontrast}-{co}.pdf"
-        best_distribution, args_param = find_best_distribution(ratiosdf,
-                                                               out_histogram_distribution= out_histo_file)
-        argsided = "right-tailed" #"two-sided" # or "rigth-tailed"
-        ratiosdf = compute_p_value(ratiosdf, argsided, best_distribution, args_param )
-        ratiosdf.to_csv("test_right.csv",header=True)
+        print(out_histo_file)
 
-        argsided = "two-sided"  # "two-sided" # or "rigth-tailed"
-        ratiosdf = compute_p_value(ratiosdf, argsided, best_distribution, args_param)
-        ratiosdf.to_csv("test_twosided.csv", header=True)
+        print("fitting to distributions to find the best ... ")
+        # **
+        ratiosdf.to_csv(f"{choice}{strcontrast}_{co}_prep.tsv",
+                           header=True, sep='\t')
+
+        import sys
+        sys.exit()
+        # **
+        # best_distribution, args_param = find_best_distribution(ratiosdf,
+        #                                                        out_histogram_distribution= out_histo_file)
+        # #argsided = "right-tailed" #"two-sided" # or "rigth-tailed"
+        # #ratiosdf = compute_p_value(ratiosdf, argsided, best_distribution, args_param )
+        # #ratiosdf.to_csv("test_right.csv",header=True)
+        #
+        # argsided = "two-sided"  # "two-sided" # or "rigth-tailed"
+        # ratiosdf = compute_p_value(ratiosdf, argsided, best_distribution, args_param)
+        #
+        # ratiosdf = compute_p_adjusted(ratiosdf, "fdr_bh")
+        #
+
+        # ratiosdf.to_csv(f"{outdiffdir}{choice}{strcontrast}_{co}_twosided.tsv",
+        #                   header=True, sep='\t')
 
 
 
+# end
+# ----- older tests
+# for co in names_compartments.values():
+    # for t in ['T0h']:
+    #     outfi_geomean = f"{dirtmpdata}abund_reduced_geomean_{t}_{co}.tsv"
+    #     df_t_red_geomean = pd.read_csv(outfi_geomean, index_col=0)
+    #     c_interest = selected_contrast[0] + "_geomean"
+    #     c_control = selected_contrast[1] +"_geomean"
+    #     ratiosdf = give_ratios_df(df_t_red_geomean, c_interest, c_control)
+    # ...
 
 
 
