@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import numpy as np
 
-os.chdir(os.path.expanduser("~/fluxdiff/"))
+os.chdir(os.path.expanduser("~/example2/smpls_raw/"))
 namesuffix = "cycloser"
 finame = "data/modifiedfile_Cycloserine.xlsx"
 datadi = "data/"

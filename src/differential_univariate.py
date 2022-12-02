@@ -9,21 +9,9 @@ Created on Thu Jul 21 14:32:27 2022
 
 import scipy.stats
 import statsmodels.stats.multitest as ssm
-
+import locale
 from .fun_fm import *
 
-
-def compute_reduction(df, ddof):
-    res = df.copy()
-    for protein in df.index.values:
-        # get array with abundances values
-        protein_values = np.array(df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
-        # return array with each value divided by standard deviation of the whole array
-        reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
-
-        # replace values in result df
-        res.loc[protein] = reduced_abundances
-    return res
 
 
 def outFC_df(newdf, metas, contrast, eps):
@@ -127,11 +115,11 @@ def outStat_df(newdf, metas, contrast, whichtest):
             for t in pretups:  # make list of tuples with no-nan pvalues
                 if not np.isnan(t[1]):
                     tups.append(t)
+
             if len(tups) == 0:  # if all pvalues are nan assign two sided result
                 tups = [(usta3, p3)]
-            stap_tup = min(
-                tups, key=lambda x: x[1]
-            )  # if any nan, will always pick nan as min
+
+            stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
             stare.append(stap_tup[0])
             pval.append(stap_tup[1])
 
@@ -139,7 +127,8 @@ def outStat_df(newdf, metas, contrast, whichtest):
             tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
             stare.append(tstav)
             pval.append(pvaltv)
-
+        # end if
+    # end for
     prediffr = pd.DataFrame(data={"mets": mets, "stat": stare, "pval": pval})
     return prediffr
 
@@ -150,7 +139,7 @@ def detect_and_create_dir(namenesteddir):
 
 
 def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
-                   whichtest, technical_toexclude, co, outdiffdirs, choice):
+                   whichtest,  co, outdiffdirs, autochoice):
     """
     runs functions above,
     saves DAM (Differentially abundant metabolites/isotopologues)
@@ -158,7 +147,7 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     """
     reduce = True
     eps = 1
-    if choice == "TOTAL":
+    if autochoice == "TOTAL":
         abun = pd.read_csv(
             datadi + tablePicked + "_" + namesuffix + "_" + co + ".tsv",
             sep="\t",
@@ -169,8 +158,8 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
         abun = pd.read_csv(datadi + tablePicked, sep="\t", index_col=0)
         outkey = tablePicked.split("_")[2]  # the species m+x as saved
     print("\nprocessing : ", outkey, co)
-    tokeep = [i for i in abun.index if (i not in technical_toexclude)]
-    abun = abun.loc[tokeep, :]
+    #tokeep = [i for i in abun.index if (i not in technical_toexclude)]
+    #abun = abun.loc[tokeep, :]
     metadahere = metadata.loc[metadata.short_comp == co]
     selecols = metadahere["sample"]
 
@@ -178,7 +167,7 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     if reduce:
         df = newdf_tot.copy()
         mets = df.index
-        df.index = range(len(mets))  # to make a 1st column numeric positions
+        df.index = range(len(mets))  # to make a 1st column numeric positions, compute_reduction accepted
         ddof = 0
         tmp = compute_reduction(df, ddof)
         tmp.index = newdf_tot.index

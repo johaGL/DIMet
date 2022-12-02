@@ -46,10 +46,10 @@ def giveExoPRE_metadata(samples_vec):
     metadata['compartment'] = "med"
     return metadata
 
-mywd = "~/proj_fluxomLDH/"
-endometabo_infi1 = "raw_d/dec2020_ALL_DATA_res_isocor.xlsx"
+mywd = "~/example2/smpls_raw/"
+endometabo_infi1 = "dec2020_ALL_DATA_res_isocor.xlsx"
 # more endometabo files: glioblastome/Metabo_glioblastome/Metatoul_analysis/
-exometabo_infi = "raw_d/Appendix_Data_RMN_quanti&marquageMOD.xlsx"
+exometabo_infi = "Appendix_Data_RMN_quanti&marquageMOD.xlsx"
 sheetsnames_exometabo = ['Data Quantification', 'Data Marquage Enrichment'] # 'Acceptance Criteria'
 # endometabo_infi1 is a single sheet file, with corrected areas only
 # note : areas == abundance
@@ -77,13 +77,13 @@ endo_table = endo_table.assign(trueiso = trueiso_v)
 samples_endo = sorted(list(set(endo_table['sample'].tolist())))
 metadata_endo = giveEndo_metadata(samples_endo)
 
-metadata_endo.to_csv("raw_d/metadata_endo.csv", header=True, index=False)
+metadata_endo.to_csv("metadata_endo_ldh.csv", header=True, index=False)
 
 # build matrices : type pandas, for practicity
 
-# fill isotopologues
-# # de-activated as it takes long
-# endoisotopologue_outfi = "raw_d/endo_isotopologues.csv"
+# fill isotopologues :
+# # de-activated as it takes long (moreover, huge decimal parts in those floats!)
+# endoisotopologue_outfi = "endoCorrectedIsotopologues_ldh.tsv"
 # if not os.path.exists(endoisotopologue_outfi):
 #     endo_trueiso_mat = pd.DataFrame(0, index=endo_table['trueiso'].tolist(),
 #                                     columns=metadata_endo['name_old'].tolist())
@@ -111,12 +111,12 @@ endo_abutot_mat = endo_abutot_mat.astype(float)
 # change colnames
 #endo_abutot_mat.columns = metadata_endo['sample'].tolist()
 endo_abutot_mat = securecolnameschange(metadata_endo, endo_abutot_mat)
-endo_abutot_mat.to_csv("raw_d/endo_abundance_total.tsv", header=True, sep="\t")
+endo_abutot_mat.to_csv("endo_abundance_ldh.tsv", header=True, sep="\t")
 
 # rowdata
-rowdata_endo = pd.DataFrame({'met_orig': endo_abutot_mat.index.tolist(),
-                             'compartment': 'cell'})
-rowdata_endo.to_csv("raw_d/rowdata_endo.tsv", header=True, sep='\t', index=False)
+# rowdata_endo = pd.DataFrame({'met_orig': endo_abutot_mat.index.tolist(),
+#                              'compartment': 'cell'})
+# rowdata_endo.to_csv("rowdata_endo.tsv", header=True, sep='\t', index=False)
 
 # ##############################
 # EXOMETABO
@@ -204,7 +204,7 @@ exo_true.index = exo_true.index.str.replace("24", "T24")
 exo_true.index = exo_true.index.str.replace("48", "T48")
 
 exo_true = exo_true.T
-exo_true.to_csv("raw_d/exo_abundance_totalPRE.tsv", header=True, sep="\t")
+exo_true.to_csv("exo_abundance_totalPRE.tsv", header=True, sep="\t")
 
 # metadata exo
 metadata_exo = giveExoPRE_metadata(exo_true.columns)
@@ -226,11 +226,11 @@ print()
 mdexo = mdexo.assign(presample = mdexo.genoplust.str.cat(mdexo.compartment, sep= "_"))
 mdexo = mdexo.assign(sample = mdexo.presample.str.cat(mdexo.replicate_bio, sep="-"))
 mdexo = mdexo.drop(columns = ['presample'])
-mdexo.to_csv("raw_d/metadata_exo.csv", header=True)
+mdexo.to_csv("metadata_exo.csv", header=True)
 # join in a single metadata for entire dataset:
 bigmetadata = pd.concat([metadata_endo,mdexo], axis=0)
 
-bigmetadata.to_csv("raw_d/metadataLDH_endo_exo.csv", header=True, index = False)
+bigmetadata.to_csv("metadataLDH_endo_exo.csv", header=True, index = False)
 
 # now really replace missing samples with NAs in exometabo abundances
 print(missingsamples)
@@ -248,10 +248,10 @@ for i in exo_true.columns:
     desstyle.append(geno + "_" + time + "_med" + "-" + biorep)
 exo_true.columns = desstyle
 
-exo_true.to_csv("raw_d/exo_abundance_total.tsv", sep ="\t", header=True)
+exo_true.to_csv("exo_abundance_total.tsv", sep ="\t", header=True)
 
 
 # row_data
 rowdata_ex = pd.DataFrame({'met_orig': exo_true.index.tolist(),
                            'compartment': 'med'})
-rowdata_ex.to_csv("raw_d/rowdata_exo.tsv", header=True, sep='\t', index=False)
+rowdata_ex.to_csv("rowdata_exo.tsv", header=True, sep='\t', index=False)

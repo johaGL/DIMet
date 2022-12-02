@@ -13,24 +13,6 @@ import pandas as pd
 import seaborn as sns
 
 
-def yieldcolorsbymet():
-    # coloreachmetab dictionary: contains many metabolites, just defines colors.
-    coloreachmetab = {
-        "L-Lactic_acid": "blue",
-        "Citric_acid": "green",
-        "Oxoglutaric_acid": "#903ee0",
-        "Succinic_acid": "#019085",
-        "Fumaric_acid": "#01668a",
-        "L-Malic_acid": "#afc98f",
-        "L-Alanine": "blueviolet",
-        "Pyruvic_acid": "#33d3e3",
-        "L-Glutamic_acid": "#643561",
-        "L-Glutamine": "#950065",
-        "L-Aspartic_acid": "#9d6d00",
-        "L-Asparagine": "#ff7c7c",  # greenfluo : '#11dc79'
-    }
-    return coloreachmetab
-
 
 def yieldfraccountrib(dicos, tablePicked, co):
     """
@@ -48,11 +30,11 @@ def yieldfraccountrib(dicos, tablePicked, co):
 
     # empty dataframe to fill
     df4plot = pd.DataFrame(
-        columns=["Hours", "condition", "metabolite", "Fractional Contribution (%)"]
+        columns=["timenum", "condition", "metabolite", "Fractional Contribution (%)"]
     )
 
     for z in range(len(metabolites)):
-        subdf = dfcompartment.loc[:, [metabolites[z], "Hours", "condition"]]
+        subdf = dfcompartment.loc[:, [metabolites[z], "timenum", "condition"]]
         subdf["metabolite"] = metabolites[z]
         subdf["Fractional Contribution (%)"] = subdf[metabolites[z]] * 100
         subdf = subdf.drop(columns=[metabolites[z]])
@@ -72,10 +54,10 @@ def nestedDi2list(anestedD):
 def df2musddf(one_m):
     """
     input: dataframe by one metabolite:
-      "Hours", "condition", "metabolite" "Fractional Contribution (%)"
+      "timenum", "condition", "metabolite" "Fractional Contribution (%)"
     returns :
         dataframe by one metabolite, metabolite column deleted:
-                condition  Hours    mean    sd
+                condition  timenum    mean    sd
     108        Control     0  0.000893  0.002611
     111        Control     1  0.236453  0.023246
     ...
@@ -85,70 +67,80 @@ def df2musddf(one_m):
     ...
     141  L-Cycloserine    24  0.815613  0.050756
     """
-    m_s = one_m[["condition", "Hours"]].drop_duplicates()
+    m_s = one_m[["condition", "timenum"]].drop_duplicates()
     m_s["mean"] = 0
     m_s["sd"] = 0
     for kc in m_s["condition"]:
-        for hou in one_m["Hours"]:
-            ss = one_m.loc[(one_m["Hours"] == hou) & (one_m["condition"] == kc), :]
+        for hou in one_m["timenum"]:
+            ss = one_m.loc[(one_m["timenum"] == hou) & (one_m["condition"] == kc), :]
             mymean = np.mean(ss["Fractional Contribution (%)"])
             mysd = np.std(ss["Fractional Contribution (%)"])
-            m_s.loc[(m_s["condition"] == kc) & (m_s["Hours"] == hou), "mean"] = mymean
-            m_s.loc[(m_s["condition"] == kc) & (m_s["Hours"] == hou), "sd"] = mysd
+            m_s.loc[(m_s["condition"] == kc) & (m_s["timenum"] == hou), "mean"] = mymean
+            m_s.loc[(m_s["condition"] == kc) & (m_s["timenum"] == hou), "sd"] = mysd
     return m_s
 
 
 def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
     themets = nestedDi2list(grmetsD)
+    hoursticks = df4plot['timenum'].unique()
     somem = df4plot.loc[df4plot["metabolite"].isin(themets)]
-    m_s = pd.DataFrame(columns=["condition", "Hours", "mean", "sd", "metabolite"])
+    m_s = pd.DataFrame(columns=["condition", "timenum", "mean", "sd", "metabolite"])
     for k in set(somem["metabolite"]):
         one_m = somem[somem["metabolite"] == k]
         m_s1 = df2musddf(one_m)
         m_s1["metabolite"] = k
         m_s = pd.concat([m_s, m_s1])  # mean and sd ( bio replicates)
-    figziz = 5.2 * len(grmetsD)
-    fig, axs = plt.subplots(1, len(grmetsD), sharey=False, figsize=(figziz, 6))
-    handless = []
-    labels = []
+    figziz = 6.2 * len(grmetsD)
+    fig, axs = plt.subplots(2, len(grmetsD), sharey=False, figsize=(figziz, 11))
+    def doemptyrow(axs, nbcolumns):
+        for z in range(nbcolumns): # do empty row
+            axs[0,z].set_axis_off()
+        return axs
+
+    axs = doemptyrow(axs, len(grmetsD))
+
     for z in range(len(grmetsD)):
         sns.lineplot(
-            ax=axs[z],
-            x="Hours",
+            ax=axs[1,z],
+            x="timenum",
             y="Fractional Contribution (%)",
             hue="metabolite",
             style="condition",
             err_style=None,
             alpha=0.9,
+            linewidth = 4.5,
             palette=mycolorsD,
             data=somem.loc[somem["metabolite"].isin(grmetsD[z])],
             legend=True,  ## !!!!!!!!!!!!!!!!attention here   <=====
         )
+        axs[1,z].set_xticks([int(i) for i in hoursticks])
         m_s1 = m_s.loc[m_s["metabolite"].isin(grmetsD[z])]
-        axs[z].scatter(
-            m_s1["Hours"], m_s1["mean"], s=16, facecolors="none", edgecolors="black"
+        axs[1,z].scatter(
+            m_s1["timenum"], m_s1["mean"], s=22, facecolors="none", edgecolors="black"
         )
-        axs[z].errorbar(
-            m_s1["Hours"],
+        axs[1,z].errorbar(
+            m_s1["timenum"],
             m_s1["mean"],
             yerr=m_s1["sd"],
             fmt="none",
             capsize=3,
             ecolor="black",
-            zorder=1,
+            zorder=3,
         )
-        axs[z].set(ylabel=None)
-
+        axs[1,z].set(ylabel=None),
+        axs[1,z].legend(loc="upper center", bbox_to_anchor= (0.5, 2), frameon=False)
         # ha , la = axs[z].get_legend_handles_labels()
         # handless.append(ha)
         # labels.append(la)
     fig.suptitle(co)
+    plt.subplots_adjust(bottom=0.1, right=0.8, hspace=0.1, wspace=0.4)
+
     fig.text(
-        0.015, 0.24, "Fractional Contribution (%)", va="center", rotation="vertical"
+        0.1, 0.3, "Fractional Contribution (%)", va="center", rotation="vertical"
     )
     # loc="upper left"
     # fig.legend(handless, labels, bbox_to_anchor=(0.65,1.05))
-    fig.legend(handles=handless, labels=labels)
+    #fig.legend(handles=handless, labels=labels)
     fig.savefig(outfile, format="pdf")
     return 0
 
@@ -168,7 +160,6 @@ def savefraccontriplots(
         dicos[co][tableFC] = adf[dicos[co]["metadata"]["sample"]]
 
         df4plot = yieldfraccountrib(dicos, tableFC, co)
-
         grmetsD = gbycompD[co]
 
         sns.set_style(
@@ -189,12 +180,15 @@ def savefraccontriplots(
 
         trashmets = set(thiscompartment_mets) - set(pickedmets_)
         ppp = df4plot.loc[df4plot["metabolite"].isin(trashmets)]
+
+        plt.rcParams.update({"font.size": 10})
+
         g = sns.FacetGrid(
             ppp, row="condition", col="metabolite", sharey=False, margin_titles=True
         )
         g.map(
             sns.lineplot,
-            "Hours",
+            "timenum",
             "Fractional Contribution (%)",
             marker="o",
             err_style="bars",

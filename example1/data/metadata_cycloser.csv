@@ -1,4 +1,4 @@
-former_name,Sample_label,short_comp,timepoint,condition,Hours,replicate,sample,sample_descrip
+former_name,Sample_label,short_comp,timepoint,condition,timenum,replicate,sample,sample_descrip
 MCF001089_TD01,TD_1,cell,T0,Control,0,1,Control_cell_T0-1,Control_T0-1
 MCF001089_TD02,TD_2,cell,T0,Control,0,2,Control_cell_T0-2,Control_T0-2
 MCF001089_TD03,TD_3,cell,T0,Control,0,3,Control_cell_T0-3,Control_T0-3
