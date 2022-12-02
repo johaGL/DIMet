@@ -49,3 +49,16 @@ def tmpstack(oD):
         oudf = pd.concat([oudf, tmp])
     oudf = oudf.drop_duplicates()
     return oudf
+
+
+def save_new_dfs_simple(datadi, names_compartments, filename,
+                        metadata,  diroutput):
+    met_or_iso_df = pd.read_csv(datadi + filename, sep="\t", index_col=0)
+
+    for compartment in names_compartments.values():
+        f_o = filename.split(".")[0]  + "_" + compartment + ".tsv"
+
+        # using metadata, to set apart (met_or_iso_df) compartment specific samples
+        samplestokeep = metadata.loc[metadata["short_comp"] == compartment, "sample"]
+        met_or_iso_df = met_or_iso_df[samplestokeep]
+        met_or_iso_df.to_csv(diroutput + f_o, sep="\t")

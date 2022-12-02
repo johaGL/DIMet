@@ -12,6 +12,7 @@ from .extruder import *
 from .abundances_bars import *
 from .frac_contrib_lineplot import *
 from .isotopologcontrib_stacked import *
+from .use_distrib_fit import *
 
 
 def dimet_message():
@@ -75,20 +76,31 @@ if args.mode == "prepare":
         save_new_dfsB(datadi, names_compartments,
                          filename, metadata, extrudf, dirtmpdata, isotopolog_style)
 
+    pre_files = os.listdir(dirtmpdata)
+    for fn in pre_files:
+        print(" %%   ", fn)
+        pf = pd.read_csv(f'{dirtmpdata}{fn}', sep='\t', header=0, index_col=0)
+        post_f = quality_control(pf, metadata)
+
+    import sys
+    sys.exit()
     # NOTE : for abundances bars and Differential,
     # compulsory step: calculate isotopologues abundances from IC percentages
-    calculate_meanEnri(
-        dirtmpdata,
-        tableAbund,
-        tableIC,
-        metadata,
-        names_compartments,
-        namesuffix,
-        dirtmpdata
-    )
+    # calculate_meanEnri(
+    #     dirtmpdata,
+    #     tableAbund,
+    #     tableIC,
+    #     metadata,
+    #     names_compartments,
+    #     namesuffix,
+    #     dirtmpdata
+    # )
 
     split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
                    abunda_species_4diff_dir)
+
+    print(os.listdir(f'{dirtmpdata}{abunda_species_4diff_dir}'))
+
 
     if detect_fraccontrib_missing(tsvfi) == False:
         print("Warning !: you do not have fractional contributions file")
@@ -104,7 +116,8 @@ if args.mode == "PCA":
     print(f"\n plotting pca(s) to: {odirpca}\n")
     for k in names_compartments.keys():
         co = names_compartments[k]
-        df = pd.read_csv(f"{dirtmpdata}meanEnrich_{namesuffix}_{co}.tsv", sep='\t', header=0, index_col=0)
+        file4pca = f"{dirtmpdata}meanEnrich_{namesuffix}_{co}.tsv"  # TODO: allow to pick other than meanEnrich
+        df = pd.read_csv(file4pca, sep='\t', header=0, index_col=0)
         metadatasub = metadata.loc[metadata['short_comp'] == co, :]
         dfa = massage_datadf_4pca(df, metadatasub)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
@@ -124,7 +137,6 @@ if args.mode == "diffabund" and whichtest != "disfit":
 
 
     newcateg = confidic["newcateg"]  # see yml in example/configs/
-    technical_toexclude = confidic["technical_toexclude"] # TODO : delete this from config and README
     contrasts_ = confidic["contrasts"]
 
     outdiffdir = "results/tables/"
@@ -139,7 +151,7 @@ if args.mode == "diffabund" and whichtest != "disfit":
             x = outdiffdir + exte_sig + subdir_spec
             alloutdirs.append(x)
             if not os.path.exists(x):
-                os.makedirs(x) 
+                os.makedirs(x) # each m+x output directory
 
     outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
     for contrast in contrasts_:
@@ -280,4 +292,77 @@ if args.mode == "timeseries_isotopologues":
 
 
 if args.mode == "diffabund" and whichtest == "disfit":
-    print("disfit_test")
+    print("\nDistribution fitting (of ratios)\n")
+    newcateg = confidic["newcateg"]
+    contrasts_ = confidic["contrasts"]
+    outdiffdir = "results/tables/"
+
+    if not os.path.exists(outdiffdir):
+        os.makedirs(outdiffdir)
+    outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
+    outputsubdirs.append("totmk/")
+    outputsubdirs.append("TOTAL/")
+    alloutdirs = list()
+    for exte_sig in ["extended/", "significant/"]:
+        for subdir_spec in outputsubdirs:
+            x = outdiffdir + exte_sig + subdir_spec
+            alloutdirs.append(x)
+            if not os.path.exists(x):
+                os.makedirs(x)   # each m+x output directory
+
+
+
+    spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
+    outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
+    for contrast in contrasts_:
+        strcontrast = "_".join(contrast)
+        print("\n    comparison ==>", contrast[0] ,"vs",contrast[1] )
+        for co in names_compartments.values():
+            autochoice = "TOTAL"
+            filehere = f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv"
+
+            ratiosdf = calcs_before_fit(filehere,
+                                        co,
+                                        metadata,
+                                        newcateg,
+                                        contrast )
+
+            # plot overlap
+            o_sym_asym = ratiosdf[["score_overlap_symmetric", "s_o_Assymetric"]]
+            plot_overlap_hist(o_sym_asym, f"results/plots/overlaps-{autochoice}-{strcontrast}-{co}")
+
+            out_histo_file = f"results/plots/distrib-{strcontrast}-{co}.pdf"
+            print(out_histo_file)
+
+            # print("fitting to distributions to find the best ... ")
+            # **
+            fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
+            ratiosdf.to_csv(f"{outdiffdir}extended/{fout}",
+                               header=True, sep='\t')
+
+
+
+            # for isotopologues:
+            tableabuspecies_co_ = [i for i in spefiles if co in i]
+            # any "m+x" where x > max_m_species, must be excluded
+            donotuse = [k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
+                        and int(k.split("_")[2].split("+")[-1]) > max_m_species]
+            tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
+            tableabuspecies_co_good_ = list(tabusp_tmp_)
+            for tabusp in tableabuspecies_co_good_:
+                autochoice = tabusp.split("_")[2]  # the species m+x as saved
+                filehere = f"{abunda_species_4diff_dir}{tabusp}"
+                print(filehere)
+                ratiosdf = calcs_before_fit(filehere,
+                                            co,
+                                            metadata,
+                                            newcateg,
+                                            contrast)
+
+                o_sym_asym = ratiosdf[["score_overlap_symmetric", "s_o_Assymetric"]]
+                plot_overlap_hist(o_sym_asym, f"results/plots/overlaps-{autochoice}-{strcontrast}-{co}")
+
+                strcontrast = "_".join(contrast)
+                out_histo_file = f"results/plots/distrib-{strcontrast}-{autochoice}-{co}.pdf"
+                fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
+                ratiosdf.to_csv(f"{outdiffdir}extended/{fout}", header=True, sep='\t')

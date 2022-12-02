@@ -36,6 +36,25 @@ def yieldrowdataB(newdf):
     rowdata = pd.DataFrame.from_dict(xu)
     return rowdata
 
+
+def quality_control(df, metadata):
+    metadata['s'] = metadata['sample'].str.split("-", regex=False).str[0]
+    grouping_df = metadata[['sample', 's']]
+    print(grouping_df)
+    tmpD = dict()
+    for gro in grouping_df['s'].unique():
+        colshere = grouping_df.loc[grouping_df['s'] == gro, "sample"]
+
+        tmpdf = df[colshere]
+        print(tmpdf)
+        t2 = tmpdf.copy()
+        for i, row in tmpdf.iterrows():
+            vec = tmpdf.loc[i]
+            #print(vec)
+            #print(np.count_nonzero(vec) == 0)
+
+    return 0
+
 def prepare4contrast(idf, ametadata, newcateg, contrast):
     """
     newcateg : example :  ['condition', 'timepoint' ]
@@ -48,12 +67,6 @@ def prepare4contrast(idf, ametadata, newcateg, contrast):
     metas = cc.loc[cc["newcol"].isin(contrast), :]
     newdf = idf[metas["sample"]]
     return newdf, metas
-
-
-def calcgeommean(avector, eps):
-    vech = np.array(avector)
-    vech[vech == 0] = eps  # replace any zeroes
-    return np.exp(np.mean(np.log(vech)))
 
 
 def splitrowbynewcol(row, metas):
@@ -69,6 +82,34 @@ def splitrowbynewcol(row, metas):
         selsams = koo["sample"]
         miniD[t] = row[selsams].tolist()
     return miniD
+
+def compute_reduction(df, ddof):
+    """
+    modified, original from ProteomiX
+    johaGL 2022: if all row is zeroes, set same protein_values
+    """
+    res = df.copy()
+    for protein in df.index.values:
+        # get array with abundances values
+        protein_values = np.array(
+            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
+        # return array with each value divided by standard deviation of the whole array
+        if np.nanstd(protein_values, ddof=ddof) == 0:
+            reduced_abundances = protein_values  # because all row is zeroes
+        else:
+            reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
+
+        # replace values in result df
+        res.loc[protein] = reduced_abundances
+    return res
+
+
+
+
+def calcgeommean(avector, eps):
+    vech = np.array(avector)
+    vech[vech == 0] = eps  # replace any zeroes
+    return np.exp(np.mean(np.log(vech)))
 
 
 def jitterzero(avector):

@@ -25,16 +25,7 @@ by it obtaining a proxy to corrected abundances using a) and b)
 from .fun_fm import *
 
 
-def correction_prop_df(prop_df):
-    """ "
-    does two corrections:
-        a) all multiply 100 (percentage)
-        b )if # if % < 0 , or > 100, cut
-    """
-    prop_df = prop_df * 100
-    prop_df[prop_df < 0] = 0
-    prop_df[prop_df > 100] = 100
-    return prop_df
+
 
 
 def saveabundance(df, nameout):

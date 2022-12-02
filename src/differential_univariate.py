@@ -13,26 +13,6 @@ import locale
 from .fun_fm import *
 
 
-def compute_reduction(df, ddof):
-    """
-    modified, original from ProteomiX
-    johaGL 2022: if all row is zeroes, set same protein_values
-    """
-    res = df.copy()
-    for protein in df.index.values:
-        # get array with abundances values
-        protein_values = np.array(
-            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
-        # return array with each value divided by standard deviation of the whole array
-        if np.nanstd(protein_values, ddof=ddof) == 0:
-            reduced_abundances = protein_values  # because all row is zeroes
-        else:
-            reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
-
-        # replace values in result df
-        res.loc[protein] = reduced_abundances
-    return res
-
 
 def outFC_df(newdf, metas, contrast, eps):
     """
