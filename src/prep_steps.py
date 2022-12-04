@@ -42,6 +42,7 @@ def detectifinbadlistB(al_, amet):
     else:
         return 1
 
+
 def transformmyisotopologues(dfrownames_, style):
     if style == "VIB":
         outli_ = list()
@@ -59,15 +60,58 @@ def transformmyisotopologues(dfrownames_, style):
         outli_ = [i.replace("label", "m+") for i in dfrownames_]
     return outli_
 
-def save_new_dfsB( datadi, names_compartments, filename,
-                  metadata, extrudf, diroutput, style ):
+def stomp_neg_andsuperiorto1(df):
+    df[df < 0] = 0
+    df[df > 1] = 1
+    return df
+
+def quality_control(dfco, metadata, co):
+    metadataco = metadata.loc[metadata["short_comp"] == co, :]
+    metadataco = metadataco.assign(s = metadataco['sample'].str.split("-", regex=False).str[0])
+    #print(metadataco.short_comp.unique(), "  <======")
+    grouping_df = metadataco[['sample', 's']]
+    tmpD = dict()
+    for gro in grouping_df['s'].unique():
+        colshere = grouping_df.loc[grouping_df['s'] == gro, "sample"]
+        tmpdf = dfco[colshere]
+        t2 = tmpdf.copy()
+        for i, row in tmpdf.iterrows():
+            vec = tmpdf.loc[i]
+
+            n_zeros =  len(vec) - np.count_nonzero(vec)
+            if (n_zeros > 0) and (n_zeros < len(vec)):
+                res = np.array(vec)
+                res[res == 0] = 'NaN'  # replace by nan if  all replicates not zero
+            else:
+                res = np.array(vec)
+
+            t2.loc[i] = res
+             # end for i,r
+        tmpD[gro] = t2
+        # end for gro
+    o_df = pd.concat(tmpD.values(), axis = 1, ignore_index=False)
+    return o_df
+
+
+def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
+                  diroutput, style, stomp_values, PROPORTIONCUTOFF ):
     extruD = extrudf2dico(extrudf)
 
     pre_met_or_iso_df = pd.read_csv(datadi + filename, sep="\t", index_col=0)
+
     if "isotopolo" in filename.lower():
         # transform isotopologue table style in m+x style
         newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
         pre_met_or_iso_df.index = newindex
+        pre_met_or_iso_df[pre_met_or_iso_df < PROPORTIONCUTOFF] = 0
+        if stomp_values == "Y":
+            pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
+
+    if "frac" in filename.lower() and "contrib" in filename.lower():
+        pre_met_or_iso_df[pre_met_or_iso_df < PROPORTIONCUTOFF] = 0
+        if stomp_values == "Y":
+            pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
+
 
     for compartment in names_compartments.values():
         f_o = filename.split(".")[0] + "_" + compartment + ".tsv"
@@ -89,6 +133,12 @@ def save_new_dfsB( datadi, names_compartments, filename,
         # met_or_iso_df.todelete.value_counts() # visualize "table" on 'todelete' colummn
         met_or_iso_df_o = met_or_iso_df[met_or_iso_df["todelete"] != 0]
         met_or_iso_df_o = met_or_iso_df_o.drop(columns=["todelete"])
+
+        met_or_iso_df_o.to_csv(diroutput + f_o+"ugly.tsv", sep="\t")
+        # new : quality_control
+
+        met_or_iso_df_o = quality_control(met_or_iso_df_o, metadata, compartment)
+
         met_or_iso_df_o.to_csv(diroutput + f_o, sep="\t")
     # end for
     return 0

@@ -4,26 +4,37 @@ needed for DIMet/__main__.py to be able to import .py files in this location (DI
 import argparse
 import os
 import shutil
+
+import numpy as np
 import yaml
 from .pca_fun import massage_datadf_4pca, calcPCAand2Dplot
 from .differential_univariate import *
 from .abund_frompercentages import calculate_meanEnri, split_mspecies_files
-from .extruder import *
+from .prep_steps import *
 from .abundances_bars import *
 from .frac_contrib_lineplot import *
 from .isotopologcontrib_stacked import *
 from .use_distrib_fit import *
+from .fun_fm import countnan_samples, add_alerts
 
 
 def dimet_message():
     return "DIMet: *D*ifferential *I*sotopically-labeled targeted *Met*abolomics\n"
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir")
 parser.add_argument("--config", help = "path to configuration yaml file")
 parser.add_argument("--mode", help = "prepare | PCA | diffabund | abundplots \
                             | timeseries_isotopologues |  timeseries_fractional")
+parser.add_argument("--stomp_values", help = "Y/N")
+parser.add_argument("--proportion_cutoff", help = 0.001)
+
 args = parser.parse_args()
+if args.proportion_cutoff is None:
+    PROPORTIONCUTOFF = 0.001
+else:
+    PROPORTIONCUTOFF = float(args.proportion_cutoff)
 
 
 confifile = os.path.expanduser(args.config)
@@ -72,34 +83,30 @@ if args.mode == "prepare":
     print("using list of undesired metabolites to drop off from data\t")
     extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
 
+    stomp_values = args.stomp_values
+    if stomp_values == 'N':
+        print("are you sure not stomping values ? \
+        \naberrant proportion values (negative and superior to 1)  will remain,"
+              "and good quality analysis is not guaranteed")
     for filename in tsvfi:
-        save_new_dfsB(datadi, names_compartments,
-                         filename, metadata, extrudf, dirtmpdata, isotopolog_style)
+        save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf,
+                          dirtmpdata, isotopolog_style, stomp_values, PROPORTIONCUTOFF)
 
-    pre_files = os.listdir(dirtmpdata)
-    for fn in pre_files:
-        print(" %%   ", fn)
-        pf = pd.read_csv(f'{dirtmpdata}{fn}', sep='\t', header=0, index_col=0)
-        post_f = quality_control(pf, metadata)
 
-    import sys
-    sys.exit()
     # NOTE : for abundances bars and Differential,
     # compulsory step: calculate isotopologues abundances from IC percentages
-    # calculate_meanEnri(
-    #     dirtmpdata,
-    #     tableAbund,
-    #     tableIC,
-    #     metadata,
-    #     names_compartments,
-    #     namesuffix,
-    #     dirtmpdata
-    # )
+    calculate_meanEnri(
+        dirtmpdata,
+        tableAbund,
+        tableIC,
+        metadata,
+        names_compartments,
+        namesuffix,
+        dirtmpdata
+    )
 
     split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
                    abunda_species_4diff_dir)
-
-    print(os.listdir(f'{dirtmpdata}{abunda_species_4diff_dir}'))
 
 
     if detect_fraccontrib_missing(tsvfi) == False:
@@ -311,7 +318,6 @@ if args.mode == "diffabund" and whichtest == "disfit":
                 os.makedirs(x)   # each m+x output directory
 
 
-
     spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
     outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
     for contrast in contrasts_:
@@ -321,11 +327,27 @@ if args.mode == "diffabund" and whichtest == "disfit":
             autochoice = "TOTAL"
             filehere = f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv"
 
-            ratiosdf = calcs_before_fit(filehere,
+            df = pd.read_csv(filehere, sep='\t', header=0, index_col=0)
+
+            metada_sel = metadata.loc[metadata['short_comp'] == co, :]
+
+            df4c, metad4c = prepare4contrast(df, metada_sel, newcateg, contrast)
+            print(metad4c.columns)
+            # sort them by 'newcol' the column created by prepare4contrast
+            metad4c = metad4c.sort_values("newcol")
+            ratiosdf = calcs_red_to_ratios(df4c,
                                         co,
-                                        metadata,
+                                        metad4c,
                                         newcateg,
                                         contrast )
+
+            # delete rows being zero everywhere in this TOTAL df
+            ratiosdf = ratiosdf[(ratiosdf.T != 0).any()]
+
+            ratiosdf = add_alerts(ratiosdf, metad4c)
+
+            ratiosdf = compute_z_score(ratiosdf)
+
 
             # plot overlap
             o_sym_asym = ratiosdf[["score_overlap_symmetric", "s_o_Assymetric"]]
@@ -342,27 +364,75 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
 
 
-            # for isotopologues:
+            # --------------------- for isotopologues ---------------------------:
+
             tableabuspecies_co_ = [i for i in spefiles if co in i]
             # any "m+x" where x > max_m_species, must be excluded
             donotuse = [k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
                         and int(k.split("_")[2].split("+")[-1]) > max_m_species]
             tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
             tableabuspecies_co_good_ = list(tabusp_tmp_)
+
+            isos_togetherD = dict()
             for tabusp in tableabuspecies_co_good_:
                 autochoice = tabusp.split("_")[2]  # the species m+x as saved
                 filehere = f"{abunda_species_4diff_dir}{tabusp}"
                 print(filehere)
-                ratiosdf = calcs_before_fit(filehere,
+
+                df = pd.read_csv(filehere, sep='\t', header=0, index_col=0)
+
+                metada_sel = metadata.loc[metadata['short_comp'] == co, :]
+
+                df4c, metad4c = prepare4contrast(df, metada_sel, newcateg, contrast)
+
+                # sort them by 'newcol' the column created by prepare4contrast
+                metad4c = metad4c.sort_values("newcol")
+
+                ratiosdf = calcs_red_to_ratios(df4c,
                                             co,
-                                            metadata,
+                                            metad4c,
                                             newcateg,
                                             contrast)
+
+                # delete rows being zero everywhere in this m+x df
+                ratiosdf = ratiosdf[(ratiosdf.T != 0).any()]
 
                 o_sym_asym = ratiosdf[["score_overlap_symmetric", "s_o_Assymetric"]]
                 plot_overlap_hist(o_sym_asym, f"results/plots/overlaps-{autochoice}-{strcontrast}-{co}")
 
                 strcontrast = "_".join(contrast)
+                indexfull = [f'{m}_{autochoice}' for m in ratiosdf.index]
+                ratiosdf.index = indexfull
+                ratiosdf = ratiosdf.assign(isotype=[autochoice for k in range(ratiosdf.shape[0])])
                 out_histo_file = f"results/plots/distrib-{strcontrast}-{autochoice}-{co}.pdf"
                 fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
                 ratiosdf.to_csv(f"{outdiffdir}extended/{fout}", header=True, sep='\t')
+
+                if autochoice.startswith("m+"):
+                    isos_togetherD[f"{autochoice}-{co}"] = ratiosdf
+                elif autochoice == "totmk":
+                    pass # total marked is not of interest by now
+
+            isos_piledup = pd.concat(isos_togetherD.values(), axis=0)
+
+
+            isos_piledup = add_alerts(isos_piledup, metad4c)
+
+            isos_piledup = compute_z_score(isos_piledup)
+
+
+            # isos_piledup = isos_piledup.sort_values('isotype') # better not to sort
+
+            plt.figure(figsize=(4,4))
+            sns.histplot(x=isos_piledup['ratio'])
+            plt.title("all isotopologues ratios")
+            plt.savefig("ratios_allisos.pdf")
+            plt.close()
+            isos_piledup.to_csv(f"{outdiffdir}/{co}_piledm+x.tsv", header=True, sep='\t')
+
+            print(isos_piledup.shape)
+
+
+
+
+

@@ -53,7 +53,6 @@ def compute_z_score(df: pd.DataFrame) -> pd.DataFrame:
     """
     # TODO: if no columns named "ratio" / if several columns with "ratio_"
     df['zscore'] = stats.zscore(df["ratio"])
-
     return df
 
 
@@ -206,18 +205,6 @@ def best_fit_distribution(data, bins=200):
             pass
 
     return best_distribution.name, best_params
-
-
-def compute_p_value_old(df, test, best_dist, args_param):
-    # TODO : vérifier résultat puis dégager
-    for protein in df.index.values:
-        if test == 'right-tailed':
-            p = 1 - best_dist.cdf(df.loc[protein]['zscore'], **args_param)
-            df.ix[protein, 'pvalue'] = p
-        elif test == 'two-sided':
-            p = 2 * (1 - best_dist.cdf(abs(df.loc[protein]['zscore']), **args_param))
-            df.ix[protein, 'pvalue'] = p
-    return df
 
 
 def compute_p_value(df: pd.DataFrame, test: str, best_dist, args_param) -> pd.DataFrame:

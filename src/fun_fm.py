@@ -10,6 +10,8 @@ import os
 
 import numpy as np
 import pandas as pd
+from scipy import stats
+
 
 def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
     icdf = pd.read_csv(datadi + tableIC + "_" + namesuffix +".tsv", sep="\t", index_col=0)
@@ -36,24 +38,6 @@ def yieldrowdataB(newdf):
     rowdata = pd.DataFrame.from_dict(xu)
     return rowdata
 
-
-def quality_control(df, metadata):
-    metadata['s'] = metadata['sample'].str.split("-", regex=False).str[0]
-    grouping_df = metadata[['sample', 's']]
-    print(grouping_df)
-    tmpD = dict()
-    for gro in grouping_df['s'].unique():
-        colshere = grouping_df.loc[grouping_df['s'] == gro, "sample"]
-
-        tmpdf = df[colshere]
-        print(tmpdf)
-        t2 = tmpdf.copy()
-        for i, row in tmpdf.iterrows():
-            vec = tmpdf.loc[i]
-            #print(vec)
-            #print(np.count_nonzero(vec) == 0)
-
-    return 0
 
 def prepare4contrast(idf, ametadata, newcateg, contrast):
     """
@@ -83,6 +67,36 @@ def splitrowbynewcol(row, metas):
         miniD[t] = row[selsams].tolist()
     return miniD
 
+
+
+def a12(lst1, lst2, rev=True):
+    """
+    Non-parametric hypothesis testing using Vargha and Delaney's A12 statistic:
+    how often is x in lst1 greater than y in lst2?
+    == > it gives a size effect, good to highlight potentially real effects <==
+    """
+    # credits : Macha Nikolski
+    more = same = 0.0
+    for x in lst1:
+        for y in lst2:
+            if x == y:
+                same += 1
+            elif rev and x > y:
+                more += 1
+            elif not rev and x < y:
+                more += 1
+    return (more + 0.5 * same) / (len(lst1) * len(lst2))
+
+
+def detect_fraccontrib_missing(the_tsv_files_):
+    fraccontribfile = ""
+    for fi in the_tsv_files_:
+        if "frac" in fi.lower():
+            fraccontribfile = fi
+    if fraccontribfile != "":
+        return True
+    return False
+
 def compute_reduction(df, ddof):
     """
     modified, original from ProteomiX
@@ -94,7 +108,7 @@ def compute_reduction(df, ddof):
         protein_values = np.array(
             df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
         # return array with each value divided by standard deviation of the whole array
-        if np.nanstd(protein_values, ddof=ddof) == 0:
+        if sum(protein_values) == 0:
             reduced_abundances = protein_values  # because all row is zeroes
         else:
             reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
@@ -104,9 +118,131 @@ def compute_reduction(df, ddof):
     return res
 
 
+def give_reduced_df( df, ddof ):
+    rownames = df.index
+    df.index = range(len(rownames))  # index must be numeric because compute reduction accepted
+    df_red = compute_reduction(df, ddof)  # reduce
+    df_red.index = rownames
+    return df_red
+
+
+def compute_cv(reduced_abund):
+    reduced_abu_np = reduced_abund.to_numpy().astype('float64')
+    if np.nanmean(reduced_abu_np) != 0:
+        return np.nanstd(reduced_abu_np) / np.nanmean(reduced_abu_np)
+    elif np.nanmean(reduced_abu_np) == 0 and np.nanstd(reduced_abu_np) == 0:
+        return 0
+    else:
+        return np.nan
+
+
+def give_coefvar_new(df_red, red_meta, newcol : str):
+    print("give cv")
+
+    groups_ = red_meta[newcol].unique()
+    tmpdico = dict()
+    for group in groups_:
+        samplesthisgroup = red_meta.loc[red_meta[newcol] == group, "sample"]
+        subdf = df_red[samplesthisgroup]
+        subdf = subdf.assign(CV=subdf.apply(compute_cv, axis=1))
+        tmpdico[f"CV_{group}"] = subdf.CV.tolist()
+
+    dfout = pd.DataFrame.from_dict(tmpdico)
+    dfout.index = df_red.index
+    return dfout
+
+def compute_gmean_nonan(anarray):
+        anarray = anarray[~np.isnan(anarray)]
+        if sum(anarray) == 0:  # replicates all zero
+            outval = 0
+        else:
+            outval = stats.gmean(anarray)
+        return outval
+
+def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
+    """
+    output: df, str, str
+    """
+    print("give GEO")
+
+    sams_interest = metad4c.loc[metad4c['newcol'] == c_interest, "sample"]
+    sams_control = metad4c.loc[metad4c['newcol'] == c_control, "sample"]
+    dfout = df_red.copy()
+    geomcol_interest = "gm_"+c_interest
+    geomcol_control = "gm_" + c_control
+    dfout[geomcol_interest] = [np.nan for i in range(dfout.shape[0])]
+    dfout[geomcol_control] = [np.nan for i in range(dfout.shape[0])]
+
+    for i, row in df_red.iterrows():
+        metabolite = i
+        vec_interest = np.array(row[sams_interest])  #[ sams_interest]
+        vec_control = np.array(row[sams_control])
+
+        val_interest = compute_gmean_nonan(vec_interest)
+        val_control = compute_gmean_nonan(vec_control)
+
+        dfout.loc[i, geomcol_interest] = val_interest
+        dfout.loc[i, geomcol_control] = val_control
+
+    return dfout, geomcol_interest, geomcol_control
+
+
+
+def give_ratios_df(df1, geomInterest, geomControl):
+    print("give RATIO")
+
+    df = df1.copy()
+    df = df.assign(ratio=[np.nan for i in range(df.shape[0])])
+    for i, row in df1.iterrows():
+        intere = row[geomInterest]
+        contr = row[geomControl]
+        if contr != 0 :
+            df.loc[i, "ratio"] = intere/contr
+        else:
+            if intere == 0:
+                df.loc[i, "ratio"] = 0
+            else:
+                df.loc[i, "ratio"] = intere
+    return df
+
+
+def countnan_samples(df, metad4c):
+    vecout = []
+    grs = metad4c['newcol'].unique()
+    gr1 = metad4c.loc[metad4c['newcol']  == grs[0], "sample"]
+    gr2 = metad4c.loc[metad4c['newcol']  == grs[1], "sample"]
+
+    for i, row in df.iterrows():
+        vec1 = row[gr1].tolist()
+        vec2 = row[gr2].tolist()
+        val1 = np.sum(np.isnan(vec1))
+        val2 = np.sum(np.isnan(vec2))
+        vecout.append(tuple([val1,val2]))
+
+    df['count_nan_samples'] = vecout#[str(tup) for tup in vecout]
+    return df
+
+def add_alerts(df, metad4c):
+    df['alert'] = ''
+    df.loc[df["s_o_Assymetric"] < 0, "alert"] = "overlap"
+    df.loc[df["score_overlap_symmetric"] <= 0, "alert"] = "overlap"
+    df = countnan_samples(df, metad4c)  # adds nan_count_samples column
+
+    alert_reps = list()
+    for i in df['count_nan_samples'].tolist():
+        if i[0] >= 2 or i[1] >= 2:
+            alert_reps.append("no replicates")
+        else:
+            alert_reps.append('')
+
+    df['foo'] = alert_reps
+    df.loc[df['foo'] != '', "alert"] = "no replicates"
+    df = df.drop(columns = ['foo'])
+    return df
 
 
 def calcgeommean(avector, eps):
+    # TODO: old, used in differential_univariate, work pending
     vech = np.array(avector)
     vech[vech == 0] = eps  # replace any zeroes
     return np.exp(np.mean(np.log(vech)))
@@ -119,32 +255,75 @@ def jitterzero(avector):
         avector = [1500000, 1600000, 1700000]  # if huge values
     return avector
 
+def red_cv_g_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
+                       namesuffix, metadata, levelstimepoints_):
+    def give_geommeans(df_red, red_meta, t):
+        condilist = red_meta["condition"].unique()
+        tmpdico = dict()
+        for condi in condilist:
+            samplesthiscondi = red_meta.loc[red_meta['condition'] == condi, "sample"]
+            subdf = df_red[samplesthiscondi]
+            subdf = subdf.assign(geomean=subdf.apply(gmean, axis=1))
+            # print(subdf.head())
+            tmpdico[f"{condi}_{t}_geomean"] = subdf.geomean.tolist()
 
-def a12(lst1, lst2, rev=True):
-    """
-    Non-parametric hypothesis testing using Vargha and Delaney's A12 statistic:
-    how often is x in lst1 greater than y in lst2?
-    == > it gives a size effect, good to highlight potentially real effects <==
-    """
-    more = same = 0.0
-    for x in lst1:
-        for y in lst2:
-            if x == y:
-                same += 1
-            elif rev and x > y:
-                more += 1
-            elif not rev and x < y:
-                more += 1
-    return (more + 0.5 * same) / (len(lst1) * len(lst2))
+        dfout = pd.DataFrame.from_dict(tmpdico)
+        dfout.index = df_red.index
 
-def detect_fraccontrib_missing(the_tsv_files_):
-    fraccontribfile = ""
-    for fi in the_tsv_files_:
-        if "frac" in fi.lower():
-            fraccontribfile = fi
-    if fraccontribfile != "":
-        return True
-    return False
+        return dfout
+    def give_coefvar_bycond(df_red, red_meta, t):
+        condilist = red_meta["condition"].unique()
+        tmpdico = dict()
+        for condi in condilist:
+            samplesthiscondi = red_meta.loc[red_meta['condition'] == condi, "sample"]
+            subdf = df_red[samplesthiscondi]
+            subdf = subdf.assign(CV=subdf.apply(compute_cv, axis=1))
+            # print(subdf.head())
+            tmpdico[f"{condi}_{t}_CV"] = subdf.CV.tolist()
+
+        dfout = pd.DataFrame.from_dict(tmpdico)
+        dfout.index = df_red.index
+        return dfout
+
+    # calculate and save : reduced data, coefficient of variation, splitting by timepoint, here only T0h test
+    ddof = 0
+    for co in names_compartments.values():
+        df = pd.read_csv(f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv", sep='\t', header=0, index_col=0)
+
+        metada_sel = metadata.loc[metadata['short_comp']==co, :]
+        #get reduced rows , cv and geommeans,
+        for t in ['T0h']: # for t in levelstimepoints_
+            print(t)
+            samples_t = metada_sel.loc[metada_sel['timepoint'] == t, "sample"]
+            samples_t = sorted(samples_t)
+            df_t = df[samples_t]
+            rownames = df_t.index
+            df_t.index = range(len(rownames))#  index must be numeric because compute reduction accepted
+            df_t_red = compute_reduction(df_t, ddof)
+            df_t_red.index = rownames
+
+            #outfilereduced = f"{dirtmpdata}abund_reduced_{t}_{co}.tsv"
+            # df_t_red.to_csv(outfilereduced, header=True, sep='\t')
+            # add coefficient of variation, by condition
+            red_meta = metada_sel.loc[metada_sel["sample"].isin(df_t_red.columns) ,:]
+
+            df_cv = give_coefvar_bycond(df_t_red, red_meta, t )
+            df_t_red_cv = pd.merge(df_t_red, df_cv , left_index=True, right_index=True)
+            #outfi_coefvar = f"{dirtmpdata}abund_reduced_coefvar_{t}_{co}.tsv"
+            #df_t_red_cv.to_csv(outfi_coefvar)
+
+            # save intervals overlap # TODO?... but here we have 3 conditions (in this timepoint)
+
+            # save geometric means table, and the ratio
+            df_t_red_geomean = give_geommeans(df_t_red, red_meta, t)
+            print(df_t_red_geomean.head())
+            dfo1 = pd.merge(df_t_red_cv, df_t_red_geomean, left_index=True, right_index=True)
+            outfi_geomean = f"{dirtmpdata}abund_reduced_geomean_{t}_{co}.tsv"
+            dfo1.to_csv(outfi_geomean, header=True)
+    return 0
+
+
+
 
 
 ##################

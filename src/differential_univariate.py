@@ -5,8 +5,7 @@ Created on Thu Jul 21 14:32:27 2022
 
 @author: johanna
 """
-
-
+import numpy as np
 import scipy.stats
 import statsmodels.stats.multitest as ssm
 import locale
@@ -14,7 +13,7 @@ from .fun_fm import *
 
 
 
-def outFC_df(newdf, metas, contrast, eps):
+def outFC_df(newdf, metas, contrast):
     """
     Calculates fold change
     returns : pandas dataframe
@@ -33,15 +32,24 @@ def outFC_df(newdf, metas, contrast, eps):
         vBaseline = row[columnsBaseline].to_numpy()
 
         # Calculate Fold Change
-        geommInterest = calcgeommean(vInterest, eps)
-        geommBaseline = calcgeommean(vBaseline, eps)
-        try:
-            FC_geommu.append(geommInterest / geommBaseline)
-        except ZeroDivisionError():
-            FC_geommu.append(geommInterest / eps)
+        #geommInterest = calcgeommean(vInterest, eps)
+        #geommBaseline = calcgeommean(vBaseline, eps)
+
+        val_interest = compute_gmean_nonan(vInterest)
+        val_baseline = compute_gmean_nonan(vBaseline)
+        if val_baseline != 0:
+            ratioval = val_interest / val_baseline
+        elif val_baseline == 0:
+            if val_interest == 0:
+                ratioval = 0
+            else:
+                ratioval = val_interest
+
+        FC_geommu.append(ratioval)
+
 
     fctab = pd.DataFrame(
-        data={"mets": mets, "FC_geommu": FC_geommu, "log2FC": np.log2(FC_geommu)}
+        data={"metabolite": mets, "FC_geommu": FC_geommu, "log2FC": np.log2(FC_geommu)}
     )
 
     return fctab
@@ -64,7 +72,6 @@ def outStat_df(newdf, metas, contrast, whichtest):
     mets = []
     stare = []
     pval = []
-    FC_geommu = []
     metaboliteshere = newdf.index
     for i in metaboliteshere:
         mets.append(i)
@@ -77,6 +84,10 @@ def outStat_df(newdf, metas, contrast, whichtest):
 
         vInterest = row[columnsInterest].to_numpy()
         vBaseline = row[columnsBaseline].to_numpy()
+
+        vInterest = vInterest[~np.isnan(vInterest)]
+        vBaseline = vBaseline[~np.isnan(vBaseline)]
+
 
         if whichtest == "MW":
             # vInterest = jitterzero(vInterest)
@@ -124,12 +135,16 @@ def outStat_df(newdf, metas, contrast, whichtest):
             pval.append(stap_tup[1])
 
         elif whichtest == "Tt":
-            tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
+            if (len(vInterest) >= 2) and (len(vBaseline) >= 2): # new: 2 or more samples required
+                tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
+            else:
+                tstav = np.nan
+                pvaltv = np.nan
             stare.append(tstav)
             pval.append(pvaltv)
         # end if
     # end for
-    prediffr = pd.DataFrame(data={"mets": mets, "stat": stare, "pval": pval})
+    prediffr = pd.DataFrame(data={"metabolite": mets, "stat": stare, "p-value": pval})
     return prediffr
 
 
@@ -145,7 +160,6 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     saves DAM (Differentially abundant metabolites/isotopologues)
     into tables
     """
-    reduce = True
     eps = 1
     if autochoice == "TOTAL":
         abun = pd.read_csv(
@@ -164,23 +178,23 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
     selecols = metadahere["sample"]
 
     newdf_tot, metas_tot = prepare4contrast(abun, metadahere, newcateg, contrast)
-    if reduce:
-        df = newdf_tot.copy()
-        mets = df.index
-        df.index = range(len(mets))  # to make a 1st column numeric positions, compute_reduction accepted
-        ddof = 0
-        tmp = compute_reduction(df, ddof)
-        tmp.index = newdf_tot.index
-        newdf_tot_red = tmp
+
+    df = newdf_tot.copy()
+    mets = df.index
+    df.index = range(len(mets))  # to make a 1st column numeric positions, compute_reduction accepted
+    ddof = 0
+    tmp = compute_reduction(df, ddof)
+    tmp.index = newdf_tot.index
+    newdf_tot_red = tmp
 
     prediffresult = outStat_df(newdf_tot_red, metas_tot, contrast, whichtest)
 
     cpdiff = prediffresult.copy()
-    cpdiff["pval"] = cpdiff[["pval"]].fillna(1)  # inspired from R documentation in p.adjust
-    (sgs, corrP, _, _) = ssm.multipletests(cpdiff["pval"], method="fdr_bh")  # Benjamini-Hochberg
+    cpdiff["p-value"] = cpdiff[["p-value"]].fillna(1)  # inspired from R documentation in p.adjust
+    (sgs, corrP, _, _) = ssm.multipletests(cpdiff["p-value"], method="fdr_bh")  # Benjamini-Hochberg
     cpdiff["padj"] = corrP
     truepadj = []
-    for v, w in zip(prediffresult["pval"], cpdiff["padj"]):
+    for v, w in zip(prediffresult["p-value"], cpdiff["padj"]):
         if np.isnan(v):
             truepadj.append(v)
         else:
@@ -188,15 +202,20 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
 
     prediffresult["padj"] = truepadj
 
-    FCresult = outFC_df(newdf_tot, metas_tot, contrast, eps)
+    FCresult = outFC_df(newdf_tot_red, metas_tot, contrast)
 
     DIFFRESULT = pd.concat(
-        [prediffresult.set_index("mets"), FCresult.set_index("mets")],
+        [prediffresult.set_index("metabolite"), FCresult.set_index("metabolite")],
         axis=1,
         join="inner").reset_index()
 
-    ocols = ["mets", "stat", "pval", "padj", "FC_geommu", "log2FC"]
+    ocols = ["metabolite", "stat", "p-value", "padj", "FC_geommu", "log2FC"]
     OUTPUT = DIFFRESULT[ocols]
+
+    if outkey.startswith("m+") or (outkey =="mktot") :
+        name_iso_long = [f"{m}_{outkey}" for m in OUTPUT.metabolite.tolist()]
+        OUTPUT["metabolite"] = name_iso_long
+
     contrastword = "_".join(contrast)
 
     extended_dir = [ i for i in outdiffdirs if "extended" in i]

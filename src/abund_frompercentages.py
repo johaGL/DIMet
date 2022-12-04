@@ -25,12 +25,89 @@ by it obtaining a proxy to corrected abundances using a) and b)
 from .fun_fm import *
 
 
+def correction_prop_df(prop_df):
+    """ "
+    does two corrections:
+        a) all multiply 100 (percentage)
+        b )if # if % < 0 , or > 100, cut
+    """
+    prop_df = prop_df * 100
+    prop_df[prop_df < 0] = 0
+    prop_df[prop_df > 100] = 100
+    return prop_df
 
+
+def makematch_abund_rowdata(abund, rowdata):
+    """
+    check lines that are in abundance but not in corrected %
+     NOTE: rowdata has been obtained from prop_df (%)
+    """
+    set(abund.index) - set(rowdata["metabolite"])
+    rtodrop = list(set(abund.index) - set(rowdata["metabolite"]))
+    abund = abund.drop(rtodrop, axis=0)
+    return abund
+
+
+def getspecificmk(prop_df, rowdata, selmk):
+    """
+    obtain proportion of CI for specified label selmk
+    example : selmk = "m+0"
+    output: columns are [samples], rownames metabolites
+    """
+    tmp = prop_df.copy()
+
+    tmp = tmp.assign(isotopolgFull=tmp.index)
+    tmp = pd.merge(tmp, rowdata, on="isotopolgFull", how="inner")
+    tmp = tmp.loc[tmp["m+x"] == selmk, :]
+    tmp = tmp.set_index("metabolite")  # make metabolite to be the index
+    tmp = tmp.drop(["isotopolgFull", "m+x"], axis=1)
+    return tmp
+
+
+def yieldmarkedabu(prop_mx, abund, *totalmarked):
+    """
+    * calculates abundance using proportion specific m+x dataframe *
+    NOTE: if option totalmarked is 'totalmarked' (not case sentitive):
+    * * calculates by substracting mzero abundance from total abundance * *
+    Parameters
+    ----------
+    prop_mx : pandas
+        example : prop_mx = getspecificmk(prop_df,rowdata, "m+0")
+          so prop_mx :    sampleConditionA-1   sampleConditionA-2 ....
+                   metabolites           0                      0
+    abund : pandas
+    Returns
+    -------
+    abu_mx : pandas
+    """
+    total_opt = [o for o in totalmarked]
+    # make sure same order in columns
+    ordercol = prop_mx.columns
+    abund = abund[ordercol]
+    markedout = dict()
+    # calculate by rows, across mx marked proportions
+    # note: if prop_zero as input, row will be zero marked proportions
+    for i, row in prop_mx.iterrows():
+        nameindex = row.name  # the metabolite in row
+        totabu = abund.loc[nameindex, :]
+        if len(total_opt) == 0:
+            abumk = (totabu * row) / 100
+        else:
+            if total_opt[0].lower() == "totalmarked":
+                zeroabu = (totabu * row) / 100  # zero marked abundance,
+                abumk = totabu - zeroabu  # total - zero marked abundance
+            else:
+                # wrote string not recognized (total only accepted)
+                print("3dr arg not recognized, must be 'totalmarked' or empty")
+                return 1
+        markedout[nameindex] = abumk
+
+    abu_mx = pd.DataFrame(markedout).T
+    return abu_mx
 
 
 def saveabundance(df, nameout):
     df.to_csv(nameout, sep="\t")
-
 
 
 def calculate_meanEnri(
