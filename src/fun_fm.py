@@ -224,8 +224,7 @@ def countnan_samples(df, metad4c):
 
 def add_alerts(df, metad4c):
     df['alert'] = ''
-    df.loc[df["s_o_Assymetric"] < 0, "alert"] = "overlap"
-    df.loc[df["score_overlap_symmetric"] <= 0, "alert"] = "overlap"
+    df.loc[df["score_overlap"] < 0, "alert"] = "overlap"
     df = countnan_samples(df, metad4c)  # adds nan_count_samples column
 
     alert_reps = list()
@@ -255,72 +254,28 @@ def jitterzero(avector):
         avector = [1500000, 1600000, 1700000]  # if huge values
     return avector
 
-def red_cv_g_bytime_dffull(names_compartments, dirtmpdata, tableAbund,
-                       namesuffix, metadata, levelstimepoints_):
-    def give_geommeans(df_red, red_meta, t):
-        condilist = red_meta["condition"].unique()
-        tmpdico = dict()
-        for condi in condilist:
-            samplesthiscondi = red_meta.loc[red_meta['condition'] == condi, "sample"]
-            subdf = df_red[samplesthiscondi]
-            subdf = subdf.assign(geomean=subdf.apply(gmean, axis=1))
-            # print(subdf.head())
-            tmpdico[f"{condi}_{t}_geomean"] = subdf.geomean.tolist()
 
-        dfout = pd.DataFrame.from_dict(tmpdico)
-        dfout.index = df_red.index
 
-        return dfout
-    def give_coefvar_bycond(df_red, red_meta, t):
-        condilist = red_meta["condition"].unique()
-        tmpdico = dict()
-        for condi in condilist:
-            samplesthiscondi = red_meta.loc[red_meta['condition'] == condi, "sample"]
-            subdf = df_red[samplesthiscondi]
-            subdf = subdf.assign(CV=subdf.apply(compute_cv, axis=1))
-            # print(subdf.head())
-            tmpdico[f"{condi}_{t}_CV"] = subdf.CV.tolist()
+def plot_overlap_hist(df_overls, colname_symetric, colname_assymetric, fileout):
+    import seaborn as sns
+    import matplotlib as plt
+    """just for debugging or other tests"""
+    values_sym = df_overls[colname_symetric]
+    a = pd.DataFrame({'value' : values_sym,
+                      'type_overlap': ["symm" for i in range(len(values_sym))] })
+    vasym = df_overls[colname_assymetric]
+    b = pd.DataFrame({'value': vasym,
+                      'type_overlap': ["assym" for i in range(len(vasym))]})
+    dfplotov = pd.concat([a,b], ignore_index=True, axis=0)
 
-        dfout = pd.DataFrame.from_dict(tmpdico)
-        dfout.index = df_red.index
-        return dfout
-
-    # calculate and save : reduced data, coefficient of variation, splitting by timepoint, here only T0h test
-    ddof = 0
-    for co in names_compartments.values():
-        df = pd.read_csv(f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv", sep='\t', header=0, index_col=0)
-
-        metada_sel = metadata.loc[metadata['short_comp']==co, :]
-        #get reduced rows , cv and geommeans,
-        for t in ['T0h']: # for t in levelstimepoints_
-            print(t)
-            samples_t = metada_sel.loc[metada_sel['timepoint'] == t, "sample"]
-            samples_t = sorted(samples_t)
-            df_t = df[samples_t]
-            rownames = df_t.index
-            df_t.index = range(len(rownames))#  index must be numeric because compute reduction accepted
-            df_t_red = compute_reduction(df_t, ddof)
-            df_t_red.index = rownames
-
-            #outfilereduced = f"{dirtmpdata}abund_reduced_{t}_{co}.tsv"
-            # df_t_red.to_csv(outfilereduced, header=True, sep='\t')
-            # add coefficient of variation, by condition
-            red_meta = metada_sel.loc[metada_sel["sample"].isin(df_t_red.columns) ,:]
-
-            df_cv = give_coefvar_bycond(df_t_red, red_meta, t )
-            df_t_red_cv = pd.merge(df_t_red, df_cv , left_index=True, right_index=True)
-            #outfi_coefvar = f"{dirtmpdata}abund_reduced_coefvar_{t}_{co}.tsv"
-            #df_t_red_cv.to_csv(outfi_coefvar)
-
-            # save intervals overlap # TODO?... but here we have 3 conditions (in this timepoint)
-
-            # save geometric means table, and the ratio
-            df_t_red_geomean = give_geommeans(df_t_red, red_meta, t)
-            print(df_t_red_geomean.head())
-            dfo1 = pd.merge(df_t_red_cv, df_t_red_geomean, left_index=True, right_index=True)
-            outfi_geomean = f"{dirtmpdata}abund_reduced_geomean_{t}_{co}.tsv"
-            dfo1.to_csv(outfi_geomean, header=True)
+    with sns.axes_style("darkgrid"):
+        sns.displot(data=dfplotov, x = 'value', hue='type_overlap',
+                       kde=False)
+        plt.savefig(fileout)
+    plt.close()
     return 0
+
+
 
 
 

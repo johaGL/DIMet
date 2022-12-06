@@ -78,23 +78,6 @@ def divide_groups(df4c, metad4c, selected_contrast):
 
 
 
-def plot_overlap_hist(df_overls, fileout):
-    values_sym = df_overls["score_overlap_symmetric"]
-    a = pd.DataFrame({'value' : values_sym,
-                      'type_overlap': ["symm" for i in range(len(values_sym))] })
-    vasym = df_overls["s_o_Assymetric"]
-    b = pd.DataFrame({'value': vasym,
-                      'type_overlap': ["assym" for i in range(len(vasym))]})
-    dfplotov = pd.concat([a,b], ignore_index=True, axis=0)
-
-    #fig, ax = plt.subplots()
-    with sns.axes_style("darkgrid"):
-        sns.displot(data=dfplotov, x = 'value', hue='type_overlap',
-                       kde=False)
-        plt.savefig(fileout)
-    plt.close()
-    return 0
-
 
 def calcs_red_to_ratios( df4c, co,
                       metad4c, newcateg, selected_contrast):
@@ -114,9 +97,8 @@ def calcs_red_to_ratios( df4c, co,
     rownames = df4c_red_cv.index
     df4c_red_cv.index = range(len(rownames))
     o_sym = compute_overlap(df4c_red_cv, groupcontrol, groupinterest, "symmetric")
-    o_sym.columns = [*o_sym.columns[:-1], "score_overlap_symmetric"]
-    o_sym = compute_overlap(o_sym,  groupcontrol, groupinterest , "assymmetric")
-    o_sym.columns = [*o_sym.columns[:-1], "s_o_Assymetric"]
+    o_sym.columns = [*o_sym.columns[:-1], "score_overlap"]
+
     o_sym.index = rownames
 
     df4c_red_cv_o = o_sym.copy()

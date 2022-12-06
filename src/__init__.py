@@ -117,25 +117,27 @@ if args.mode == "prepare":
 
 
 if args.mode == "PCA":
+    #picked_for_pca = "meanEnrich"  # TODO: allow to pick Abundance or meanEnrich
+    picked_for_pca = tableAbund
     odirpca = "results/plots/pca/"
     if not os.path.exists(odirpca):
         os.makedirs(odirpca)
     print(f"\n plotting pca(s) to: {odirpca}\n")
     for k in names_compartments.keys():
         co = names_compartments[k]
-        file4pca = f"{dirtmpdata}meanEnrich_{namesuffix}_{co}.tsv"  # TODO: allow to pick other than meanEnrich
+        file4pca = f"{dirtmpdata}{picked_for_pca}_{namesuffix}_{co}.tsv"
         df = pd.read_csv(file4pca, sep='\t', header=0, index_col=0)
         metadatasub = metadata.loc[metadata['short_comp'] == co, :]
         dfa = massage_datadf_4pca(df, metadatasub)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
-                         "", f'{namesuffix}-{k}', odirpca, 6)
+                         "", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, 6)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
-                         "sample_descrip", f'{namesuffix}-{k}', odirpca, 6)
+                         "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, 6)
         for tp in levelstimepoints_:
             metadatasub = metadata.loc[(metadata['short_comp'] == co) & (metadata['timepoint'] == tp), :]
             dfb = massage_datadf_4pca(df, metadatasub)
             pc_df, dfvare = calcPCAand2Dplot(dfb, metadatasub, "condition", "condition",
-                             "sample_descrip", f'{namesuffix}-{k}-{tp}', odirpca, 6)
+                             "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}-{tp}', odirpca, 6)
 
 
 if args.mode == "diffabund" and whichtest != "disfit":
@@ -306,6 +308,7 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
     if not os.path.exists(outdiffdir):
         os.makedirs(outdiffdir)
+
     outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
     outputsubdirs.append("totmk/")
     outputsubdirs.append("TOTAL/")
@@ -316,10 +319,13 @@ if args.mode == "diffabund" and whichtest == "disfit":
             alloutdirs.append(x)
             if not os.path.exists(x):
                 os.makedirs(x)   # each m+x output directory
+    for exte_sig in ["extended/", "significant/"]:
+        x = outdiffdir + exte_sig
+        if not os.path.exists(x):
+            os.makedirs(x)
 
 
     spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
-    outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
     for contrast in contrasts_:
         strcontrast = "_".join(contrast)
         print("\n    comparison ==>", contrast[0] ,"vs",contrast[1] )
@@ -349,16 +355,10 @@ if args.mode == "diffabund" and whichtest == "disfit":
             ratiosdf = compute_z_score(ratiosdf)
 
 
-            # plot overlap
-            o_sym_asym = ratiosdf[["score_overlap_symmetric", "s_o_Assymetric"]]
-            plot_overlap_hist(o_sym_asym, f"results/plots/overlaps-{autochoice}-{strcontrast}-{co}")
-
-            out_histo_file = f"results/plots/distrib-{strcontrast}-{co}.pdf"
-            print(out_histo_file)
-
             # print("fitting to distributions to find the best ... ")
             # **
             fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
+            # saved TOTAl abundances ratios
             ratiosdf.to_csv(f"{outdiffdir}extended/{fout}",
                                header=True, sep='\t')
 
@@ -397,9 +397,6 @@ if args.mode == "diffabund" and whichtest == "disfit":
                 # delete rows being zero everywhere in this m+x df
                 ratiosdf = ratiosdf[(ratiosdf.T != 0).any()]
 
-                o_sym_asym = ratiosdf[["score_overlap_symmetric", "s_o_Assymetric"]]
-                plot_overlap_hist(o_sym_asym, f"results/plots/overlaps-{autochoice}-{strcontrast}-{co}")
-
                 strcontrast = "_".join(contrast)
                 indexfull = [f'{m}_{autochoice}' for m in ratiosdf.index]
                 ratiosdf.index = indexfull
@@ -415,7 +412,6 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
             isos_piledup = pd.concat(isos_togetherD.values(), axis=0)
 
-
             isos_piledup = add_alerts(isos_piledup, metad4c)
 
             isos_piledup = compute_z_score(isos_piledup)
@@ -425,10 +421,10 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
             plt.figure(figsize=(4,4))
             sns.histplot(x=isos_piledup['ratio'])
-            plt.title("all isotopologues ratios")
-            plt.savefig("ratios_allisos.pdf")
+            plt.title(f"all isotopologues ratios {co} {strcontrast}")
+            plt.savefig(f"ratios_isotopologues-{co}-{strcontrast}.pdf")
             plt.close()
-            isos_piledup.to_csv(f"{outdiffdir}/{co}_piledm+x.tsv", header=True, sep='\t')
+            isos_piledup.to_csv(f"{outdiffdir}/{co}_{strcontrast}_piledm+x.tsv", header=True, sep='\t')
 
             print(isos_piledup.shape)
 
