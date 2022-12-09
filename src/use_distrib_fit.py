@@ -32,9 +32,9 @@ def compute_overlap(df: pd.DataFrame, group1, group2, overlap_method: str) -> pd
         group2_values = np.array(group2.iloc[i])
 
         if overlap_method == "symmetric":
-            df.loc[i, 'score_overlap'] = overlap_symmetric(group1_values, group2_values)
+            df.loc[i, 'distance'] = overlap_symmetric(group1_values, group2_values)
         else:
-            df.loc[i, 'score_overlap'] = overlap_asymmetric(group1_values, group2_values)
+            df.loc[i, 'distance'] = overlap_asymmetric(group1_values, group2_values)
 
     return df
 
@@ -58,6 +58,8 @@ def overlap_asymmetric(x: np.array, y: np.array) -> int:
     return overlap
 
 
+
+
 def compute_p_adjusted(df: pd.DataFrame, correction_method: str) -> pd.DataFrame:
     rej, pval_corr = smm.multipletests(df['pvalue'].values, alpha=float('0.05'), method=correction_method)[:2]
     df['padj'] = pval_corr
@@ -77,26 +79,31 @@ def divide_groups(df4c, metad4c, selected_contrast):
         return group_interest, group_control
 
 
-
-
-def calcs_red_to_ratios( df4c, co,
-                      metad4c, newcateg, selected_contrast):
+def calcs_red_to_ratios( df, metad4c, selected_contrast):
+    def renaming_original_col_sams(df):
+        newcols = ["copy_" + i for i in df.columns]
+        df.columns = newcols
+        # origdf.index = metabolites
+        return df
 
     ddof = 0  # for compute reduction
-    df4c = df4c[metad4c['sample']]
+    df4c = df[metad4c['sample']]
 
     df4c_red = give_reduced_df(df4c, ddof)
 
-    cv_df = give_coefvar_new(df4c_red, metad4c, 'newcol')
+    df_orig_vals = renaming_original_col_sams(df[metad4c['sample']])
 
-    df4c_red_cv = pd.merge(df4c_red, cv_df, left_index=True, right_index=True)
+    df4c_red = pd.merge(df_orig_vals, df4c_red, left_index=True, right_index=True)
 
-    groupinterest, groupcontrol = divide_groups(df4c_red_cv, metad4c, selected_contrast)
+    # cv_df = give_coefvar_new(df4c_red, metad4c, 'newcol')
 
-    # overlap # TODO : pick symmetric or assymetric
-    rownames = df4c_red_cv.index
-    df4c_red_cv.index = range(len(rownames))
-    o_sym = compute_overlap(df4c_red_cv, groupcontrol, groupinterest, "symmetric")
+    # df4c_red_cv = pd.merge(df4c_red, cv_df, left_index=True, right_index=True)
+
+    groupinterest, groupcontrol = divide_groups(df4c_red, metad4c, selected_contrast)
+
+    rownames = df4c_red.index
+    df4c_red.index = range(len(rownames))
+    o_sym = compute_overlap(df4c_red, groupcontrol, groupinterest, "symmetric")
     o_sym.columns = [*o_sym.columns[:-1], "score_overlap"]
 
     o_sym.index = rownames
@@ -111,12 +118,18 @@ def calcs_red_to_ratios( df4c, co,
                                          metad4c, 'newcol', c_interest, c_control)
     #df4c_red_cv_o_g = pd.merge(df4c_red_cv_o, geomdf, left_index=True, right_index=True)
 
+    # add asterisk to the columns having the reduced values:
 
     # ratio (adds this column to df in construction)
     ratiosdf = give_ratios_df(df4c_red_cv_o_g, geominterest, geomcontrol)
 
     return ratiosdf
 
+
+def split_byalert_df(df):
+    good_df = df.loc[df['alert'] == '', :]
+    bad_df = df.loc[df['alert'] != '', :]
+    return good_df, bad_df
 
 
 if __name__ == "__main__":

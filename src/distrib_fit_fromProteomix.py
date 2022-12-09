@@ -60,7 +60,7 @@ def find_best_distribution(df: pd.DataFrame, out_histogram_distribution: str):
     """
     Find best distribution among all the scipy.stats distribution and returns it with its parameters
     """
-    dist = np.around(np.array((df['zscore']).astype(float)), 2)  # TODO : pourquoi arrondir ??
+    dist = np.around(np.array((df['zscore']).astype(float)), 5)  # TODO : pourquoi arrondir ??
 
     best_dist, best_dist_name, best_fit_params = get_best_fit(dist, out_histogram_distribution)
 

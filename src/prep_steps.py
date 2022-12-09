@@ -66,6 +66,12 @@ def stomp_neg_andsuperiorto1(df):
     return df
 
 def quality_control(dfco, metadata, co):
+    """
+    replaces untrustful zeroes by NaN, example:
+        [value 0 0] -> [value NaN NaN]
+        [0 value value] -> [NaN value value]
+
+    """
     metadataco = metadata.loc[metadata["short_comp"] == co, :]
     metadataco = metadataco.assign(s = metadataco['sample'].str.split("-", regex=False).str[0])
     #print(metadataco.short_comp.unique(), "  <======")
@@ -80,6 +86,7 @@ def quality_control(dfco, metadata, co):
 
             n_zeros =  len(vec) - np.count_nonzero(vec)
             if (n_zeros > 0) and (n_zeros < len(vec)):
+                # minimum 1 and maximum n-1 values are different from zero
                 res = np.array(vec)
                 res[res == 0] = 'NaN'  # replace by nan if  all replicates not zero
             else:
@@ -134,7 +141,7 @@ def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
         met_or_iso_df_o = met_or_iso_df[met_or_iso_df["todelete"] != 0]
         met_or_iso_df_o = met_or_iso_df_o.drop(columns=["todelete"])
 
-        met_or_iso_df_o.to_csv(diroutput + f_o+"ugly.tsv", sep="\t")
+        #met_or_iso_df_o.to_csv(diroutput + f_o.replace(".tsv","") +"_original.tsv", sep="\t")
         # new : quality_control
 
         met_or_iso_df_o = quality_control(met_or_iso_df_o, metadata, compartment)

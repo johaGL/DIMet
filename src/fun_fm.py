@@ -190,19 +190,16 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
 
 def give_ratios_df(df1, geomInterest, geomControl):
     print("give RATIO")
-
     df = df1.copy()
     df = df.assign(ratio=[np.nan for i in range(df.shape[0])])
     for i, row in df1.iterrows():
         intere = row[geomInterest]
         contr = row[geomControl]
-        if contr != 0 :
-            df.loc[i, "ratio"] = intere/contr
+        if contr == 0 :
+            df.loc[i, "ratio"] = intere / 1e-10
         else:
-            if intere == 0:
-                df.loc[i, "ratio"] = 0
-            else:
-                df.loc[i, "ratio"] = intere
+            df.loc[i, "ratio"] = intere / contr
+
     return df
 
 

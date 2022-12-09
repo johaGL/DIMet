@@ -37,13 +37,10 @@ def outFC_df(newdf, metas, contrast):
 
         val_interest = compute_gmean_nonan(vInterest)
         val_baseline = compute_gmean_nonan(vBaseline)
-        if val_baseline != 0:
+        if val_baseline == 0:
+            ratioval = val_interest / 1e-10
+        else:
             ratioval = val_interest / val_baseline
-        elif val_baseline == 0:
-            if val_interest == 0:
-                ratioval = 0
-            else:
-                ratioval = val_interest
 
         FC_geommu.append(ratioval)
 
