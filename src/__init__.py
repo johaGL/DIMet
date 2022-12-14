@@ -475,7 +475,7 @@ if args.mode == "diffabund" and whichtest == "disfit":
             #
             # # only do fitting in those not having alerts
             good_df, bad_df = split_byalert_df(ratiosdf2)
-            # good_df = compute_z_score(good_df)
+            good_df = compute_z_score(good_df)
             #
             rn = f"{outdiffdir}/extended/"
             good_o = f"{rn}/{co}_m+x_{strcontrast}_good.tsv"
@@ -485,18 +485,19 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
 
             # # do fitting on the good_df if metabolites number >= ??
-            # out_histo_file = f"{outdiffdir}/extended/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
-            # best_distribution, args_param = find_best_distribution(good_df,
-            #                                                        out_histogram_distribution=out_histo_file)
-            # argsided = "two-sided"  # "two-sided" # or "rigth-tailed"
-            # good_df = compute_p_value(good_df, argsided, best_distribution, args_param)
-            # good_df = compute_p_adjusted(good_df, "fdr_bh")
+            out_histo_file = f"{outdiffdir}/extended/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
+            best_distribution, args_param = find_best_distribution(good_df,
+                                                                    out_histogram_distribution=out_histo_file)
+            argsided = "right-tailed"  # "two-sided" # or "rigth-tailed"
+            good_df = compute_p_value(good_df, argsided, best_distribution, args_param)
+            good_df = compute_p_adjusted(good_df, "fdr_bh")
             #
-            # final_total_diff = good_df.copy()
-            #
-            # fout = f"/{co}_m+x_{strcontrast}_fitted.tsv"
-            # final_total_diff.to_csv(f"{outdiffdir}extended/{fout}",
-            #                         index_label="metabolite", header=True, sep='\t')
+            print("!!")
+            #final_total_diff = good_df.copy()
+
+            fout = f"/{co}_m+x_{strcontrast}_fitted.tsv"
+            good_df.to_csv(f"{outdiffdir}extended/{fout}",
+                                   index_label="metabolite", header=True, sep='\t')
 
     dico_colnames = dict()
     for fi in os.listdir(f'{dirtmpdata}preDiff/'):
