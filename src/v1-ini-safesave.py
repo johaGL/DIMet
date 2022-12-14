@@ -306,7 +306,7 @@ if args.mode == "timeseries_isotopologues":
 def save_each_df(good_df, bad_df, outdiffdir,
                  co, autochoice, strcontrast):
     rn = f"{outdiffdir}/extended/{autochoice}"
-    good_o = f"{rn}/{co}_{autochoice}_{strcontrast}_good.tsv"
+    good_o = f"{rn}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
     bad_o = f"{rn}/{co}_{autochoice}_{strcontrast}_bad.tsv"
     good_df.to_csv(good_o, sep='\t', header=True)
     bad_df.to_csv(bad_o, sep='\t', header=True)
@@ -327,15 +327,9 @@ if args.mode == "diffabund" and whichtest == "disfit":
         os.makedirs(f'{dirtmpdata}/preDiff/')
 
     spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
-
-    if not os.path.exists(f'{outdiffdir}extended/TOTAL/'):
-        os.makedirs(f'{outdiffdir}extended/TOTAL/')
-
     for contrast in contrasts_:
         strcontrast = "_".join(contrast)
         print("\n    comparison ==>", contrast[0] ,"vs",contrast[1] )
-
-
         for co in names_compartments.values():
             autochoice = "TOTAL"
             filehere = f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv"
@@ -346,19 +340,14 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
             df4c, metad4c = prepare4contrast(df, metada_sel, newcateg, contrast)
 
-            # delete rows being zero everywhere in this TOTAL df
-            df4c = df4c[(df4c.T != 0).any()]
-
             # sort them by 'newcol' the column created by prepare4contrast
             metad4c = metad4c.sort_values("newcol")
-            minimal_val = df4c[df4c > 0].min().min()
-            print(minimal_val)
-            # replace zeroes by that minimal val
-            df4c[df4c==0] = minimal_val
             ratiosdf = calcs_red_to_ratios(df4c,
                                         metad4c,
                                         contrast )
 
+            # delete rows being zero everywhere in this TOTAL df
+            ratiosdf = ratiosdf[(ratiosdf.T != 0).any()]
 
             ratiosdf = add_alerts(ratiosdf, metad4c)
 
@@ -371,11 +360,11 @@ if args.mode == "diffabund" and whichtest == "disfit":
                                 index_label="metabolite", header=True, sep='\t')
 
 
-            good_df, bad_df = split_byalert_df(ratiosdf)
+            # good_df, bad_df = split_byalert_df(ratiosdf)
             # good_df = compute_z_score(good_df)
             # fiting et blahblah
-            save_each_df(good_df, bad_df, outdiffdir,
-                             co, autochoice, strcontrast)
+            # save_each_df(good_df, bad_df, outdiffdir,
+            #                   co, autochoice, strcontrast)
 
             # out_histo_file = f"{outdiffdir}/extended/{autochoice}/\
             #                     {co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
@@ -413,27 +402,44 @@ if args.mode == "diffabund" and whichtest == "disfit":
                 metada_sel = metadata.loc[metadata['short_comp'] == co, :]
 
                 df4c, metad4c = prepare4contrast(df, metada_sel, newcateg, contrast)
-                df4c = df4c[(df4c.T != 0).any()]  # delete rows being zero all
 
-                print(df4c.shape, " <<<<< ")
                 # sort them by 'newcol' the column created by prepare4contrast
                 metad4c = metad4c.sort_values("newcol")
 
-                indexfull = [f'{m}_{autochoice}' for m in df4c.index]
-                df4c.index = indexfull
-                # ratiosdf = ratiosdf.assign(isotype=[autochoice for k in range(ratiosdf.shape[0])])
-                # out_histo_file = f"results/plots/distrib-{strcontrast}-{autochoice}-{co}.pdf"
-                # #fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
-                # #ratiosdf.to_csv(f"{outdiffdir}extended/{fout}", header=True, sep='\t')
+                ratiosdf = calcs_red_to_ratios(df4c,
+                                            metad4c,
+                                            contrast)
 
-                df4c = df4c.assign(isotype=[autochoice for k in range(df4c.shape[0])])
+                # delete rows being zero everywhere in this m+x df
+                ratiosdf = ratiosdf[(ratiosdf.T != 0).any()]
+
+                strcontrast = "_".join(contrast)
+                indexfull = [f'{m}_{autochoice}' for m in ratiosdf.index]
+                ratiosdf.index = indexfull
+                ratiosdf = ratiosdf.assign(isotype=[autochoice for k in range(ratiosdf.shape[0])])
+                out_histo_file = f"results/plots/distrib-{strcontrast}-{autochoice}-{co}.pdf"
+                #fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
+                #ratiosdf.to_csv(f"{outdiffdir}extended/{fout}", header=True, sep='\t')
 
                 if autochoice.startswith("m+"):
-                    isos_togetherD[f"{autochoice}-{co}"] = df4c
+                    isos_togetherD[f"{autochoice}-{co}"] = ratiosdf
                 elif autochoice == "totmk" :
                     if confidic['also_total_marked'] == "Yes":
-                        isos_togetherD[f"{autochoice}-{co}"] = df4c  # ratiosdf
+                        ratiosdf = add_alerts(ratiosdf, metad4c)
+                        # fifo = f"{dirtmpdata}/preDiff/{co}_{autochoice}_{strcontrast}_prep_fit.tsv"
+                        # ratiosdf.to_csv(fifo, sep='\t', header = True)
+                        # # only do fitting in those not having alerts
+                        # good_df, bad_df = split_byalert_df(ratiosdf)
+                        # good_df = compute_z_score(good_df)
+                        # print(good_df.shape)
 
+                        isos_togetherD[f"{autochoice}-{co}"] = ratiosdf
+
+                        # rn = f"{outdiffdir}/extended/{autochoice}"
+                        # good_o = f"{rn}/{co}_{autochoice}_{strcontrast}_fitted.tsv"
+                        # bad_o = f"{rn}/{co}_{autochoice}_{strcontrast}_bad.tsv"
+                        # good_df.to_csv(good_o, sep='\t', header=True)
+                        # bad_df.to_csv(bad_o, sep='\t', header=True)
 
                     elif confidic['also_total_marked'] == "No":
                         pass # total marked is not of interest for user
@@ -441,49 +447,30 @@ if args.mode == "diffabund" and whichtest == "disfit":
             # new: pile the isotopologues dataframes
             isos_piledup = pd.concat(isos_togetherD.values(), axis=0)
 
+            isos_piledup = add_alerts(isos_piledup, metad4c)
+            isos_piledup['compartment'] = co
+            # isos_piledup = isos_piledup.sort_values('isotype') # better not to sort
 
-            # this dataframe has a non numeric column 'isotype', so select samples :
-            tmp = isos_piledup[metad4c['sample']]
-            minimal_val = tmp[tmp > 0].min().min()
-
-            tmp.replace(to_replace=0, value=minimal_val, inplace= True)
-
-
-            ratiosdf2 = calcs_red_to_ratios(tmp,
-                                           metad4c,
-                                           contrast)
-
-            col_isotype = isos_piledup['isotype'].tolist()
-            ratiosdf2 = ratiosdf2.assign(isotype=col_isotype)
-            print(ratiosdf2.shape, "!*")
-
-
-            ratiosdf2 = add_alerts(ratiosdf2, metad4c)
-
-            ratiosdf2["compartment"] = co
-
-
-
-            plt.figure(figsize=(4,4))
-            sns.histplot(x=ratiosdf2['ratio'])
-            plt.title(f"all isotopologues ratios {co} {strcontrast}")
-            plt.savefig(f"ratios_isotopologues-{co}-{strcontrast}.pdf")
-            plt.close()
-            ratiosdf2.to_csv(f"{dirtmpdata}/preDiff/{co}_m+x_{strcontrast}_prep_fit.tsv",
+            # plt.figure(figsize=(4,4))
+            # sns.histplot(x=isos_piledup['ratio'])
+            # plt.title(f"all isotopologues ratios {co} {strcontrast}")
+            # plt.savefig(f"ratios_isotopologues-{co}-{strcontrast}.pdf")
+            # plt.close()
+            isos_piledup.to_csv(f"{dirtmpdata}/preDiff/{co}_m+x_{strcontrast}_prep_fit.tsv",
                                 index_label="isotopologue", header=True, sep='\t')
 
             #
             # # only do fitting in those not having alerts
-            good_df, bad_df = split_byalert_df(ratiosdf2)
+            # good_df, bad_df = split_byalert_df(isos_piledup)
             # good_df = compute_z_score(good_df)
             #
-            rn = f"{outdiffdir}/extended/"
-            good_o = f"{rn}/{co}_m+x_{strcontrast}_good.tsv"
-            bad_o = f"{rn}/{co}_m+x_{strcontrast}_bad.tsv"
-            good_df.to_csv(good_o, sep='\t', header=True)
-            bad_df.to_csv(bad_o, sep='\t', header=True)
+            # rn = f"{outdiffdir}/extended/"
+            # good_o = f"{rn}/{co}_m+x_{strcontrast}_fitted.tsv"
+            # bad_o = f"{rn}/{co}_m+x_{strcontrast}_bad.tsv"
+            # good_df.to_csv(good_o, sep='\t', header=True)
+            # bad_df.to_csv(bad_o, sep='\t', header=True)
 
-
+            # print(good_df.shape)
             # # do fitting on the good_df if metabolites number >= ??
             # out_histo_file = f"{outdiffdir}/extended/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
             # best_distribution, args_param = find_best_distribution(good_df,

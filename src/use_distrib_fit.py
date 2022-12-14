@@ -79,6 +79,7 @@ def divide_groups(df4c, metad4c, selected_contrast):
         return group_interest, group_control
 
 
+
 def calcs_red_to_ratios( df, metad4c, selected_contrast):
     def renaming_original_col_sams(df):
         newcols = ["copy_" + i for i in df.columns]
