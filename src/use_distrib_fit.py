@@ -104,7 +104,7 @@ def calcs_red_to_ratios( df, metad4c, selected_contrast):
     rownames = df4c_red.index
     df4c_red.index = range(len(rownames))
     o_sym = compute_overlap(df4c_red, groupcontrol, groupinterest, "symmetric")
-    o_sym.columns = [*o_sym.columns[:-1], "score_overlap"]
+    o_sym.columns = [*o_sym.columns[:-1], "distance"]
 
     o_sym.index = rownames
 
@@ -129,7 +129,18 @@ def calcs_red_to_ratios( df, metad4c, selected_contrast):
 def split_byalert_df(df):
     good_df = df.loc[df['alert'] == '', :]
     bad_df = df.loc[df['alert'] != '', :]
+
     return good_df, bad_df
+
+
+def auto_detect_tailway(good_df, best_distribution, args_param):
+    min_pval_ = list()
+    for tail_way in ["two-sided", "right-tailed"]:
+        tmp = compute_p_value(good_df, tail_way, best_distribution, args_param)
+
+        min_pval_.append(tuple([tail_way, tmp["pvalue"].min()]))
+
+    return min(min_pval_, key=lambda x: x[1])[0]
 
 
 

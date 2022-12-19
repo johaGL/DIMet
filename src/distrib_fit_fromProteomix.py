@@ -51,8 +51,8 @@ def compute_z_score(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add one column with z-score of ratio already computed
     """
-    # TODO: if no columns named "ratio" / if several columns with "ratio_"
-    df['zscore'] = stats.zscore(df["ratio"])
+    # df['zscore'] = stats.zscore(df["ratio"])
+    df = df.assign(zscore=stats.zscore(df["ratio"]))
     return df
 
 

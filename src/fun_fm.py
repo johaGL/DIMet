@@ -221,7 +221,7 @@ def countnan_samples(df, metad4c):
 
 def add_alerts(df, metad4c):
     df['alert'] = ''
-    df.loc[df["score_overlap"] < 0, "alert"] = "overlap"
+    df.loc[df["distance"] < 0, "alert"] = "overlap"
     df = countnan_samples(df, metad4c)  # adds nan_count_samples column
 
     alert_reps = list()
