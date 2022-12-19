@@ -2,10 +2,7 @@
 needed for DIMet/__main__.py to be able to import .py files in this location (DIMet/src/)
 """
 import argparse
-import os
 import shutil
-
-import numpy as np
 import yaml
 from .pca_fun import massage_datadf_4pca, calcPCAand2Dplot
 from .differential_univariate import *
@@ -23,23 +20,31 @@ def dimet_message():
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--mywdir", help="working directory (with data and results subfolders)")
-parser.add_argument("--config", help = "path to configuration yaml file")
-parser.add_argument("--mode", help = "prepare | PCA | diffabund | abundplots \
+parser.add_argument("--mywdir", help="working directory (with data and results subfolders)",
+                    required=True)
+parser.add_argument("--config", help="path to configuration yaml file", required=True)
+parser.add_argument("--isotopologue_preview", action=argparse.BooleanOptionalAction,
+                    default=True,
+                    help="visualize isotopologues' proportions, across samples")
+
+parser.add_argument("--mode", help="prepare | PCA | diffabund | abundplots \
                             | timeseries_isotopologues |  timeseries_fractional")
-parser.add_argument("--stomp_values", help = "[Y/N]. Optional. To use with mode prepare.  \
-                                  Stomps isotopologues' proportions to max 1.0 and min 0.0. Default : Y")
-parser.add_argument("--proportion_cutoff", help = "Optional. To use with mode prepare. For isotopologues, \
-                this cutoff is the min accepted value for values different than zero.  \
-                Values (proportions) under cutoff become zero. Default : 0.001")
+
+parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
+                    help="use with prepare. Metabolites whose  isotopologues\
+                    exhibit proportions less or equal this cutoff are removed. Default: -0.05")
+
+parser.add_argument("--stomp_values", default="Y", help="[Y/N]. Optional. To use with mode prepare. \
+                    Stomps isotopologues' proportions to max 1.0 and min 0.0. Default : Y")
+
+parser.add_argument("--under_this_setzero", default=0.001, type=float,
+                    help = "Optional. To use with mode prepare. For isotopologues, \
+                this cutoff is the min accepted for proportions being different than zero.  \
+                All the rest under cutoff become zero. Default : 0.001")
+
+
 
 args = parser.parse_args()
-
-if args.proportion_cutoff is None:
-    PROPORTIONCUTOFF = 0.001
-else:
-    PROPORTIONCUTOFF = float(args.proportion_cutoff)
-
 
 confifile = os.path.expanduser(args.config)
 with open(confifile, "r") as f:
@@ -51,12 +56,8 @@ extrudf_fi = confidic["extrulist_fi"]
 names_compartments = confidic["names_compartments"]
 metadata_fi = confidic["metadata_fi"]
 levelstimepoints_ = confidic["levelstime"]
-
 whichtest = confidic["whichtest"]
-
 tableIC = confidic["name_isotopologue_contribs"].split(".")[0] # no extension
-
-
 tableAbund = confidic["name_abundances"].split(".")[0] # no extension
 max_m_species = confidic["max_m_species"]
 
@@ -70,6 +71,54 @@ isotopolog_style = autodetect_isotop_nomenclature(datadi, tableIC, namesuffix)
 allfi = os.listdir(datadi)
 dirtmpdata = "tmp/"
 abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
+
+
+if args.isotopologue_preview:
+    print("sending new files to isotop_preview/")
+    if os.path.exists("isotop_preview/"):
+        shutil.rmtree("isotop_preview/")  # clear at each run
+
+    os.makedirs("isotop_preview/")
+
+    extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
+
+    fn = tableIC + "_" +  namesuffix + ".tsv"
+    save_new_dfsB(datadi, names_compartments, fn, metadata, extrudf, "isotop_preview/",
+                  isotopolog_style, stomp_values='N', UNDER_THIS_SETZERO=-np.inf)
+
+    for long_compartment_name in names_compartments.keys():
+        k = names_compartments[long_compartment_name]
+        fnn = f"isotop_preview/{tableIC}_{namesuffix}_{k}.tsv"
+        df = pd.read_csv(fnn, sep='\t', header=0, index_col=0)
+        df = add_metabolite_column(df)
+        df = add_isotopologue_type_column(df)
+
+        thesums = df.groupby('metabolite').sum()
+        thesums = thesums.drop(columns=['isotopologue_type'])
+        thesums = thesums.round(3)
+        ff = f"isotop_preview/sums_Iso_{k}.pdf"
+        figuretitle = f"Sums of isotopologue proportions ({k}) "
+        save_heatmap_sums_isos(thesums, figuretitle, ff)
+
+        dfmelt = pd.melt(df, id_vars=['metabolite', 'isotopologue_type'])
+        dfmelt = givelevels(dfmelt)
+        table_minimalbymet(dfmelt, f"isotop_preview/minextremesIso_{k}.tsv")
+        outputfigure = f"isotop_preview/allsampleIsos_{k}.pdf"
+        figtitle = f"{long_compartment_name} compartment, all samples"
+        save_rawisos_plot(dfmelt, figuretitle=figtitle, outputfigure=outputfigure)
+
+    dfDict = dict()
+    for k in names_compartments.values():
+        df = pd.read_csv(f"isotop_preview/minextremesIso_{k}.tsv",
+                         sep='\t', header=0, index_col=None)
+        df['compartment'] = k
+        df = df.drop(columns=['isotopologue_type', 'variable'])
+        dfDict[k] = df
+
+    joineddf = pd.concat(dfDict.values())
+    joineddf.to_csv(f"isotop_preview/minextremesIso.csv",
+                 header=True)
+
 
 
 if args.mode == "prepare":
@@ -88,27 +137,38 @@ if args.mode == "prepare":
     print("using list of undesired metabolites to drop off from data\t")
     extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
 
-    stomp_values = args.stomp_values
-    if stomp_values == 'N':
+    # if any other list generated in the isotop_preview folder:
+    try:
+        extremeisos = pd.read_csv("isotop_preview/minextremesIso.csv",
+                                  header=0, index_col=0)
+        print("\nUser argument isos_detect_cutoff =", args.isos_detect_cutoff)
+        extremeisos = extremeisos.loc[extremeisos['value'] <= args.isos_detect_cutoff, :]
+        print("also the following metabolites will be excluded : ")
+        extrtocat = extremeisos[['metabolite', 'compartment']]
+        print(extrtocat)
+        extrudf = pd.concat([extrudf, extrtocat], axis = 0)
+
+    except Exception as e:
+        pass
+
+    print("\nWhole list of metabolites being excluded : ")
+    extrudf.drop_duplicates()
+    extrudf = extrudf.sort_values(by='compartment')
+    print(extrudf)
+
+    if args.stomp_values == 'N':
         print("are you sure not stomping values ? \
         \naberrant proportion values (negative and superior to 1)  will remain,"
               "and good quality analysis is not guaranteed")
     for filename in tsvfi:
-        save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf,
-                      dirtmpdata, isotopolog_style, stomp_values, PROPORTIONCUTOFF)
+        save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
+                       isotopolog_style, args.stomp_values, args.under_this_setzero)
 
 
     # NOTE : for abundances bars and Differential,
     # compulsory step: calculate isotopologues abundances from IC percentages
-    calculate_meanEnri(
-        dirtmpdata,
-        tableAbund,
-        tableIC,
-        metadata,
-        names_compartments,
-        namesuffix,
-        dirtmpdata
-    )
+    calculate_meanEnri( dirtmpdata, tableAbund, tableIC,
+        metadata, names_compartments, namesuffix, dirtmpdata )
 
     split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
                    abunda_species_4diff_dir)
@@ -117,6 +177,7 @@ if args.mode == "prepare":
         print("Warning !: you do not have fractional contributions file")
 
     print("\nsplited (by compartment) and clean files in tmp/ ready for analysis\n")
+
 
 
 if args.mode == "PCA":
@@ -142,72 +203,6 @@ if args.mode == "PCA":
             pc_df, dfvare = calcPCAand2Dplot(dfb, metadatasub, "condition", "condition",
                              "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}-{tp}', odirpca, 6)
 
-
-if args.mode == "diffabund" and whichtest != "disfit":
-    print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
-    spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
-
-
-    newcateg = confidic["newcateg"]  # see yml in example/configs/
-    contrasts_ = confidic["contrasts"]
-
-    outdiffdir = "results/tables/"
-    if not os.path.exists(outdiffdir):
-        os.makedirs(outdiffdir)
-    outputsubdirs = ["m+"+str(i)+"/" for i in range(max_m_species+1)]
-    outputsubdirs.append("totmk/")
-    outputsubdirs.append("TOTAL/")
-    alloutdirs = list()
-    for exte_sig in ["extended/", "significant/"]:
-        for subdir_spec in outputsubdirs:
-            x = outdiffdir + exte_sig + subdir_spec
-            alloutdirs.append(x)
-            if not os.path.exists(x):
-                os.makedirs(x) # each m+x output directory
-
-    outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
-    for contrast in contrasts_:
-        print("\n    comparison ==>", contrast[0] ,"vs",contrast[1] )
-        for co in names_compartments.values():
-            rundiffer(
-                dirtmpdata,
-                tableAbund,
-                namesuffix,
-                metadata,
-                newcateg,
-                contrast,
-                whichtest,
-                co,
-                outdirs_total_abund_res_,
-                "TOTAL",
-            )
-    
-            tableabuspecies_co_ = [i for i in spefiles if co in i]
-            # any "m+x" where x > max_m_species, must be excluded
-            donotuse = [ k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
-                        and int(k.split("_")[2].split("+")[-1]) > max_m_species ]
-            tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
-            tableabuspecies_co_good_ = list(tabusp_tmp_)
-            for tabusp in tableabuspecies_co_good_:
-                outkey = tabusp.split("_")[2]  # the species m+x as saved
-                outdiffdirs = [d for d in alloutdirs if outkey in d]
-                rundiffer(
-                    abunda_species_4diff_dir,
-                    tabusp,
-                    namesuffix,
-                    metadata,
-                    newcateg,
-                    contrast,
-                    whichtest,
-                    co,
-                    outdiffdirs,
-                    outkey
-                )
-                # end for tabusp
-            # end for co
-        # end for contrast
-    print("\nended differential analysis")
-    # end if args.mode == "diffabund"
 
 
 if args.mode == "abundplots":
@@ -245,6 +240,7 @@ if args.mode == "abundplots":
                                col1, col2, plotwidth, odirbars, xticks_text_ , axisx_labeltilt)
 
 
+
 if args.mode == "timeseries_fractional":
     print(" Fractional contributions plots \n")
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension
@@ -276,6 +272,7 @@ if args.mode == "timeseries_fractional":
     savefraccontriplots(dirtmpdata, names_compartments,
                         metadata, tableFC, namesuffix,
                         gbycompD, coloreachmetab)
+
 
 
 if args.mode == "timeseries_isotopologues":

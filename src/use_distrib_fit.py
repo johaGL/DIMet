@@ -19,7 +19,6 @@ from .fun_fm import prepare4contrast, give_reduced_df, \
 
 
 
-
 def detect_and_create_dir(namenesteddir): # TODO: deduplicate, same in other scripts
     if not os.path.exists(namenesteddir):
         os.makedirs(namenesteddir)
@@ -59,11 +58,11 @@ def overlap_asymmetric(x: np.array, y: np.array) -> int:
 
 
 
-
 def compute_p_adjusted(df: pd.DataFrame, correction_method: str) -> pd.DataFrame:
     rej, pval_corr = smm.multipletests(df['pvalue'].values, alpha=float('0.05'), method=correction_method)[:2]
     df['padj'] = pval_corr
     return df
+
 
 
 def divide_groups(df4c, metad4c, selected_contrast):
@@ -131,6 +130,7 @@ def split_byalert_df(df):
     good_df = df.loc[df['alert'] == '', :]
     bad_df = df.loc[df['alert'] != '', :]
     return good_df, bad_df
+
 
 
 if __name__ == "__main__":

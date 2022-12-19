@@ -10,6 +10,8 @@ import os
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 def extrudf2dico(extrudf):
@@ -55,15 +57,21 @@ def transformmyisotopologues(dfrownames_, style):
                 elems = ch.split("_PARENT")
                 metabolite = elems[0]
                 species = "m+0"
+            else:
+                metabolite = ch
+                species = "m+?"
             outli_.append(metabolite + "_" + species)
     elif style == "generic":
         outli_ = [i.replace("label", "m+") for i in dfrownames_]
     return outli_
 
+
+
 def stomp_neg_andsuperiorto1(df):
     df[df < 0] = 0
     df[df > 1] = 1
     return df
+
 
 def quality_control(dfco, metadata, co):
     """
@@ -101,21 +109,28 @@ def quality_control(dfco, metadata, co):
 
 
 def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
-                  diroutput, style, stomp_values, PROPORTIONCUTOFF ):
+                  diroutput, style, stomp_values, UNDER_THIS_SETZERO ):
     extruD = extrudf2dico(extrudf)
 
     pre_met_or_iso_df = pd.read_csv(datadi + filename, sep="\t", index_col=0)
 
     if "isotopolo" in filename.lower():
+        print(pre_met_or_iso_df.head())
         # transform isotopologue table style in m+x style
         newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
         pre_met_or_iso_df.index = newindex
-        pre_met_or_iso_df[pre_met_or_iso_df < PROPORTIONCUTOFF] = 0
+        pre_met_or_iso_df[pre_met_or_iso_df < UNDER_THIS_SETZERO] = 0
         if stomp_values == "Y":
             pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
 
+    if "rawintensity" in filename.lower():
+        print(pre_met_or_iso_df.head(9))
+        newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
+        pre_met_or_iso_df.index = newindex
+
+
     if "frac" in filename.lower() and "contrib" in filename.lower():
-        pre_met_or_iso_df[pre_met_or_iso_df < PROPORTIONCUTOFF] = 0
+        pre_met_or_iso_df[pre_met_or_iso_df < UNDER_THIS_SETZERO] = 0
         if stomp_values == "Y":
             pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
 
@@ -151,31 +166,105 @@ def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
     return 0
 
 
-def save_new_dfs( datadi, names_compartments, filename,
-                  metadata, extrudf, diroutput, style ):
-    extruD = extrudf2dico(extrudf)
-    met_or_iso_df = pd.read_csv(datadi + filename, sep="\t", index_col=0)
+def add_metabolite_column(df):
+    theindex = df.index
+    themetabolites = [i.split("_m+")[0] for i in theindex]
+    df = df.assign(metabolite=themetabolites)
 
-    for compartment in names_compartments.values():
-        f_o = filename.split(".")[0] + "_" + compartment + ".tsv"
+    return df
 
-        # using metadata, to set apart (met_or_iso_df) compartment specific samples
-        samplestokeep = metadata.loc[metadata["short_comp"] == compartment, "sample"]
-        met_or_isosplit_mspecies_files_df = met_or_iso_df[samplestokeep]
 
-        # create column to mark rows to delete
-        # met_or_iso_df['todelete'] = np.nan
-        met_or_iso_df = met_or_iso_df.assign(todelete=np.nan)
-        for i, r in met_or_iso_df.iterrows():
-            # print(i) # i is the i metabolite ....
-            hereboolnum = detectifinbadlist(extruD[compartment], i, style)
-            # print(hereboolnum)
-            met_or_iso_df.loc[i, "todelete"] = hereboolnum
-            # = hereboolnum # 0 or 1
-        # end for iterrows
-        # met_or_iso_df.todelete.value_counts() # visualize "table" on 'todelete' colummn
-        met_or_iso_df_o = met_or_iso_df[met_or_iso_df["todelete"] != 0]
-        met_or_iso_df_o = met_or_iso_df_o.drop(columns=["todelete"])
-        met_or_iso_df_o.to_csv(diroutput + f_o, sep="\t")
-    # end for
+def add_isotopologue_type_column(df):
+    theindex = df.index
+    preisotopologue_type = [i.split("_m+")[1] for i in theindex]
+    theisotopologue_type = [int(i) for i in preisotopologue_type]
+    df = df.assign(isotopologue_type=theisotopologue_type)
+
+    return df
+
+
+def save_heatmap_sums_isos(thesums, figuretitle, outputfigure):
+    fig, ax = plt.subplots( figsize=(9,10))
+    sns.heatmap(thesums,
+                annot=True, fmt=".1f", cmap="crest",
+                square = True,
+                annot_kws = {
+                    'fontsize' : 6
+                },
+                ax= ax)
+    plt.xticks(rotation=90)
+    plt.title(figuretitle)
+    plt.savefig(outputfigure)
+    plt.close()
+
     return 0
+
+
+def givelevels(melted):
+    another = melted.copy()
+    another = another.groupby('metabolite').min()
+    another = another.sort_values(by='value', ascending=False)
+    levelsmetabolites = another.index
+    tmp = melted['metabolite']
+    melted['metabolite'] = pd.Categorical(tmp, categories=levelsmetabolites)
+
+    return melted
+
+
+def table_minimalbymet(melted, fileout):
+    another = melted.copy()
+    another = another.groupby('metabolite').min()
+    another = another.sort_values(by='value', ascending=False)
+    another.to_csv(fileout, sep='\t', header=True)
+
+
+def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
+    fig, ax = plt.subplots(1, 1, figsize=(16, 10))
+    sns.stripplot(ax=ax, data=dfmelt, x="value", y="metabolite", jitter=False,
+                  hue="isotopologue_type", size=4, palette="tab20")
+    plt.axvline(x=0,
+                ymin=0,
+                ymax=1,
+                linestyle="--", color="gray")
+    plt.axvline(x=1,
+                ymin=0,
+                ymax=1,
+                linestyle="--", color="gray")
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.title(figuretitle)
+    plt.xlabel("fraction")
+    plt.savefig(outputfigure)
+    plt.close()
+    return 0
+
+
+
+
+# def save_new_dfs( datadi, names_compartments, filename,
+#                   metadata, extrudf, diroutput, style ):
+#     extruD = extrudf2dico(extrudf)
+#     met_or_iso_df = pd.read_csv(datadi + filename, sep="\t", index_col=0)
+#
+#     for compartment in names_compartments.values():
+#         f_o = filename.split(".")[0] + "_" + compartment + ".tsv"
+#
+#         # using metadata, to set apart (met_or_iso_df) compartment specific samples
+#         samplestokeep = metadata.loc[metadata["short_comp"] == compartment, "sample"]
+#         met_or_isosplit_mspecies_files_df = met_or_iso_df[samplestokeep]
+#
+#         # create column to mark rows to delete
+#         # met_or_iso_df['todelete'] = np.nan
+#         met_or_iso_df = met_or_iso_df.assign(todelete=np.nan)
+#         for i, r in met_or_iso_df.iterrows():
+#             # print(i) # i is the i metabolite ....
+#             hereboolnum = detectifinbadlist(extruD[compartment], i, style)
+#             # print(hereboolnum)
+#             met_or_iso_df.loc[i, "todelete"] = hereboolnum
+#             # = hereboolnum # 0 or 1
+#         # end for iterrows
+#         # met_or_iso_df.todelete.value_counts() # visualize "table" on 'todelete' colummn
+#         met_or_iso_df_o = met_or_iso_df[met_or_iso_df["todelete"] != 0]
+#         met_or_iso_df_o = met_or_iso_df_o.drop(columns=["todelete"])
+#         met_or_iso_df_o.to_csv(diroutput + f_o, sep="\t")
+#     # end for
+#     return 0
