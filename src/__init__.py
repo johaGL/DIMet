@@ -13,6 +13,7 @@ from .frac_contrib_lineplot import *
 from .isotopologcontrib_stacked import *
 from .use_distrib_fit import *
 from .fun_fm import countnan_samples, add_alerts
+from .metabologram import metabologram_run
 
 
 def dimet_message():
@@ -28,7 +29,7 @@ parser.add_argument("--isotopologue_preview", action=argparse.BooleanOptionalAct
                     help="visualize isotopologues' proportions, across samples")
 
 parser.add_argument("--mode", help="prepare | PCA | diffabund | abundplots \
-                            | timeseries_isotopologues |  timeseries_fractional")
+                            | timeseries_isotopologues |  timeseries_fractional | metabologram")
 
 parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
                     help="use with prepare. Metabolites whose  isotopologues\
@@ -41,6 +42,8 @@ parser.add_argument("--under_this_setzero", default=-1, type=float,
                     help = "Optional. To use with mode prepare. For isotopologues, \
                 this cutoff is the min accepted for proportions being different than zero.  \
                 All the rest under cutoff become zero. Default :-1 (this value keeps all untouched")
+
+
 
 
 args = parser.parse_args()
@@ -533,6 +536,13 @@ if args.mode == "diffabund" and whichtest != "disfit":
     print("\nended differential analysis")
     # end if args.mode == "diffabund" and whichtest =! disfit
 
+
+if args.mode =="metabologram":
+    print("\nMetabologram\n")
+    metabologram_dir = confidic['metabologram_dir']
+    metabologram_config = confidic['metabologram_config']
+    dimensions_pdf = (15, 20) # TODO transform into option from metabologram_config
+    metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf)
 
 
 
