@@ -37,11 +37,10 @@ parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
 parser.add_argument("--stomp_values", default="Y", help="[Y/N]. Optional. To use with mode prepare. \
                     Stomps isotopologues' proportions to max 1.0 and min 0.0. Default : Y")
 
-parser.add_argument("--under_this_setzero", default=0.001, type=float,
+parser.add_argument("--under_this_setzero", default=-1, type=float,
                     help = "Optional. To use with mode prepare. For isotopologues, \
                 this cutoff is the min accepted for proportions being different than zero.  \
-                All the rest under cutoff become zero. Default : 0.001")
-
+                All the rest under cutoff become zero. Default :-1 (this value keeps all untouched")
 
 
 args = parser.parse_args()
@@ -120,7 +119,6 @@ if args.isotopologue_preview and (args.mode is None):
                  header=True)
 
 
-
 if args.mode == "prepare":
     print("\nPreparing dataset for analysis\n")
 
@@ -164,15 +162,12 @@ if args.mode == "prepare":
         save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
                        isotopolog_style, args.stomp_values, args.under_this_setzero)
 
-
     # NOTE : for abundances bars and Differential,
     # compulsory step: calculate isotopologues abundances from IC percentages
     calculate_meanEnri( dirtmpdata, tableAbund, tableIC,
         metadata, names_compartments, namesuffix, dirtmpdata )
-
     split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
                    abunda_species_4diff_dir)
-
     if detect_fraccontrib_missing(tsvfi) is False:
         print("Warning !: you do not have fractional contributions file")
 
@@ -308,8 +303,6 @@ def save_each_df(good_df, bad_df, outdiffdir,
     good_df.to_csv(good_o, sep='\t', header=True)
     bad_df.to_csv(bad_o, sep='\t', header=True)
     return "saved to results"
-
-
 
 if args.mode == "diffabund" and whichtest == "disfit":
     print("\nDistribution fitting (of ratios)\n")
@@ -483,7 +476,62 @@ if args.mode == "diffabund" and whichtest == "disfit":
     # end for
 
 
+################## diffabund with parametric or non-parametric test at choice, other than fitting
+if args.mode == "diffabund" and whichtest != "disfit":
+    print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
+    spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
+    newcateg = confidic["newcateg"]  # see yml in example/configs/
+    contrasts_ = confidic["contrasts"]
+
+    outdiffdir = "results/tables/"
+    if not os.path.exists(outdiffdir):
+        os.makedirs(outdiffdir)
+    outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
+    outputsubdirs.append("totmk/")
+    outputsubdirs.append("TOTAL/")
+    alloutdirs = list()
+    for exte_sig in ["extended/", "significant/"]:
+        for subdir_spec in outputsubdirs:
+            x = outdiffdir + exte_sig + subdir_spec
+            alloutdirs.append(x)
+            if not os.path.exists(x):
+                os.makedirs(x)  # each m+x output directory
+
+    outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
+    for contrast in contrasts_:
+        print("\n    comparison ==>", contrast[0], "vs", contrast[1])
+        for co in names_compartments.values():
+            rundiffer(dirtmpdata, tableAbund, namesuffix,
+                metadata, newcateg, contrast, whichtest,
+                co, outdirs_total_abund_res_, "TOTAL")
+
+            tableabuspecies_co_ = [i for i in spefiles if co in i]
+            # any "m+x" where x > max_m_species, must be excluded
+            donotuse = [k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
+                        and int(k.split("_")[2].split("+")[-1]) > max_m_species]
+            tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
+            tableabuspecies_co_good_ = list(tabusp_tmp_)
+            for tabusp in tableabuspecies_co_good_:
+                outkey = tabusp.split("_")[2]  # the species m+x as saved
+                outdiffdirs = [d for d in alloutdirs if outkey in d]
+                rundiffer(
+                    abunda_species_4diff_dir,
+                    tabusp,
+                    namesuffix,
+                    metadata,
+                    newcateg,
+                    contrast,
+                    whichtest,
+                    co,
+                    outdiffdirs,
+                    outkey
+                )
+                # end for tabusp
+            # end for co
+        # end for contrast
+    print("\nended differential analysis")
+    # end if args.mode == "diffabund" and whichtest =! disfit
 
 
 
