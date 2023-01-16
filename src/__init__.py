@@ -238,7 +238,6 @@ if args.mode == "abundplots":
                                col1, col2, plotwidth, odirbars, xticks_text_ , axisx_labeltilt)
 
 
-
 if args.mode == "timeseries_fractional":
     print(" Fractional contributions plots \n")
     tableFC = confidic["name_fractional_contribs"].split(".")[0] # no extension

@@ -6,18 +6,17 @@ Created on Tue May 31 12:58:52 2022
 @author: johanna
 
 Calculates and saves:
-1. absolute abundances of isotopologues
-using corrected isotopologues (%)
+1. absolute values of isotopologues (not percentage)
 
 2. mean Enrichment as in Castano-cerezo, Bellvert et al, 2019
 
 --
-Note: Some platforms do not supply corrected absolute abundances,
+Note: Some platforms do not supply corrected absolute isotopologues,
 but they do supply:
    a) corrected isotopologues (%)
    b) raw abundances
 so this script is dedicated to data preparation in that case,
-by it obtaining a proxy to corrected abundances using a) and b)
+by it obtaining a proxy to corrected isotopologues using a) and b)
 
 """
 
@@ -120,7 +119,7 @@ def calculate_meanEnri(
                 odir ):
     """
     output : two tables
-    - calc_corrAbu_  :  "corrected" abundances, calculated
+    - calc_corrIsoAbsol_  :  "corrected" isotopologues (absolute values), calculated
     - meanEnrich_ :  weighted mean as in Castano-cerezo, Bellvert et al, 2019.
     """
     if not os.path.exists(odir):
@@ -176,9 +175,9 @@ def calculate_meanEnri(
             meanenrich_i = meanenrich_i[selecols]
             outdf.loc[met_i, ] = meanenrich_i
 
-        proxyfile = odir + "calc_corrAbu_" + namesuffix + "_" + co + ".tsv"
+        proxyfile = odir + "calc_corrIsoAbsol_" + namesuffix + "_" + co + ".tsv"
         proxy_correctabu.to_csv(proxyfile, sep='\t', header =True, index=True)
-        print("\nSaved calc_corrAbu_ file, to tmp/. Compartment:", co, "\n")
+        print("\nSaved calc_corrIsoAbsol_ file, to tmp/. Compartment:", co, "\n")
 
         ofile = odir + "meanEnrich_" + namesuffix + "_" + co + ".tsv"
         outdf.to_csv(ofile, sep='\t', header =True, index=True)
@@ -192,7 +191,7 @@ def split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
         os.makedirs(odir)
 
     for co in names_compartments.values():
-        proxyfile = dirtmpdata + "calc_corrAbu_" + namesuffix + "_" + co + ".tsv"
+        proxyfile = dirtmpdata + "calc_corrIsoAbsol_" + namesuffix + "_" + co + ".tsv"
         proxy_correctabu = pd.read_csv(proxyfile, sep='\t', index_col=0, header=0)
         isotosrowdata =  yieldrowdataB(proxy_correctabu)
 
@@ -247,12 +246,3 @@ def split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
 # 	168  Stearic_acid  m+18  Stearic_acid_m+18
 # -----------------------------------------------------------------
 
-# def makematch_abund_rowdata(abund, isotosrowdata):
-#     """
-#     check lines that are in abundance but not in corrected %
-#
-#     """
-#     set(abund.index) - set(isotosrowdata["metabolite"])
-#     rtodrop = list(set(abund.index) - set(isotosrowdata["metabolite"]))
-#     abund = abund.drop(rtodrop, axis=0)
-#     return abund
