@@ -11,6 +11,8 @@ import os
 import numpy as np
 import pandas as pd
 from scipy import stats
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
@@ -273,24 +275,77 @@ def plot_overlap_hist(df_overls, colname_symetric, colname_assymetric, fileout):
     return 0
 
 
+# from here, functions for isotopologue preview (mode None)
+
+def add_metabolite_column(df):
+    theindex = df.index
+    themetabolites = [i.split("_m+")[0] for i in theindex]
+    df = df.assign(metabolite=themetabolites)
+
+    return df
 
 
+def add_isotopologue_type_column(df):
+    theindex = df.index
+    preisotopologue_type = [i.split("_m+")[1] for i in theindex]
+    theisotopologue_type = [int(i) for i in preisotopologue_type]
+    df = df.assign(isotopologue_type=theisotopologue_type)
+
+    return df
 
 
+def save_heatmap_sums_isos(thesums, figuretitle, outputfigure):
+    fig, ax = plt.subplots( figsize=(9,10))
+    sns.heatmap(thesums,
+                annot=True, fmt=".1f", cmap="crest",
+                square = True,
+                annot_kws = {
+                    'fontsize' : 6
+                },
+                ax= ax)
+    plt.xticks(rotation=90)
+    plt.title(figuretitle)
+    plt.savefig(outputfigure)
+    plt.close()
 
-##################
-# def yieldrowdata_old(newdf):
-#     xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
-#     for ch in newdf.index:
-#         if "_C13-label-" in ch:
-#             elems = ch.split("_C13-label-")
-#             xu["metabolite"].append(elems[0])
-#             xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
-#             xu["isotopolgFull"].append(ch)
-#         elif "_PARENT" in ch:
-#             elems = ch.split("_PARENT")
-#             xu["metabolite"].append(elems[0])
-#             xu["m+x"].append("m+0")
-#             xu["isotopolgFull"].append(ch)
-#     rowdata = pd.DataFrame.from_dict(xu)
-#     return rowdata
+    return 0
+
+
+def givelevels(melted):
+    another = melted.copy()
+    another = another.groupby('metabolite').min()
+    another = another.sort_values(by='value', ascending=False)
+    levelsmetabolites = another.index
+    tmp = melted['metabolite']
+    melted['metabolite'] = pd.Categorical(tmp, categories=levelsmetabolites)
+
+    return melted
+
+
+def table_minimalbymet(melted, fileout):
+    another = melted.copy()
+    another = another.groupby('metabolite').min()
+    another = another.sort_values(by='value', ascending=False)
+    another.to_csv(fileout, sep='\t', header=True)
+
+
+def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
+    fig, ax = plt.subplots(1, 1, figsize=(16, 10))
+    sns.stripplot(ax=ax, data=dfmelt, x="value", y="metabolite", jitter=False,
+                  hue="isotopologue_type", size=4, palette="tab20")
+    plt.axvline(x=0,
+                ymin=0,
+                ymax=1,
+                linestyle="--", color="gray")
+    plt.axvline(x=1,
+                ymin=0,
+                ymax=1,
+                linestyle="--", color="gray")
+    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
+    plt.title(figuretitle)
+    plt.xlabel("fraction")
+    plt.savefig(outputfigure)
+    plt.close()
+    return 0
+
+# end functions for isotopologue preview (mode None)

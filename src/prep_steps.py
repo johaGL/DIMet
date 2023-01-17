@@ -10,8 +10,7 @@ import os
 
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
+
 
 
 def extrudf2dico(extrudf):
@@ -105,36 +104,36 @@ def quality_control_ofzeros(dfco, metadata):
 
 
 def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
-                  diroutput, style, stomp_values, UNDER_THIS_SETZERO ):
+                  diroutput, style, stomp_values : str, special_zero_tonan : bool):
     extruD = extrudf2dico(extrudf)
 
     pre_met_or_iso_df = pd.read_csv(datadi + filename, sep="\t", index_col=0)
 
     if "abundance" in filename.lower():
-        pre_met_or_iso_df = quality_control_ofzeros(pre_met_or_iso_df, metadata)
+        pass
+
+    elif "isotopolo" in filename.lower():
+        # transform isotopologue table style in m+x style
+        newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
+        pre_met_or_iso_df.index = newindex
+        if stomp_values == "Y":
+            pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
+
+    elif "frac" in filename.lower() and "contrib" in filename.lower():
+        if stomp_values == "Y":
+            pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
 
     elif "rawintensity" in filename.lower():
         newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
         pre_met_or_iso_df.index = newindex
         pre_met_or_iso_df = quality_control_ofzeros(pre_met_or_iso_df, metadata)
 
-    elif "isotopolo" in filename.lower():
-        # transform isotopologue table style in m+x style
-        newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
-        pre_met_or_iso_df.index = newindex
-        pre_met_or_iso_df[pre_met_or_iso_df < UNDER_THIS_SETZERO] = 0
-        if stomp_values == "Y":
-            pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
-
-        # note: do not apply quality_control_ofzeros to proportions.
-    elif "frac" in filename.lower() and "contrib" in filename.lower():
-        pre_met_or_iso_df[pre_met_or_iso_df < UNDER_THIS_SETZERO] = 0
-        if stomp_values == "Y":
-            pre_met_or_iso_df = stomp_neg_andsuperiorto1(pre_met_or_iso_df)
-        # note: do not apply quality_control_ofzeros to proportions.
-
     else:
-        print(filename, "not recognized table name")
+        print(filename, " : not recognized table name")
+
+
+    if special_zero_tonan:
+        pre_met_or_iso_df = quality_control_ofzeros(pre_met_or_iso_df, metadata)
 
 
     for compartment in names_compartments.values():
@@ -161,75 +160,5 @@ def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
     return 0
 
 
-def add_metabolite_column(df):
-    theindex = df.index
-    themetabolites = [i.split("_m+")[0] for i in theindex]
-    df = df.assign(metabolite=themetabolites)
-
-    return df
-
-
-def add_isotopologue_type_column(df):
-    theindex = df.index
-    preisotopologue_type = [i.split("_m+")[1] for i in theindex]
-    theisotopologue_type = [int(i) for i in preisotopologue_type]
-    df = df.assign(isotopologue_type=theisotopologue_type)
-
-    return df
-
-
-def save_heatmap_sums_isos(thesums, figuretitle, outputfigure):
-    fig, ax = plt.subplots( figsize=(9,10))
-    sns.heatmap(thesums,
-                annot=True, fmt=".1f", cmap="crest",
-                square = True,
-                annot_kws = {
-                    'fontsize' : 6
-                },
-                ax= ax)
-    plt.xticks(rotation=90)
-    plt.title(figuretitle)
-    plt.savefig(outputfigure)
-    plt.close()
-
-    return 0
-
-
-def givelevels(melted):
-    another = melted.copy()
-    another = another.groupby('metabolite').min()
-    another = another.sort_values(by='value', ascending=False)
-    levelsmetabolites = another.index
-    tmp = melted['metabolite']
-    melted['metabolite'] = pd.Categorical(tmp, categories=levelsmetabolites)
-
-    return melted
-
-
-def table_minimalbymet(melted, fileout):
-    another = melted.copy()
-    another = another.groupby('metabolite').min()
-    another = another.sort_values(by='value', ascending=False)
-    another.to_csv(fileout, sep='\t', header=True)
-
-
-def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
-    fig, ax = plt.subplots(1, 1, figsize=(16, 10))
-    sns.stripplot(ax=ax, data=dfmelt, x="value", y="metabolite", jitter=False,
-                  hue="isotopologue_type", size=4, palette="tab20")
-    plt.axvline(x=0,
-                ymin=0,
-                ymax=1,
-                linestyle="--", color="gray")
-    plt.axvline(x=1,
-                ymin=0,
-                ymax=1,
-                linestyle="--", color="gray")
-    sns.move_legend(ax, "upper left", bbox_to_anchor=(1, 1))
-    plt.title(figuretitle)
-    plt.xlabel("fraction")
-    plt.savefig(outputfigure)
-    plt.close()
-    return 0
 
 

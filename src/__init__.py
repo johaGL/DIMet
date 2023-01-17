@@ -12,7 +12,10 @@ from .abundances_bars import *
 from .frac_contrib_lineplot import *
 from .isotopologcontrib_stacked import *
 from .use_distrib_fit import *
-from .fun_fm import countnan_samples, add_alerts
+from .fun_fm import countnan_samples, add_alerts, add_metabolite_column,\
+     add_isotopologue_type_column, save_heatmap_sums_isos, \
+     givelevels, table_minimalbymet, save_rawisos_plot
+
 from .metabologram import metabologram_run
 
 
@@ -38,11 +41,11 @@ parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
 parser.add_argument("--stomp_values", default="Y", help="[Y/N]. Optional. To use with mode prepare. \
                     Stomps isotopologues' proportions to max 1.0 and min 0.0. Default : Y")
 
-parser.add_argument("--under_this_setzero", default=-1, type=float,
-                    help = "Optional. To use with mode prepare. For isotopologues, \
-                this cutoff is the min accepted for proportions being different than zero.  \
-                All the rest under cutoff become zero. Default :-1 (this value keeps all untouched")
-
+parser.add_argument("--zero_to_nan", default=0, type=int,
+                    help="Optional. To use with mode prepare. Only keep zero if entire group is zeros\
+                    i.e. given 3 bio replicates:[0 22 0] change to [NaN 22 NaN].\
+                    Will be performed in abundances, isotopologue and rawintensity. \
+                     Default : 0 (False, i.e. not to perform) " )
 
 
 
@@ -75,6 +78,7 @@ dirtmpdata = "tmp/"
 abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 
 
+
 if args.isotopologue_preview and (args.mode is None):
     print("sending new files to isotop_preview/")
     if os.path.exists("isotop_preview/"):
@@ -85,8 +89,9 @@ if args.isotopologue_preview and (args.mode is None):
     extrudf = pd.read_csv(datadi + extrudf_fi, sep=",")
 
     fn = tableIC + "_" +  namesuffix + ".tsv"
+    # set specia_zero_tonan to False as here we need original values unaltered
     save_new_dfsB(datadi, names_compartments, fn, metadata, extrudf, "isotop_preview/",
-                  isotopolog_style, stomp_values='N', UNDER_THIS_SETZERO=-np.inf)
+                  isotopolog_style, stomp_values='N', special_zero_tonan=False) # ok
 
     for long_compartment_name in names_compartments.keys():
         k = names_compartments[long_compartment_name]
@@ -163,7 +168,7 @@ if args.mode == "prepare":
               "and good quality analysis is not guaranteed")
     for filename in tsvfi:
         save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
-                       isotopolog_style, args.stomp_values, args.under_this_setzero)
+                       isotopolog_style, args.stomp_values, bool(args.zero_to_nan))
 
     # NOTE : for abundances bars and Differential,
     # compulsory step: calculate isotopologues abundances from IC percentages
@@ -269,7 +274,6 @@ if args.mode == "timeseries_fractional":
     savefraccontriplots(dirtmpdata, names_compartments,
                         metadata, tableFC, namesuffix,
                         gbycompD, coloreachmetab)
-
 
 
 if args.mode == "timeseries_isotopologues":
