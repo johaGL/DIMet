@@ -112,6 +112,8 @@ These files give you nice examples of how to include the parameters for any of t
 
 ## Run your analysis
 
+First explore your isotopologues  with the mode `isotopologue_preview`. In this way the proportions (which are fractions: 0.6, 0.3, 0.07, etc, that must sum up to 1 for a given metabolite) are further understood across your data. This is relevant if to detect any aberrant data related to isotopologues proportions. Will produce "isotop\_preview/minextremesIso.csv" file, this file being informative for setting the "isos\_detect\_cutoff" that can be employed in combination to prepare mode. 
+
 DIMet `--mode` options are:
 
 - `prepare` : need to be executed before any other type of analysis, because it checks your input files and creates tmp/ folder with clean, compartment specific versions of your input files.
