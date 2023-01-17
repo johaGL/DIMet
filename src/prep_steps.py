@@ -126,7 +126,6 @@ def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
     elif "rawintensity" in filename.lower():
         newindex = transformmyisotopologues(pre_met_or_iso_df.index, style)
         pre_met_or_iso_df.index = newindex
-        pre_met_or_iso_df = quality_control_ofzeros(pre_met_or_iso_df, metadata)
 
     else:
         print(filename, " : not recognized table name")
