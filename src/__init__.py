@@ -6,7 +6,7 @@ import shutil
 import yaml
 from .pca_fun import massage_datadf_4pca, calcPCAand2Dplot
 from .differential_univariate import *
-from .abund_frompercentages import calculate_meanEnri, split_mspecies_files
+from .abund_frompercentages import calc_isos_absolute, split_mspecies_files
 from .prep_steps import *
 from .abundances_bars import *
 from .frac_contrib_lineplot import *
@@ -47,6 +47,18 @@ parser.add_argument("--zero_to_nan", default=0, type=int,
                     Will be performed in abundances, isotopologue and rawintensity. \
                      Default : 0 (False, i.e. not to perform) " )
 
+parser.add_argument("--absolute_isotopologues_available", default="N", help="[Y/N]. Set to Y if you have\
+                     absolute values (not in percentage) for isotopologues. Default : N")
+
+parser.add_argument("--totalAbund_zero_replace", default="min", type=str,
+                    help="To use with mode diffabund, treat zeroes before reduction and gmean.\
+                         min : replaces zero by the minimal value of the entire dataframe. \
+                         Or set a number to replace with it (1, 2, 20, 100, etc). \
+                         Default : min")
+
+parser.add_argument("--isotoAbsolutes_zero_replace", default=1e-15, type=float,
+                    help="To use with mode diffabund, treat isotopologue.\
+                         Default : 1e-15")
 
 
 args = parser.parse_args()
@@ -77,10 +89,17 @@ allfi = os.listdir(datadi)
 dirtmpdata = "tmp/"
 abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 
+if args.totalAbund_zero_replace != "min":
+    try:
+        totalAbund_valuenonzero = float(args.totalAbund_zero)
+    except:
+        print("Warning: --totalAbund_zero_replace argument not 'min' nor numeric, see help")
 
 
 if args.isotopologue_preview and (args.mode is None):
-    print("sending new files to isotop_preview/")
+    print("This option is dedicated to isotopologues in percentages when no absolute values given.",
+          "Do not use for isotopologues absolute values")
+    print("\nsending new files to isotop_preview/")
     if os.path.exists("isotop_preview/"):
         shutil.rmtree("isotop_preview/")  # clear at each run
 
@@ -170,12 +189,21 @@ if args.mode == "prepare":
         save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
                        isotopolog_style, args.stomp_values, bool(args.zero_to_nan))
 
-    # NOTE : for abundances bars and Differential,
-    # compulsory step: calculate isotopologues abundances from IC percentages
-    calculate_meanEnri( dirtmpdata, tableAbund, tableIC,
-        metadata, names_compartments, namesuffix, dirtmpdata )
-    split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
-                   abunda_species_4diff_dir)
+    if args.absolute_isotopologues_available == 'Y':
+        print("your table", tableIC, "is in absolute values")
+        absolute_IC = tableIC
+        percent_IC = "calcPercent" # TODO: add function to calc and save
+    elif args.absolute_isotopologues_available == 'N': # default
+        absolute_IC = calc_isos_absolute(dirtmpdata, tableAbund, tableIC, metadata,
+                                         names_compartments, namesuffix, dirtmpdata)
+        percent_IC = tableIC
+    else:
+        print("argument absolute_isotopologues_available not recognized")
+    try:
+        split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
+                        abunda_species_4diff_dir)
+    except:
+        print("[Note FOR DEV: something wrong with split_mspecies_files]")
     if detect_fraccontrib_missing(tsvfi) is False:
         print("Warning !: you do not have fractional contributions file")
 
@@ -187,6 +215,7 @@ if args.mode == "PCA":
     #picked_for_pca = "meanEnrich"  # TODO: allow to pick Abundance or meanEnrich
     picked_for_pca = tableAbund
     odirpca = "results/plots/pca/"
+    advanced_test = False # for dev test
     if not os.path.exists(odirpca):
         os.makedirs(odirpca)
     print(f"\n plotting pca(s) to: {odirpca}\n")
@@ -195,14 +224,14 @@ if args.mode == "PCA":
         file4pca = f"{dirtmpdata}{picked_for_pca}_{namesuffix}_{co}.tsv"
         df = pd.read_csv(file4pca, sep='\t', header=0, index_col=0)
         metadatasub = metadata.loc[metadata['short_comp'] == co, :]
-        dfa = massage_datadf_4pca(df, metadatasub)
+        dfa = massage_datadf_4pca(df, metadatasub, advanced_test)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
                          "", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, 6)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
                          "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, 6)
         for tp in levelstimepoints_:
             metadatasub = metadata.loc[(metadata['short_comp'] == co) & (metadata['timepoint'] == tp), :]
-            dfb = massage_datadf_4pca(df, metadatasub)
+            dfb = massage_datadf_4pca(df, metadatasub, advanced_test)
             pc_df, dfvare = calcPCAand2Dplot(dfb, metadatasub, "condition", "condition",
                              "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}-{tp}', odirpca, 6)
 
@@ -283,22 +312,24 @@ if args.mode == "timeseries_isotopologues":
 
     #darkbarcolor, palsD = custom_colors_stacked()
     selbycompD = confidic["groups_toplot_isotopol_contribs"]
-    # saveisotopologcontriplot_old(dirtmpdata, tableIC, names_compartments,
-    #                           namesuffix, metadata, selbycompD,
-    #                          darkbarcolor, palsD, condilevels )
+
     for co in selbycompD.keys():
         #mets_byco = get_metabolites(tableIC) # TODO: make this function
         for group in selbycompD[co].keys():
             pass
             #print([met for met in selbycompD[co][group]])
             #notfound = set([met for met in group]) - set(mets_byco)
-    saveisotopologcontriplot(  dirtmpdata,
-    tableIC,
-    names_compartments,
-    namesuffix,
-    metadata,
-    selbycompD,
-    condilevels )
+    saveisotopologcontriplot(dirtmpdata,
+                                percent_IC,
+                                names_compartments,
+                                namesuffix,
+                                metadata,
+                                selbycompD,
+                                condilevels )
+    # previously it was (module old_isotopo...)
+    # saveisotopologcontriplot_old(dirtmpdata, tableIC, names_compartments,
+    #                           namesuffix, metadata, selbycompD,
+    #                          darkbarcolor, palsD, condilevels )
 
 
 def save_each_df(good_df, bad_df, outdiffdir,

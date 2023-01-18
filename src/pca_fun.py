@@ -47,17 +47,16 @@ https://rayblick.gitbooks.io/my-python-scrapbook/content/analysis/plotting/scatt
     order = vals.argsort()[::-1]
     return vals[order], vecs[:,order]
 
-def massage_datadf_4pca(df, metadatasub):
+def massage_datadf_4pca(df, metadatasub, advanced_test):
     df = df[metadatasub['sample']]
 
-    advtests = False
-    if advtests == False:
+    if advanced_test == False:
         df = df[~(df == 0).all(axis=1)] # drop zero rows
-    elif advtests == True:
+    elif advanced_test == True:
         print("Danger: advanced tests  set to true")
         # if row zero all, replace by nan, then replace by minimal of each col
-        df = df.where(~(df==0).all(axis=1)) # zero row became nan row
-        df = df.fillna(df[df>0].min()) # this is column wise !
+        df = df.where(~(df == 0).all(axis=1)) # zero row became nan row
+        df = df.fillna(df[df > 0].min()) # this is column wise !
 
     df = df.div(df.std(axis=1, ddof=0), axis=0)  # reduce rows
     df = df.dropna(axis=0)
@@ -77,7 +76,7 @@ def calcPCAand2Dplot(mymat, metadata, col1, col2, pointlabels, title, odir, *arg
         desdim = args[0]
         col_ellipses = args[1]
     except IndexError as indexerr:
-        # print("ellipses args not set == > ", indexerr)
+        print("warning: ellipses args not set == > ", indexerr)
         pass # args[1] was not set but we can continue
     except Exception as e:
         print("unknown error! ", e)
