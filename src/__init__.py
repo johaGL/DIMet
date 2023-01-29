@@ -26,39 +26,43 @@ def dimet_message():
 parser = argparse.ArgumentParser()
 parser.add_argument("--mywdir", help="working directory (with data and results subfolders)",
                     required=True)
+
 parser.add_argument("--config", help="path to configuration yaml file", required=True)
+
 parser.add_argument("--isotopologue_preview", action=argparse.BooleanOptionalAction,
                     default=True,
-                    help="visualize isotopologues' proportions, across samples")
+                    help="Initial visualization of isotopologues' values across samples. NOT to use with --mode")
 
 parser.add_argument("--mode", help="prepare | PCA | diffabund | abundplots \
                             | timeseries_isotopologues |  timeseries_fractional | metabologram")
 
-parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
-                    help="use with prepare. Metabolites whose  isotopologues\
-                    exhibit proportions less or equal this cutoff are removed. Default: -0.05")
+parser.add_argument("--absolute_isotopologues_available", default="N", help="[Y/N]. To use with mode prepare.\
+                      Y if you have  absolute values (not in percentage) for isotopologues. Default : N")
 
-parser.add_argument("--stomp_values", default="Y", help="[Y/N]. Optional. To use with mode prepare. \
+parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
+                    help="With mode prepare. When in percentages, metabolites whose isotopologues exhibit\
+                     proportions less or equal this cutoff are removed (neg can occur). Default: -0.05")
+
+parser.add_argument("--stomp_values", default="Y", help="[Y/N]. To use with mode prepare. \
                     Stomps isotopologues' proportions to max 1.0 and min 0.0. Default : Y")
 
 parser.add_argument("--zero_to_nan", default=0, type=int,
-                    help="Optional. To use with mode prepare. Only keep zero if entire group is zeros\
+                    help="Optional, with mode prepare. Only keep zero if entire group is zeros\
                     i.e. given 3 bio replicates:[0 22 0] change to [NaN 22 NaN].\
                     Will be performed in abundances, isotopologue and rawintensity. \
-                     Default : 0 (False, i.e. not to perform) " )
-
-parser.add_argument("--absolute_isotopologues_available", default="N", help="[Y/N]. Set to Y if you have\
-                     absolute values (not in percentage) for isotopologues. Default : N")
+                     Default : 0 (not to perform) ")
 
 parser.add_argument("--totalAbund_zero_replace", default="min", type=str,
-                    help="To use with mode diffabund, treat zeroes before reduction and gmean.\
+                    help="To use with mode diffabund, treat zeroes before reduction and gmean. Set :\
                          min : replaces zero by the minimal value of the entire dataframe. \
-                         Or set a number to replace with it (1, 2, 20, 100, etc). \
+                         Or a number to replace it with (1e-10, 1e-3, 1, 2), you must know well your data \
                          Default : min")
 
-parser.add_argument("--isotoAbsolutes_zero_replace", default=1e-15, type=float,
-                    help="To use with mode diffabund, treat isotopologue.\
-                         Default : 1e-15")
+parser.add_argument("--isotoAbsolutes_zero_replace", default="1e-01", type=float,
+                    help="To use with mode diffabund, treat isotopologue zeroes before reduction and gmean.\
+                         A number to replace it with (1e-10, 1e-3, 1, 2), you must know well your data \
+                         Default : 1e-01" )
+
 
 
 args = parser.parse_args()
@@ -181,38 +185,47 @@ if args.mode == "prepare":
     extrudf = extrudf.sort_values(by='compartment')
     print(extrudf)
 
-    if args.stomp_values == 'N':
-        print("are you sure not stomping values ? \
-        \naberrant proportion values (negative and superior to 1)  will remain,"
-              "and good quality analysis is not guaranteed")
-    for filename in tsvfi:
-        save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
-                       isotopolog_style, args.stomp_values, bool(args.zero_to_nan))
-
     if args.absolute_isotopologues_available == 'Y':
         print("your table", tableIC, "is in absolute values")
         absolute_IC = tableIC
-        percent_IC = "calcPercent" # TODO: add function to calc and save
+        percent_IC = "calcPercent" # TODO: add function to calc % (from given absolute) and saveit to data
+        for filename in tsvfi :
+            save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
+                          isotopolog_style, stomp_values=False,  special_zero_tonan=bool(args.zero_to_nan))
+
     elif args.absolute_isotopologues_available == 'N': # default
+        if args.stomp_values == 'N':
+            print("Warning : are you sure not stomping values ? \
+            \naberrant proportion values (negative and superior to 1)  will remain,"
+                  "and good quality analysis is not guaranteed")
+        for filename in tsvfi:
+            save_new_dfsB(datadi, names_compartments, filename, metadata, extrudf, dirtmpdata,
+                          isotopolog_style, args.stomp_values,  bool(args.zero_to_nan))
+
         absolute_IC = calc_isos_absolute(dirtmpdata, tableAbund, tableIC, metadata,
                                          names_compartments, namesuffix, dirtmpdata)
         percent_IC = tableIC
+
     else:
         print("argument absolute_isotopologues_available not recognized")
     try:
         split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
                         abunda_species_4diff_dir)
     except:
-        print("[Note FOR DEV: something wrong with split_mspecies_files]")
+        print("[Note FOR DEV: something WRONG with split_mspecies_files]")
     if detect_fraccontrib_missing(tsvfi) is False:
         print("Warning !: you do not have fractional contributions file")
+
+
+    save_mini_report([tableAbund, absolute_IC],  namesuffix, names_compartments,  dirtmpdata )
+
 
     print("\nsplited (by compartment) and clean files in tmp/ ready for analysis\n")
 
 
 
 if args.mode == "PCA":
-    #picked_for_pca = "meanEnrich"  # TODO: allow to pick Abundance or meanEnrich
+    #picked_for_pca = "meanEnrich"  # TODO: allow to pick Abundance or meanEnrich, first fix meanEnrich
     picked_for_pca = tableAbund
     odirpca = "results/plots/pca/"
     advanced_test = False # for dev test
@@ -313,12 +326,12 @@ if args.mode == "timeseries_isotopologues":
     #darkbarcolor, palsD = custom_colors_stacked()
     selbycompD = confidic["groups_toplot_isotopol_contribs"]
 
-    for co in selbycompD.keys():
-        #mets_byco = get_metabolites(tableIC) # TODO: make this function
-        for group in selbycompD[co].keys():
-            pass
-            #print([met for met in selbycompD[co][group]])
-            #notfound = set([met for met in group]) - set(mets_byco)
+    # for co in selbycompD.keys():
+    #     #mets_byco = get_metabolites(tableIC) # TODO: make this function
+    #     for group in selbycompD[co].keys():
+    #         pass
+    #         #print([met for met in selbycompD[co][group]])
+    #         #notfound = set([met for met in group]) - set(mets_byco)
     saveisotopologcontriplot(dirtmpdata,
                                 percent_IC,
                                 names_compartments,

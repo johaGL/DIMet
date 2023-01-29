@@ -158,6 +158,24 @@ def save_new_dfsB( datadi, names_compartments, filename, metadata, extrudf,
     # end for
     return 0
 
+#def save_new_dfsA()
+def save_mini_report(files_prefixes, namesuffix, names_compartments,  dirtmpdata) :
+    minireport = 'Rapid report of given tables ' + namesuffix + '\n' + "-----------------" + '\n\n'
+    for fileprefix in files_prefixes:
+        for compartment in names_compartments.values():
+            minireport +=  fileprefix +  " in " + compartment + '\n'
+            f_o = fileprefix + "_"  + namesuffix + "_" + compartment + ".tsv"
+            met_or_iso_df_o = pd.read_csv(dirtmpdata + f_o, sep="\t", index_col=0)
+            maxval = met_or_iso_df_o.max().max()
+            minval = met_or_iso_df_o.min().min()
+            min_nonzero_val = met_or_iso_df_o[met_or_iso_df_o > 0 ].min().min()
+            minireport += f'    maximal value : {maxval}\n'
+            minireport += f'    minimal value : {minval}\n'
+            minireport += f'    minimal non-zero value : {min_nonzero_val}\n'
+    with open("results/initial_quick_report.txt", 'w') as f:
+        f.write(minireport)
+
+
 
 
 
