@@ -6,35 +6,22 @@ Created on Tue May 31 12:58:52 2022
 @author: johanna
 
 Calculates and saves:
-1. absolute abundances of isotopologues
-using corrected isotopologues (%)
+1. absolute values of isotopologues (not percentage)
 
 2. mean Enrichment as in Castano-cerezo, Bellvert et al, 2019
 
 --
-Note: Some platforms do not supply corrected absolute abundances,
+Note: Some platforms do not supply corrected absolute isotopologues,
 but they do supply:
    a) corrected isotopologues (%)
    b) raw abundances
 so this script is dedicated to data preparation in that case,
-by it obtaining a proxy to corrected abundances using a) and b)
+by it obtaining a proxy to corrected isotopologues using a) and b)
 
 """
 
 
 from .fun_fm import *
-
-
-def correction_prop_df(prop_df):
-    """ "
-    does two corrections:
-        a) all multiply 100 (percentage)
-        b )if # if % < 0 , or > 100, cut
-    """
-    prop_df = prop_df * 100
-    prop_df[prop_df < 0] = 0
-    prop_df[prop_df > 100] = 100
-    return prop_df
 
 
 def makematch_abund_rowdata(abund, rowdata):
@@ -110,18 +97,17 @@ def saveabundance(df, nameout):
     df.to_csv(nameout, sep="\t")
 
 
-def calculate_meanEnri(
-                datadi,
+def calc_isos_absolute( datadi,
                 tableAbund,
                 tableIC,
                 metadata,
                 names_compartments,
                 namesuffix,
-                odir ):
+                odir) -> str:
     """
-    output : two tables
-    - calc_corrAbu_  :  "corrected" abundances, calculated
-    - meanEnrich_ :  weighted mean as in Castano-cerezo, Bellvert et al, 2019.
+    saves a tsv file :
+      calc_corrIsoAbsol_  :  "corrected" isotopologues (absolute values), calculated
+                            if user has not absolute values available
     """
     if not os.path.exists(odir):
         os.makedirs(odir)
@@ -146,44 +132,32 @@ def calculate_meanEnri(
         # order  columns (samples) , same order in both df:
         dicos[co][tableAbund] = abun[selecols]
         dicos[co][tableIC] = propc[selecols]
-        prop_df = dicos[co][tableIC]
-        prop_df = correction_prop_df(prop_df)
-        isotosrowdata = yieldrowdataB(prop_df)  # this funciton is from fun_fm
+
+        isotosrowdata = yieldrowdataB(dicos[co][tableIC])  # this funciton is from fun_fm
 
         isotosrowdata = isotosrowdata.assign(
                             coefficient=isotosrowdata["m+x"].str.replace("m+", "", regex=False))
         isotosrowdata.coefficient = isotosrowdata.coefficient.astype('int')
 
-        outdf = dicos[co][tableAbund].copy()
-        proxy_correctabu = prop_df.copy()
-        metabolites = outdf.index
+        proxy_correctabu = dicos[co][tableIC].copy()
+
+        metabolites = dicos[co][tableAbund].index
 
         for met_i in metabolites:
             isos_rowdata_i = isotosrowdata.loc[isotosrowdata["metabolite"] == met_i, :]
-            prop_df_i = prop_df.loc[isos_rowdata_i.isotopolgFull.tolist(), :]
+            prop_df_i = dicos[co][tableIC].loc[isos_rowdata_i['isotopolgFull'].unique(), ]
+            prop_df_i = prop_df_i[~prop_df_i.index.duplicated(keep='first')]
             abu_i = dicos[co][tableAbund].loc[met_i, :]
-            abus_isotops_i = prop_df_i.multiply(abu_i.T) / 100
-            # take advantage of this corrected  abus_isotops_i, to save into proxy_...
+            abus_isotops_i = prop_df_i.multiply(abu_i.T)
+            #print(proxy_correctabu.loc[abus_isotops_i.index, :].shape)
+
             proxy_correctabu.loc[abus_isotops_i.index, :] = abus_isotops_i
 
-            # prepare to apply formula (sum(coeffs*abus_isotops_i)) / n
-            # from Castano-cerezo, Bellvert et al, 2019.
-            nmax = max(isos_rowdata_i.coefficient)
-            abu_coef_prod_df = abus_isotops_i.multiply(isos_rowdata_i.coefficient.tolist(),
-                                                       axis="index")
-            abu_coef_sum_df = abu_coef_prod_df.sum(axis="index")
-            meanenrich_i = abu_coef_sum_df / nmax
-            meanenrich_i = meanenrich_i[selecols]
-            outdf.loc[met_i, ] = meanenrich_i
-
-        proxyfile = odir + "calc_corrAbu_" + namesuffix + "_" + co + ".tsv"
+        proxyfile = odir + "calc_corrIsoAbsol_" + namesuffix + "_" + co + ".tsv"
         proxy_correctabu.to_csv(proxyfile, sep='\t', header =True, index=True)
-        print("\nSaved calc_corrAbu_ file, to tmp/. Compartment:", co, "\n")
+        print("\nSaved calc_corrIsoAbsol_ file, to tmp/. Compartment:", co, "\n")
 
-        ofile = odir + "meanEnrich_" + namesuffix + "_" + co + ".tsv"
-        outdf.to_csv(ofile, sep='\t', header =True, index=True)
-        print("\nSaved mean enrichment to tmp/. Compartment:", co, "\n")
-    return 0
+    return "calc_corrIsoAbsol"
 
 
 def split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
@@ -192,7 +166,7 @@ def split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
         os.makedirs(odir)
 
     for co in names_compartments.values():
-        proxyfile = dirtmpdata + "calc_corrAbu_" + namesuffix + "_" + co + ".tsv"
+        proxyfile = dirtmpdata + "calc_corrIsoAbsol_" + namesuffix + "_" + co + ".tsv"
         proxy_correctabu = pd.read_csv(proxyfile, sep='\t', index_col=0, header=0)
         isotosrowdata =  yieldrowdataB(proxy_correctabu)
 
@@ -247,12 +221,3 @@ def split_mspecies_files(dirtmpdata, names_compartments, namesuffix,
 # 	168  Stearic_acid  m+18  Stearic_acid_m+18
 # -----------------------------------------------------------------
 
-# def makematch_abund_rowdata(abund, isotosrowdata):
-#     """
-#     check lines that are in abundance but not in corrected %
-#
-#     """
-#     set(abund.index) - set(isotosrowdata["metabolite"])
-#     rtodrop = list(set(abund.index) - set(isotosrowdata["metabolite"]))
-#     abund = abund.drop(rtodrop, axis=0)
-#     return abund
