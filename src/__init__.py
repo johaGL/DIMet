@@ -86,7 +86,7 @@ max_m_species = confidic["max_m_species"]
 os.chdir(os.path.expanduser(args.mywdir))
 
 metadata = pd.read_csv(datadi + metadata_fi, index_col=False)
-
+metadata['timepoint'] = metadata['timepoint'].astype(str) # new
 isotopolog_style = autodetect_isotop_nomenclature(datadi, tableIC, namesuffix)
 
 allfi = os.listdir(datadi)
@@ -227,6 +227,7 @@ if args.mode == "prepare":
 if args.mode == "PCA":
     #picked_for_pca = "meanEnrich"  # TODO: allow to pick Abundance or meanEnrich, first fix meanEnrich
     picked_for_pca = tableAbund
+    nbcomps= 6 # TODO make it an option from user config
     odirpca = "results/plots/pca/"
     advanced_test = False # for dev test
     if not os.path.exists(odirpca):
@@ -239,14 +240,14 @@ if args.mode == "PCA":
         metadatasub = metadata.loc[metadata['short_comp'] == co, :]
         dfa = massage_datadf_4pca(df, metadatasub, advanced_test)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
-                         "", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, 6)
+                         "", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, nbcomps)
         pc_df, dfvare = calcPCAand2Dplot(dfa, metadatasub, "timepoint", "condition",
-                         "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, 6)
+                         "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}', odirpca, nbcomps)
         for tp in levelstimepoints_:
             metadatasub = metadata.loc[(metadata['short_comp'] == co) & (metadata['timepoint'] == tp), :]
             dfb = massage_datadf_4pca(df, metadatasub, advanced_test)
             pc_df, dfvare = calcPCAand2Dplot(dfb, metadatasub, "condition", "condition",
-                             "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}-{tp}', odirpca, 6)
+                             "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}-{tp}', odirpca, nbcomps)
 
 
 
@@ -325,6 +326,11 @@ if args.mode == "timeseries_isotopologues":
 
     #darkbarcolor, palsD = custom_colors_stacked()
     selbycompD = confidic["groups_toplot_isotopol_contribs"]
+
+    if args.absolute_isotopologues_available == 'N':
+        percent_IC = tableIC
+    else:
+        percent_IC = "calcPercent" # the suffix of the saved percentage (by prep mode)
 
     # for co in selbycompD.keys():
     #     #mets_byco = get_metabolites(tableIC) # TODO: make this function
