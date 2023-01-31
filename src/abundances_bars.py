@@ -37,7 +37,7 @@ def stackallabundace(abu_sel, metada_sel):
 
 
 def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, col1, col2,
-                           plotwidth, odirbars, xticks_text_, axisx_labeltilt):
+                           plotwidth, odirbars, xticks_text_, axisx_labeltilt, wspace_subfigs):
     li_ = selectedmets
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
     plt.rcParams.update({"font.size": 21})
@@ -91,8 +91,8 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, col1, col2,
     # xlaloc = (0.025 * len(selectedmets)) - 0.15
 
     fig.text(x=0.02, y=0.5, s=YLABE, va="center", rotation="vertical", size=26)
-    fig.suptitle(f"{CO} {SMX}".upper())
-    plt.subplots_adjust(top=0.76, bottom=0.2, wspace=0.3, hspace=1)
+    fig.suptitle(f"{CO} ({SMX} abundance)".upper())
+    plt.subplots_adjust(top=0.76, bottom=0.2, wspace=wspace_subfigs, hspace=1)
     plt.legend(handles=thehandles, labels=thelabels, loc='upper right',
                bbox_to_anchor=(-plotwidth/3, 1))
     # plt.tight_layout(pad = 0.01, w_pad = -2, h_pad=0.1)

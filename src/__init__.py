@@ -217,7 +217,8 @@ if args.mode == "prepare":
         print("Warning !: you do not have fractional contributions file")
 
 
-    save_mini_report([tableAbund, absolute_IC],  namesuffix, names_compartments,  dirtmpdata )
+    save_mini_report([tableAbund, absolute_IC, percent_IC],
+                     namesuffix, names_compartments,  dirtmpdata)
 
 
     print("\nsplited (by compartment) and clean files in tmp/ ready for analysis\n")
@@ -263,6 +264,11 @@ if args.mode == "abundplots":
     vizorder = confidic["axisx_barcolor"]
     col1 = vizorder[0]
     col2 = vizorder[1]
+
+    width_each_subfig = float(confidic["width_each_abu"])
+    wspace_subfigs = float(confidic["wspace_abus"])
+
+
     # in a first time print the TOTAL abundances, selectedmets_forbars
     for CO in names_compartments.values():
         file_total_co_ = [i for i in os.listdir(dirtmpdata) if tableAbund in i and CO in i]
@@ -280,10 +286,11 @@ if args.mode == "abundplots":
         piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
         piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
 
-        plotwidth = 4 * len(selectedmetsD[CO])
+        plotwidth =  width_each_subfig * len(selectedmetsD[CO])
         print(f"sending to plot file  :  {selectedmetsD[CO]}")
         printabundbarswithdots(piled_sel, selectedmetsD[CO], CO, "TOTAL",
-                               col1, col2, plotwidth, odirbars, xticks_text_ , axisx_labeltilt)
+                               col1, col2, plotwidth, odirbars, xticks_text_ , axisx_labeltilt,
+                               wspace_subfigs)
 
 
 if args.mode == "timeseries_fractional":
@@ -323,8 +330,10 @@ if args.mode == "timeseries_isotopologues":
     print(" Isotopologue's Contributions plots \n")
 
     condilevels = confidic["conditions"]  # <= locate where it is used
+    width_each_stack = float(confidic["width_each_stack"])
+    wspace_stacks = float(confidic["wspace_stacks"])
+    numbers_size = confidic["numbers_size"]
 
-    #darkbarcolor, palsD = custom_colors_stacked()
     selbycompD = confidic["groups_toplot_isotopol_contribs"]
 
     if args.absolute_isotopologues_available == 'N':
@@ -332,24 +341,13 @@ if args.mode == "timeseries_isotopologues":
     else:
         percent_IC = "calcPercent" # the suffix of the saved percentage (by prep mode)
 
-    # for co in selbycompD.keys():
-    #     #mets_byco = get_metabolites(tableIC) # TODO: make this function
-    #     for group in selbycompD[co].keys():
-    #         pass
-    #         #print([met for met in selbycompD[co][group]])
-    #         #notfound = set([met for met in group]) - set(mets_byco)
     saveisotopologcontriplot(dirtmpdata,
                                 percent_IC,
                                 names_compartments,
                                 namesuffix,
                                 metadata,
                                 selbycompD,
-                                condilevels )
-    # previously it was (module old_isotopo...)
-    # saveisotopologcontriplot_old(dirtmpdata, tableIC, names_compartments,
-    #                           namesuffix, metadata, selbycompD,
-    #                          darkbarcolor, palsD, condilevels )
-
+                                condilevels, width_each_stack, wspace_stacks, numbers_size )
 
 def save_each_df(good_df, bad_df, outdiffdir,
                  co, autochoice, strcontrast):
