@@ -11,7 +11,7 @@ from .prep_steps import *
 from .abundances_bars import *
 from .frac_contrib_lineplot import *
 from .isotopologcontrib_stacked import *
-from .functions_diffmode import *
+from .use_distrib_fit import *
 from .fun_fm import countnan_samples, add_alerts, add_metabolite_column,\
      add_isotopologue_type_column, save_heatmap_sums_isos, \
      givelevels, table_minimalbymet, save_rawisos_plot
@@ -53,16 +53,15 @@ parser.add_argument("--zero_to_nan", default=0, type=int,
                      Default : 0 (not to perform) ")
 
 parser.add_argument("--totalAbund_zero_replace", default="min", type=str,
-                    help="To use with mode diffabund, treat zeroes before reduction and gmean. \n\
-                         min : replaces zero by the minimal value of the entire dataframe (recommended)\n. \
-                         Or a number to replace it with (eg: 1e-10, 1e-3, 3, 3000) if you know well your data. \
+                    help="To use with mode diffabund, treat zeroes before reduction and gmean. Set :\
+                         min : replaces zero by the minimal value of the entire dataframe. \
+                         Or a number to replace it with (1e-10, 1e-3, 1, 2), you must know well your data \
                          Default : min")
 
-parser.add_argument("--isotoAbsolutes_zero_replace", default="min", type=str,
+parser.add_argument("--isotoAbsolutes_zero_replace", default="1e-01", type=float,
                     help="To use with mode diffabund, treat isotopologue zeroes before reduction and gmean.\
-                         set to 'min' or 'min/n' where n can be integer or decimal (recommended);\
-                         or a number to replace it with (eg: 1e-10, 1e-3, 3, 3000) if you know well your data. \
-                         Default : min" )
+                         A number to replace it with (1e-10, 1e-3, 1, 2), you must know well your data \
+                         Default : 1e-01" )
 
 
 
@@ -211,7 +210,7 @@ if args.mode == "prepare":
     if detect_fraccontrib_missing(tsvfi) is False:
         print("Warning !: you do not have fractional contributions file")
 
-    detect_and_create_dir("results/")
+
     save_mini_report([tableAbund, absolute_IC, percent_IC],
                      namesuffix, names_compartments,  dirtmpdata)
 
@@ -225,10 +224,9 @@ if args.mode == "PCA":
     picked_for_pca = tableAbund
     nbcomps= 6 # TODO make it an option from user config
     odirpca = "results/plots/pca/"
-    detect_and_create_dir(odirpca)
-    print("hahahah")
     advanced_test = False # for dev test
-
+    if not os.path.exists(odirpca):
+        os.makedirs(odirpca)
     print(f"\n plotting pca(s) to: {odirpca}\n")
     for k in names_compartments.keys():
         co = names_compartments[k]
@@ -247,9 +245,11 @@ if args.mode == "PCA":
                              "sample_descrip", f'{picked_for_pca}-{namesuffix}-{k}-{tp}', odirpca, nbcomps)
 
 
+
 if args.mode == "abundplots":
     odirbars = "results/plots/abundbars/"
-    detect_and_create_dir(odirbars)
+    if not os.path.exists(odirbars):
+        os.makedirs(odirbars)
     xticks_text_ = confidic["xticks_text"]
     axisx_labeltilt = confidic["axisx_labeltilt"]
     time_sel = confidic["time_sel"]  # locate where it is used
@@ -352,41 +352,33 @@ def save_each_df(good_df, bad_df, outdiffdir,
     bad_df.to_csv(bad_o, sep='\t', header=True)
     return "saved to results"
 
-def steps_fitting_method(ratiosdf, out_histo_file):
-    ratiosdf = compute_z_score(ratiosdf)
-    best_distribution, args_param = find_best_distribution(ratiosdf,
-                                 out_histogram_distribution=out_histo_file)
-    autoset_tailway = auto_detect_tailway(ratiosdf, best_distribution, args_param)
-    print("auto, best pvalues calculated :", autoset_tailway)
-    ratiosdf = compute_p_value(ratiosdf, autoset_tailway, best_distribution, args_param)
-    ratiosdf = compute_p_adjusted(ratiosdf, "fdr_bh")
 
-    return ratiosdf
-
-
-if args.mode == "diffabund" :
-    print("\n  -*- searching for Differentially Abundant Metabolites[or Isotopologues] (DAM) -*-\n")
+if args.mode == "diffabund" and whichtest == "disfit":
+    print("\nDistribution fitting (of ratios)\n")
     newcateg = confidic["newcateg"]
     contrasts_ = confidic["contrasts"]
     outdiffdir = "results/tables/"
 
-    detect_and_create_dir(outdiffdir)
+    if not os.path.exists(outdiffdir):
+        os.makedirs(outdiffdir)
 
-    # detect_and_create_dir(f'{dirtmpdata}/preDiff/')
+    if not os.path.exists(f'{dirtmpdata}/preDiff/'):
+        os.makedirs(f'{dirtmpdata}/preDiff/')
 
     spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
-    detect_and_create_dir(f'{outdiffdir}/extended/TOTAL/')
-    detect_and_create_dir(f'{outdiffdir}/extended/isos/')
+    if not os.path.exists(f'{outdiffdir}extended/TOTAL/'):
+        os.makedirs(f'{outdiffdir}extended/TOTAL/')
 
     for contrast in contrasts_:
         strcontrast = "_".join(contrast)
-        print("\ncomparison ==>", contrast[0] ,"vs",contrast[1] , '\n--------------')
+        print("\n    comparison ==>", contrast[0] ,"vs",contrast[1] , '\n')
+
 
         for co in names_compartments.values():
-            print(". compartment:", co)
+            print("  ", co, "  ")
             autochoice = "TOTAL"
-            print(".. ", autochoice)
+            print("    ", autochoice)
             filehere = f"{dirtmpdata}{tableAbund}_{namesuffix}_{co}.tsv"
 
             df = pd.read_csv(filehere, sep='\t', header=0, index_col=0)
@@ -401,50 +393,62 @@ if args.mode == "diffabund" :
             # sort them by 'newcol' the column created by prepare4contrast
             metad4c = metad4c.sort_values("newcol")
             if args.totalAbund_zero_replace == "min":
-                minimal_val = df4c[df4c > 0].min().min()
                 print("using minimal value to replace zeroes :", minimal_val)
+                minimal_val = df4c[df4c > 0].min().min()
             else :
                 try:
                     minimal_val = float(args.totalAbund_zero)
                 except:
                     print("Warning: --totalAbund_zero_replace argument not 'min' nor numeric, see help")
-                    minimal_val = df4c[df4c > 0].min().min()
 
             df4c = df4c.replace(to_replace=0, value=minimal_val)
             df4c = calc_reduction(df4c, metad4c, contrast)
+
+            pre_out = f"{co}_{autochoice}_{strcontrast}_prep_fit.tsv"
+            df4c.to_csv(f"{dirtmpdata}/preDiff/{pre_out}",
+                                index_label="metabolite", header=True, sep='\t')
             df4c = distance_or_overlap(df4c, metad4c, contrast)
             df4c = compute_span_incomparison(df4c, metad4c, contrast)
             df4c['distance/span'] = df4c.distance.div(df4c.span_allsamples)
+            # good_df, bad_df = split_byalert_df(ratiosdf)
+            # good_df = compute_z_score(good_df)
+            # save_each_df(good_df, bad_df, outdiffdir, co, autochoice, strcontrast)
+            # out_histo_file = f"{outdiffdir}/extended/{autochoice}/{co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
+            # best_distribution, args_param = find_best_distribution(good_df,
+            #                           out_histogram_distribution= out_histo_file)
+            #
+            # autoset_tailway = auto_detect_tailway(good_df, best_distribution, args_param)
+            # print("auto, best pvalues calculated :", autoset_tailway)
+            # good_df = compute_p_value(good_df, autoset_tailway, best_distribution, args_param)
+            # good_df = compute_p_adjusted(good_df, "fdr_bh")
+            # good_df = good_df.sort_values(by='pvalue', ascending=True)
+            # final_total_diff = good_df.copy()
+            # fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_good.tsv"
+            # final_total_diff.to_csv(f"{outdiffdir}extended/{fout}",
+            #                   index_label="metabolite", header=True, sep='\t')
+            # del(good_df)
             ratiosdf = calc_ratios(df4c,  metad4c, contrast)
+            ratiosdf = compute_z_score(ratiosdf)
+            out_histo_file = f"{outdiffdir}/extended/{autochoice}/{co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
+            # best_distribution, args_param = find_best_distribution(ratiosdf,
+            #                            out_histogram_distribution= out_histo_file)
+            # autoset_tailway = auto_detect_tailway(ratiosdf, best_distribution, args_param)
+            #
+            # print("auto, best pvalues calculated :", autoset_tailway)
+            # ratiosdf = compute_p_value(ratiosdf, autoset_tailway, best_distribution, args_param)
+            # ratiosdf = compute_p_adjusted(ratiosdf, "fdr_bh")
 
-
-            # specific test as defined by user
-            if whichtest == "disfit" :
-                out_histo_file = f"{outdiffdir}/extended/{autochoice}/" \
-                                 f"{co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
-                ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
-            else:
-                extract_test_df = outStat_df(ratiosdf, metad4c, contrast, whichtest)
-                extract_test_df = compute_padj_version2(extract_test_df)
-                extract_test_df.set_index("metabolite", inplace=True)
-                ratiosdf = pd.merge(ratiosdf, extract_test_df, left_index=True, right_index=True)
-
-            ratiosdf["log2FC"] = np.log2(ratiosdf['ratio'])
-
+            # ratiosdf = add_alerts(ratiosdf, metad4c)
             ratiosdf["compartment"] = co
-            ratiosdf = countnan_samples(ratiosdf, metad4c)  # adds nan_count_samples column
-            # good_df = ratiosdf.loc[ratiosdf['distance/span'] >= 0.15,:]
-            # bad_df = ratiosdf.loc[ratiosdf['distance/span'] < 0.15,:]
-            # save_each_df(good_df, bad_df, outdiffdir,  co, autochoice, strcontrast)
-            ratiosdf.to_csv(f"{outdiffdir}/extended/{autochoice}/{co}_{autochoice}_{strcontrast}_{whichtest}.tsv",
+            ratiosdf.to_csv(f"{dirtmpdata}/preDiff/{pre_out}",
                             index_label="metabolite", header=True, sep='\t')
-            del(ratiosdf)
-
-
+            good_df = ratiosdf[ratiosdf['distance/score'] >= 0.15,:]
+            bad_df = ratiosdf[ratiosdf['distance/score'] < 0.15,:]
+            save_each_df(good_df, bad_df, outdiffdir,  co, autochoice, strcontrast)
             # --------------------- for isotopologues ---------------------------:
-
-            print(".. Isotopologues")
+            print("    Isotopologues")
             tableabuspecies_co_ = [i for i in spefiles if co in i]
+            # any "m+x" where x > max_m_species, must be excluded
             donotuse = [k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
                         and int(k.split("_")[2].split("+")[-1]) > max_m_species]
             tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
@@ -474,84 +478,83 @@ if args.mode == "diffabund" :
                     isos_togetherD[f"{autochoice}-{co}"] = df4c
                 elif autochoice == "totmk" :
                     if confidic['also_total_marked'] == "Yes":
-                        isos_togetherD[f"{autochoice}-{co}"] = df4c
+                        isos_togetherD[f"{autochoice}-{co}"] = df4c  # ratiosdf
+
+
                     elif confidic['also_total_marked'] == "No":
                         pass # total marked is not of interest for user
 
+            # new: pile the isotopologues dataframes
             isos_piledup = pd.concat(isos_togetherD.values(), axis=0)
 
+
+            # this dataframe has a non numeric column 'isotype', so select samples :
             tmp = isos_piledup[metad4c['sample']]
 
-            if args.isotoAbsolutes_zero_replace == "min":
-                mini_val_isos = tmp[tmp > 0 ].min().min()
-            elif args.isotoAbsolutes_zero_replace.startswith("min/"):
-                try:
-                    denominator_str = str(args.isotoAbsolutes_zero_replace.split("/")[1])
-                    mini_val_isos = tmp[tmp > 0].min().min() / float(denominator_str)
-                except ValueError:
-                    mini_val_isos = tmp[tmp > 0].min().min() / 2
-                    print("Bad denominator --isotoAbsolutes_zero_replace, defaulting to ", 2)
+            if args.XXXXXX == "min":
+                minimal_val = tmp[tmp > 0].min().min()
+                print("using minimal value to replace zeroes :", minimal_val)
             else:
                 try:
-                    mini_val_isos = float(args.isotoAbsolutes_zero_replace)
-                except:
-                    "--isotoAbsolutes_zero_replace argument value not recognized"
-            # end if
-
-            tmp = tmp.replace(to_replace=0, value=mini_val_isos)
-            tmp = calc_reduction(tmp, metad4c, contrast)
-            tmp = distance_or_overlap(tmp, metad4c, contrast)
-            tmp = compute_span_incomparison(tmp, metad4c, contrast)
-            tmp['distance/span'] = tmp.distance.div(tmp.span_allsamples)
-            ratiosdf2 = calc_ratios(tmp, metad4c, contrast)
-
-            if whichtest == "disfit":
-                out_histo_file = f"{outdiffdir}/extended/isos/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
-                ratiosdf2 = steps_fitting_method(ratiosdf2, out_histo_file)
-            else:
-                extract_test_df = outStat_df(ratiosdf2, metad4c, contrast, whichtest)
-                extract_test_df = compute_padj_version2(extract_test_df)
-                extract_test_df.set_index("metabolite", inplace=True)
-                ratiosdf2 = pd.merge(ratiosdf2, extract_test_df, left_index=True, right_index=True)
+                    minimal_val
 
 
-            ratiosdf2["log2FC"] = np.log2(ratiosdf2['ratio'])
+            tmp = tmp.replace(to_replace=0, value=minimal_val)
+            print(tmp.min().min())
 
-            ratiosdf2["compartment"] = co
-            col_isotype = isos_piledup['isotype'].tolist()  # TODO: improve, dangerous
+            ratiosdf2 = calcs_red_to_ratios(tmp, metad4c, contrast)
+
+            col_isotype = isos_piledup['isotype'].tolist()
             ratiosdf2 = ratiosdf2.assign(isotype=col_isotype)
-            ratiosdf2 = countnan_samples(ratiosdf2, metad4c)
-            # good_df = ratiosdf2.loc[ratiosdf2['distance/span'] >= 0.15, :]
-            # bad_df = ratiosdf2.loc[ratiosdf2['distance/span'] < 0.15, :]
-            # save_each_df(good_df, bad_df, outdiffdir, co, "isos", strcontrast)
-            ratiosdf2.to_csv(f"{outdiffdir}/extended/isos/{co}_isos_{strcontrast}_{whichtest}.tsv",
-                            index_label="metabolite", header=True, sep='\t')
+
+            # ratiosdf2 = add_alerts(ratiosdf2, metad4c)
+            ratiosdf2["compartment"] = co
+
+                        # plt.figure(figsize=(4,4))
+                        # sns.histplot(x=ratiosdf2['ratio'])
+                        # plt.title(f"all isotopologues ratios {co} {strcontrast}")
+                        # plt.savefig(f"ratios_isotopologues-{co}-{strcontrast}.pdf")
+                        # plt.close()
+            ratiosdf2.to_csv(f"{dirtmpdata}/preDiff/{co}_m+x_{strcontrast}_prep_fit.tsv",
+                                index_label="isotopologue", header=True, sep='\t')
+
+
+            # good_df, bad_df = split_byalert_df(ratiosdf2)
+            # good_df = compute_z_score(good_df)
+            # rn = f"{outdiffdir}/extended/"
+            # good_o = f"{rn}/{co}_m+x_{strcontrast}_good.tsv"
+            # bad_o = f"{rn}/{co}_m+x_{strcontrast}_bad.tsv"
+            # good_df.to_csv(good_o, sep='\t', header=True)
+            # bad_df.to_csv(bad_o, sep='\t', header=True)
+            #
+            # out_histo_file = f"{outdiffdir}/extended/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
+            # best_distribution, args_param = find_best_distribution(good_df,
+            #                                                         out_histogram_distribution=out_histo_file)
+            #
+            # autoset_tailway = auto_detect_tailway(good_df, best_distribution, args_param)
+            # print("auto, best pvalues calculated :", autoset_tailway)
+            # good_df = compute_p_value(good_df, autoset_tailway, best_distribution, args_param)
+            # good_df = compute_p_adjusted(good_df, "fdr_bh")
+            # good_df = good_df.sort_values(by='pvalue', ascending=True)
+            # fout = f"/{co}_m+x_{strcontrast}_good.tsv"
+            # good_df.to_csv(f"{outdiffdir}extended/{fout}",
+            #                        index_label="metabolite", header=True, sep='\t')
 
         # end for
     # end for
-    print('\n')
-# end if mode diffabund
 
 
-if args.mode =="metabologram":
-    print("\nMetabologram\n")
-    metabologram_dir = confidic['metabologram_dir']
-    metabologram_config = confidic['metabologram_config']
-    dimensions_pdf = (15, 20) # TODO transform into option from metabologram_config
-    metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf)
-
-
-
-########### other ancient parts, it worked well
-if args.mode == "OLDdiffabund":
-    print("\n old version:  DAM\n")
+################## diffabund with parametric or non-parametric test at choice, other than fitting
+if args.mode == "diffabund" and whichtest != "disfit":
+    print("\n testing for Differentially Abundant Metabolites [or Isotopologues] : DAM\n")
     spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
     newcateg = confidic["newcateg"]  # see yml in example/configs/
     contrasts_ = confidic["contrasts"]
 
-    outdiffdir = "results/tables/extended/"
-    detect_and_create_dir(outdiffdir)
+    outdiffdir = "results/tables/"
+    if not os.path.exists(outdiffdir):
+        os.makedirs(outdiffdir)
     outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
     outputsubdirs.append("totmk/")
     outputsubdirs.append("TOTAL/")
@@ -560,7 +563,8 @@ if args.mode == "OLDdiffabund":
         for subdir_spec in outputsubdirs:
             x = outdiffdir + exte_sig + subdir_spec
             alloutdirs.append(x)
-            detect_and_create_dir(x)  # each m+x output directory
+            if not os.path.exists(x):
+                os.makedirs(x)  # each m+x output directory
 
     outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
     for contrast in contrasts_:
@@ -595,9 +599,15 @@ if args.mode == "OLDdiffabund":
             # end for co
         # end for contrast
     print("\nended differential analysis")
-    # end if args.mode == "OLDdiffabund"
+    # end if args.mode == "diffabund" and whichtest =! disfit
 
 
+if args.mode =="metabologram":
+    print("\nMetabologram\n")
+    metabologram_dir = confidic['metabologram_dir']
+    metabologram_config = confidic['metabologram_config']
+    dimensions_pdf = (15, 20) # TODO transform into option from metabologram_config
+    metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf)
 
 
 
