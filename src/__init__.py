@@ -93,12 +93,6 @@ allfi = os.listdir(datadi)
 dirtmpdata = "tmp/"
 abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 
-if args.totalAbund_zero_replace != "min":
-    try:
-        totalAbund_valuenonzero = float(args.totalAbund_zero)
-    except:
-        print("Warning: --totalAbund_zero_replace argument not 'min' nor numeric, see help")
-
 
 if args.isotopologue_preview and (args.mode is None):
     print("This option is dedicated to isotopologues in percentages when no absolute values given.",
@@ -358,6 +352,7 @@ def save_each_df(good_df, bad_df, outdiffdir,
     bad_df.to_csv(bad_o, sep='\t', header=True)
     return "saved to results"
 
+
 if args.mode == "diffabund" and whichtest == "disfit":
     print("\nDistribution fitting (of ratios)\n")
     newcateg = confidic["newcateg"]
@@ -397,42 +392,59 @@ if args.mode == "diffabund" and whichtest == "disfit":
 
             # sort them by 'newcol' the column created by prepare4contrast
             metad4c = metad4c.sort_values("newcol")
-            minimal_val = df4c[df4c > 0].min().min()
-            print("using minimal value to replace zeroes :", minimal_val)
+            if args.totalAbund_zero_replace == "min":
+                print("using minimal value to replace zeroes :", minimal_val)
+                minimal_val = df4c[df4c > 0].min().min()
+            else :
+                try:
+                    minimal_val = float(args.totalAbund_zero)
+                except:
+                    print("Warning: --totalAbund_zero_replace argument not 'min' nor numeric, see help")
+
             df4c = df4c.replace(to_replace=0, value=minimal_val)
-
-            ratiosdf = calcs_red_to_ratios(df4c,  metad4c, contrast )
-
-            ratiosdf = add_alerts(ratiosdf, metad4c)
-            ratiosdf["compartment"] = co
+            df4c = calc_reduction(df4c, metad4c, contrast)
 
             pre_out = f"{co}_{autochoice}_{strcontrast}_prep_fit.tsv"
-            ratiosdf.to_csv(f"{dirtmpdata}/preDiff/{pre_out}",
+            df4c.to_csv(f"{dirtmpdata}/preDiff/{pre_out}",
                                 index_label="metabolite", header=True, sep='\t')
-
-            good_df, bad_df = split_byalert_df(ratiosdf)
-
-            good_df = compute_z_score(good_df)
-
-            save_each_df(good_df, bad_df, outdiffdir,
-                             co, autochoice, strcontrast)
-
+            df4c = distance_or_overlap(df4c, metad4c, contrast)
+            df4c = compute_span_incomparison(df4c, metad4c, contrast)
+            df4c['distance/span'] = df4c.distance.div(df4c.span_allsamples)
+            # good_df, bad_df = split_byalert_df(ratiosdf)
+            # good_df = compute_z_score(good_df)
+            # save_each_df(good_df, bad_df, outdiffdir, co, autochoice, strcontrast)
+            # out_histo_file = f"{outdiffdir}/extended/{autochoice}/{co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
+            # best_distribution, args_param = find_best_distribution(good_df,
+            #                           out_histogram_distribution= out_histo_file)
+            #
+            # autoset_tailway = auto_detect_tailway(good_df, best_distribution, args_param)
+            # print("auto, best pvalues calculated :", autoset_tailway)
+            # good_df = compute_p_value(good_df, autoset_tailway, best_distribution, args_param)
+            # good_df = compute_p_adjusted(good_df, "fdr_bh")
+            # good_df = good_df.sort_values(by='pvalue', ascending=True)
+            # final_total_diff = good_df.copy()
+            # fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_good.tsv"
+            # final_total_diff.to_csv(f"{outdiffdir}extended/{fout}",
+            #                   index_label="metabolite", header=True, sep='\t')
+            # del(good_df)
+            ratiosdf = calc_ratios(df4c,  metad4c, contrast)
+            ratiosdf = compute_z_score(ratiosdf)
             out_histo_file = f"{outdiffdir}/extended/{autochoice}/{co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
-            best_distribution, args_param = find_best_distribution(good_df,
-                                      out_histogram_distribution= out_histo_file)
+            # best_distribution, args_param = find_best_distribution(ratiosdf,
+            #                            out_histogram_distribution= out_histo_file)
+            # autoset_tailway = auto_detect_tailway(ratiosdf, best_distribution, args_param)
+            #
+            # print("auto, best pvalues calculated :", autoset_tailway)
+            # ratiosdf = compute_p_value(ratiosdf, autoset_tailway, best_distribution, args_param)
+            # ratiosdf = compute_p_adjusted(ratiosdf, "fdr_bh")
 
-            autoset_tailway = auto_detect_tailway(good_df, best_distribution, args_param)
-            print("auto, best pvalues calculated :", autoset_tailway)
-            good_df = compute_p_value(good_df, autoset_tailway, best_distribution, args_param)
-            good_df = compute_p_adjusted(good_df, "fdr_bh")
-            good_df = good_df.sort_values(by='pvalue', ascending=True)
-            final_total_diff = good_df.copy()
-            fout = f"{autochoice}/{co}_{autochoice}_{strcontrast}_good.tsv"
-            final_total_diff.to_csv(f"{outdiffdir}extended/{fout}",
-                              index_label="metabolite", header=True, sep='\t')
-            del(good_df)
-
-
+            # ratiosdf = add_alerts(ratiosdf, metad4c)
+            ratiosdf["compartment"] = co
+            ratiosdf.to_csv(f"{dirtmpdata}/preDiff/{pre_out}",
+                            index_label="metabolite", header=True, sep='\t')
+            good_df = ratiosdf[ratiosdf['distance/score'] >= 0.15,:]
+            bad_df = ratiosdf[ratiosdf['distance/score'] < 0.15,:]
+            save_each_df(good_df, bad_df, outdiffdir,  co, autochoice, strcontrast)
             # --------------------- for isotopologues ---------------------------:
             print("    Isotopologues")
             tableabuspecies_co_ = [i for i in spefiles if co in i]
@@ -479,8 +491,14 @@ if args.mode == "diffabund" and whichtest == "disfit":
             # this dataframe has a non numeric column 'isotype', so select samples :
             tmp = isos_piledup[metad4c['sample']]
 
-            minimal_val = tmp[tmp > 0].min().min()
-            print("using minimal value to replace zeroes :", minimal_val)
+            if args.XXXXXX == "min":
+                minimal_val = tmp[tmp > 0].min().min()
+                print("using minimal value to replace zeroes :", minimal_val)
+            else:
+                try:
+                    minimal_val
+
+
             tmp = tmp.replace(to_replace=0, value=minimal_val)
             print(tmp.min().min())
 
@@ -489,42 +507,38 @@ if args.mode == "diffabund" and whichtest == "disfit":
             col_isotype = isos_piledup['isotype'].tolist()
             ratiosdf2 = ratiosdf2.assign(isotype=col_isotype)
 
-            ratiosdf2 = add_alerts(ratiosdf2, metad4c)
+            # ratiosdf2 = add_alerts(ratiosdf2, metad4c)
             ratiosdf2["compartment"] = co
 
-            # plt.figure(figsize=(4,4))
-            # sns.histplot(x=ratiosdf2['ratio'])
-            # plt.title(f"all isotopologues ratios {co} {strcontrast}")
-            # plt.savefig(f"ratios_isotopologues-{co}-{strcontrast}.pdf")
-            # plt.close()
+                        # plt.figure(figsize=(4,4))
+                        # sns.histplot(x=ratiosdf2['ratio'])
+                        # plt.title(f"all isotopologues ratios {co} {strcontrast}")
+                        # plt.savefig(f"ratios_isotopologues-{co}-{strcontrast}.pdf")
+                        # plt.close()
             ratiosdf2.to_csv(f"{dirtmpdata}/preDiff/{co}_m+x_{strcontrast}_prep_fit.tsv",
                                 index_label="isotopologue", header=True, sep='\t')
 
 
-            good_df, bad_df = split_byalert_df(ratiosdf2)
-
-            good_df = compute_z_score(good_df)
-
-            rn = f"{outdiffdir}/extended/"
-            good_o = f"{rn}/{co}_m+x_{strcontrast}_good.tsv"
-            bad_o = f"{rn}/{co}_m+x_{strcontrast}_bad.tsv"
-            good_df.to_csv(good_o, sep='\t', header=True)
-            bad_df.to_csv(bad_o, sep='\t', header=True)
-
-
-            out_histo_file = f"{outdiffdir}/extended/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
-            best_distribution, args_param = find_best_distribution(good_df,
-                                                                    out_histogram_distribution=out_histo_file)
-
-
-            autoset_tailway = auto_detect_tailway(good_df, best_distribution, args_param)
-            print("auto, best pvalues calculated :", autoset_tailway)
-            good_df = compute_p_value(good_df, autoset_tailway, best_distribution, args_param)
-            good_df = compute_p_adjusted(good_df, "fdr_bh")
-            good_df = good_df.sort_values(by='pvalue', ascending=True)
-            fout = f"/{co}_m+x_{strcontrast}_good.tsv"
-            good_df.to_csv(f"{outdiffdir}extended/{fout}",
-                                   index_label="metabolite", header=True, sep='\t')
+            # good_df, bad_df = split_byalert_df(ratiosdf2)
+            # good_df = compute_z_score(good_df)
+            # rn = f"{outdiffdir}/extended/"
+            # good_o = f"{rn}/{co}_m+x_{strcontrast}_good.tsv"
+            # bad_o = f"{rn}/{co}_m+x_{strcontrast}_bad.tsv"
+            # good_df.to_csv(good_o, sep='\t', header=True)
+            # bad_df.to_csv(bad_o, sep='\t', header=True)
+            #
+            # out_histo_file = f"{outdiffdir}/extended/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
+            # best_distribution, args_param = find_best_distribution(good_df,
+            #                                                         out_histogram_distribution=out_histo_file)
+            #
+            # autoset_tailway = auto_detect_tailway(good_df, best_distribution, args_param)
+            # print("auto, best pvalues calculated :", autoset_tailway)
+            # good_df = compute_p_value(good_df, autoset_tailway, best_distribution, args_param)
+            # good_df = compute_p_adjusted(good_df, "fdr_bh")
+            # good_df = good_df.sort_values(by='pvalue', ascending=True)
+            # fout = f"/{co}_m+x_{strcontrast}_good.tsv"
+            # good_df.to_csv(f"{outdiffdir}extended/{fout}",
+            #                        index_label="metabolite", header=True, sep='\t')
 
         # end for
     # end for

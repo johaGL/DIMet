@@ -16,12 +16,10 @@ import seaborn as sns
 from .distrib_fit_fromProteomix import compute_z_score, find_best_distribution, compute_p_value
 from .fun_fm import prepare4contrast, give_reduced_df, \
     give_coefvar_new, give_geommeans_new, give_ratios_df
+import scipy.stats
+import statsmodels.stats.multitest as ssm
 
 
-
-def detect_and_create_dir(namenesteddir): # TODO: deduplicate, same in other scripts
-    if not os.path.exists(namenesteddir):
-        os.makedirs(namenesteddir)
 
 
 def compute_overlap(df: pd.DataFrame, group1, group2, overlap_method: str) -> pd.DataFrame:
@@ -78,8 +76,7 @@ def divide_groups(df4c, metad4c, selected_contrast):
         return group_interest, group_control
 
 
-
-def calcs_red_to_ratios( df, metad4c, selected_contrast):
+def calc_reduction( df, metad4c, selected_contrast):
     def renaming_original_col_sams(df):
         newcols = ["copy_" + i for i in df.columns]
         df.columns = newcols
@@ -89,42 +86,50 @@ def calcs_red_to_ratios( df, metad4c, selected_contrast):
     ddof = 0  # for compute reduction
     df4c = df[metad4c['sample']]
 
-    df4c_red = give_reduced_df(df4c, ddof)
+    df4c = give_reduced_df(df4c, ddof)
 
     df_orig_vals = renaming_original_col_sams(df[metad4c['sample']])
 
-    df4c_red = pd.merge(df_orig_vals, df4c_red, left_index=True, right_index=True)
+    df4c = pd.merge(df_orig_vals, df4c, left_index=True, right_index=True)
 
-    # cv_df = give_coefvar_new(df4c_red, metad4c, 'newcol')
+    return df4c
 
-    # df4c_red_cv = pd.merge(df4c_red, cv_df, left_index=True, right_index=True)
+def calc_ratios(df4c, metad4c, selected_contrast):
 
-    groupinterest, groupcontrol = divide_groups(df4c_red, metad4c, selected_contrast)
 
-    rownames = df4c_red.index
-    df4c_red.index = range(len(rownames))
-    o_sym = compute_overlap(df4c_red, groupcontrol, groupinterest, "symmetric")
-    o_sym.columns = [*o_sym.columns[:-1], "distance"]
-
-    o_sym.index = rownames
-
-    df4c_red_cv_o = o_sym.copy()
+    # df4c = pd.merge(df4c, cv_df, left_index=True, right_index=True)
 
     c_interest = selected_contrast[0]
     c_control = selected_contrast[1]
-
     # geometric means
-    df4c_red_cv_o_g, geominterest, geomcontrol = give_geommeans_new(df4c_red_cv_o,
-                                         metad4c, 'newcol', c_interest, c_control)
-    #df4c_red_cv_o_g = pd.merge(df4c_red_cv_o, geomdf, left_index=True, right_index=True)
+    df4c, geominterest, geomcontrol = give_geommeans_new(df4c,
+                                                         metad4c, 'newcol', c_interest, c_control)
 
-    # add asterisk to the columns having the reduced values:
 
-    # ratio (adds this column to df in construction)
-    ratiosdf = give_ratios_df(df4c_red_cv_o_g, geominterest, geomcontrol)
+    df4c = give_ratios_df(df4c, geominterest, geomcontrol)
+    return df4c
 
-    return ratiosdf
 
+
+def distance_or_overlap(df4c, metad4c, selected_contrast):
+    # distance (syn: overlap)
+    groupinterest, groupcontrol = divide_groups(df4c, metad4c, selected_contrast)
+    rownames = df4c.index
+    tmp_df = df4c.copy()
+    tmp_df.index = range(len(rownames))
+    tmp_df = compute_overlap(tmp_df, groupcontrol, groupinterest, "symmetric")
+    tmp_df.columns = [*tmp_df.columns[:-1], "distance"]
+    tmp_df.index = rownames
+    df4c = tmp_df.copy()
+    return df4c
+
+
+def compute_span_incomparison(df, metadata, contrast):
+    expected_samples = metadata.loc[metadata['newcol'].isin(contrast), "sample"]
+    selcols_df = df[expected_samples].copy()
+    for i in df.index.values:
+        df.loc[i, 'span_allsamples'] = max(selcols_df.loc[i,:]) - min(selcols_df.loc[i,:])
+    return df
 
 def split_byalert_df(df):
     good_df = df.loc[df['alert'] == '', :]
@@ -142,6 +147,120 @@ def auto_detect_tailway(good_df, best_distribution, args_param):
 
     return min(min_pval_, key=lambda x: x[1])[0]
 
+
+def compute_log2FC(df4c):
+    for i, r in df4c.iterrows():
+        df4c.loc[i,'log2FC'] = np.log(df4c.loc[i,'ratio'].to_numpy() , 2)
+
+    return df4c
+
+
+def outStat_df(newdf, metas, contrast, whichtest):
+    """
+    Parameters
+    ----------
+    newdf : pandas
+        reduced dataframe
+    metas : pandas
+        2nd element output of prepare4contrast..
+    contrast : a list
+    Returns
+    -------
+    DIFFRESULT : pandas
+        THE PAIR-WISE DIFFERENTIAL ANALYSIS RESULTS.
+    """
+    mets = []
+    stare = []
+    pval = []
+    metaboliteshere = newdf.index
+    for i in metaboliteshere:
+        mets.append(i)
+        row = newdf.loc[
+            i,
+        ]  # remember row is a seeries, colnames pass to index
+
+        columnsInterest = metas.loc[metas["newcol"] == contrast[0], "sample"]
+        columnsBaseline = metas.loc[metas["newcol"] == contrast[1], "sample"]
+
+        vInterest = row[columnsInterest].to_numpy()
+        vBaseline = row[columnsBaseline].to_numpy()
+
+        vInterest = vInterest[~np.isnan(vInterest)]
+        vBaseline = vBaseline[~np.isnan(vBaseline)]
+
+
+        if whichtest == "MW":
+            # vInterest = jitterzero(vInterest)
+            # vBaseline = jitterzero(vBaseline)
+            # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
+            # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
+            # DO NOT : use_continuity False AND method "auto" at the same time.
+            # because "auto" will set continuity depending on ties and sample size.
+            # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
+            # check scipy doc
+            usta, p = scipy.stats.mannwhitneyu(
+                vInterest,
+                vBaseline,
+                # method = "auto",
+                use_continuity=False,
+                alternative="less",
+            )
+            usta2, p2 = scipy.stats.mannwhitneyu(
+                vInterest,
+                vBaseline,
+                # method = "auto",
+                use_continuity=False,
+                alternative="greater",
+            )
+            usta3, p3 = scipy.stats.mannwhitneyu(
+                vInterest,
+                vBaseline,
+                # method = "auto",
+                use_continuity=False,
+                alternative="two-sided",
+            )
+
+            # best (smaller pvalue) among all tailed tests
+            pretups = [(usta, p), (usta2, p2), (usta3, p3)]
+            tups = []
+            for t in pretups:  # make list of tuples with no-nan pvalues
+                if not np.isnan(t[1]):
+                    tups.append(t)
+
+            if len(tups) == 0:  # if all pvalues are nan assign two sided result
+                tups = [(usta3, p3)]
+
+            stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
+            stare.append(stap_tup[0])
+            pval.append(stap_tup[1])
+
+        elif whichtest == "Tt":
+            if (len(vInterest) >= 2) and (len(vBaseline) >= 2): # new: 2 or more samples required
+                tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
+            else:
+                tstav = np.nan
+                pvaltv = np.nan
+            stare.append(tstav)
+            pval.append(pvaltv)
+        # end if
+    # end for
+    prediffr = pd.DataFrame(data={"metabolite": mets, "stat": stare, "p-value": pval})
+    return prediffr
+
+
+def compute_padj_version2(df):
+    df["p-value"] = df[["p-value"]].fillna(1)  # inspired from R documentation in p.adjust
+    (sgs, corrP, _, _) = ssm.multipletests(df["p-value"], method="fdr_bh")  # Benjamini-Hochberg
+    df["padj"] = corrP
+    truepadj = []
+    for v, w in zip(df["p-value"], df["padj"]):
+        if np.isnan(v):
+            truepadj.append(v)
+        else:
+            truepadj.append(w)
+    df["padj"] = truepadj
+
+    return df
 
 
 if __name__ == "__main__":
