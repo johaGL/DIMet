@@ -144,10 +144,8 @@ def yieldpalsauto():
     return palsautoD
 
 
-def complexstacked(
-        co, selectedmets, dfs_Dico,
-        outfilename, figu_width, xlabyesno
-):
+def complexstacked(co, selectedmets, dfs_Dico,
+        outfilename, figu_width, xlabyesno,  wspace_stacks, numbers_size ):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
     palsautoD = yieldpalsauto()
     ### set font style
@@ -180,13 +178,14 @@ def complexstacked(
         axs[z].tick_params(axis="x", labelrotation=90, labelsize=18)
         axs[z].tick_params(axis="y", length=3, labelsize=19)
         axs[z].set_ylim([0, 100])
+
         for bar in axs[z].patches:
             # assign stacked bars text color
 
             thebarvalue = round(bar.get_height(), 1)
             if thebarvalue >= 100:
                 thebarvalue = 100  # no decimals if 100
-            if round(bar.get_height(), 1) > 4:
+            if round(bar.get_height(), 1) >= 4:
                 axs[z].text(
                     # Put the text in the middle of each bar. get_x returns the start
                     # so we add half the width to get to the middle.
@@ -198,8 +197,8 @@ def complexstacked(
                     thebarvalue,
                     # Center the labels and style them a bit.
                     ha="center",
-
-                    size=int((figu_width / len(selectedmets)) * 2),
+                    # size= int((figu_width / len(selectedmets)) * 2) # automatic can be too small
+                    size=numbers_size,
                 )  # end axs[z].text
             else:
                 continue
@@ -223,7 +222,7 @@ def complexstacked(
             xlabelshere = ax.get_xticks()
             ax.set_xticklabels(["" for i in xlabelshere])
 
-    f.subplots_adjust(hspace=0.5, wspace=0.25, top=0.85, bottom=0.26, left=0.15, right=0.99)
+    f.subplots_adjust(hspace=0.5, wspace=wspace_stacks, top=0.85, bottom=0.26, left=0.15, right=0.99)
     f.suptitle(f"compartment : {co.upper()}  \n", fontsize=20)
     f.text(0.03, 0.57, "Isotopologue Contribution (%)\n", va="center", rotation="vertical", size=20)
     f.savefig(outfilename, format="pdf")
@@ -258,15 +257,9 @@ def givelabelstopalsD(palsautoD):
     return tmp
 
 
-def saveisotopologcontriplot(
-    datadi,
-    tablePicked,
-    names_compartments,
-    namesuffix,
-    metadata,
-    selbycompD,
-    condilevels
-):
+def saveisotopologcontriplot(datadi, tablePicked, names_compartments,
+    namesuffix, metadata,
+    selbycompD, condilevels, width_each_stack, wspace_stacks, numbers_size ):
 
     levelshours_str = [str(i) for i in sorted(metadata['timenum'].unique())]
 
@@ -310,17 +303,17 @@ def saveisotopologcontriplot(
 
             dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
             dfs_Dico.keys()  # just the metabolites subframes, one co
-            figu_width = 4.3 * len(selectedmets)  # note, change width
+            figu_width = width_each_stack * len(selectedmets)  # note, change width
             complexstacked(
                 co, selectedmets, dfs_Dico, outfname,
-                figu_width, xlabyesno="yes"
+                figu_width, xlabyesno="yes",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
             )
             plt.close()
             # new :
             outfnameNoXlab = "{}ic_{}_group{}_noxlab.pdf".format(odiric, co,  j)
             complexstacked(
                 co, selectedmets, dfs_Dico,  outfnameNoXlab,
-                figu_width, xlabyesno="no"
+                figu_width, xlabyesno="no",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
             )
 
         # legend alone

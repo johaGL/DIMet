@@ -14,7 +14,9 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
+def detect_and_create_dir(namenesteddir):
+    if not os.path.exists(namenesteddir):
+        os.makedirs(namenesteddir)
 def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
     icdf = pd.read_csv(datadi + tableIC + "_" + namesuffix +".tsv", sep="\t", index_col=0)
     isotopololist_ = icdf.index.tolist()
@@ -99,6 +101,7 @@ def detect_fraccontrib_missing(the_tsv_files_):
         return True
     return False
 
+
 def compute_reduction(df, ddof):
     """
     modified, original from ProteomiX
@@ -109,7 +112,7 @@ def compute_reduction(df, ddof):
         # get array with abundances values
         protein_values = np.array(
             df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
-        # return array with each value divided by standard deviation of the whole array
+        # return array with each value divided by standard deviation, row-wise
         if sum(protein_values) == 0:
             reduced_abundances = protein_values  # because all row is zeroes
         else:
@@ -224,8 +227,6 @@ def countnan_samples(df, metad4c):
 def add_alerts(df, metad4c):
     df['alert'] = ''
     df.loc[df["distance"] < 0, "alert"] = "overlap"
-    df = countnan_samples(df, metad4c)  # adds nan_count_samples column
-
     alert_reps = list()
     for i in df['count_nan_samples'].tolist():
         if i[0] >= 2 or i[1] >= 2:
@@ -244,14 +245,6 @@ def calcgeommean(avector, eps):
     vech = np.array(avector)
     vech[vech == 0] = eps  # replace any zeroes
     return np.exp(np.mean(np.log(vech)))
-
-
-def jitterzero(avector):
-    """only for internal tests, not a validated method"""
-    if sum(avector) == 0:  # all vector is zero
-        # avector = [7e-15,  4e-15,  9e-15, 5e-15] # if many small values
-        avector = [1500000, 1600000, 1700000]  # if huge values
-    return avector
 
 
 
