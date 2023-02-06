@@ -1,5 +1,6 @@
 """
 needed for DIMet/__main__.py to be able to import .py files in this location (DIMet/src/)
+@author: johanna
 """
 import argparse
 import shutil
