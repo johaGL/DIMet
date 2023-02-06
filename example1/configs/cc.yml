@@ -17,7 +17,9 @@ name_abundances : "rawAbundances"
 name_isotopologue_contribs : "CorrectedIsotopologues"
 
 # Isotopologue Contribution plot configuration
-
+width_each_stack : !!float 2.8
+wspace_stacks : !!float 1.1
+numbers_size : 13
 groups_toplot_isotopol_contribs:
   cell :
     0: ["L-Lactic_acid", "Pyruvic_acid" , "L-Malic_acid",
@@ -57,7 +59,14 @@ selectedmets_forbars:
   med:  ["L-Lactic_acid", "Pyruvic_acid", "L-Alanine",
                          "L-Glutamine", "L-Asparagine"]
 
+# axisx_barcolor says x and colored categories, respectively 
+axisx_barcolor : ["condition", "timepoint"] #  ["condition", "timepoint"]
+# xticks_text must be coherent with axisx_barcolor first element
+xticks_text : ["Cont", "Combo"] 
 
+width_each_subfig : 3
+wspace_subfigs : 1
+axisx_labeltilt : 90 # 20 or another
 
 # Differential Analysis configuration
 max_m_species : 4
