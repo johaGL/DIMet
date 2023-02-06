@@ -55,13 +55,28 @@ def overlap_asymmetric(x: np.array, y: np.array) -> int:
     return overlap
 
 
-
 def compute_p_adjusted(df: pd.DataFrame, correction_method: str) -> pd.DataFrame:
     rej, pval_corr = smm.multipletests(df['pvalue'].values, alpha=float('0.05'), method=correction_method)[:2]
     df['padj'] = pval_corr
     return df
 
 
+def compute_padj_version2(df, correction_alpha, correction_method):
+    tmp = df.copy()
+    tmp["pvalue"] = tmp[["pvalue"]].fillna(1)  # inspired from R documentation in p.adjust
+
+    (sgs, corrP, _, _) = ssm.multipletests(tmp["pvalue"], alpha=float(correction_alpha),
+                                           method=correction_method)
+    df["padj"] = corrP
+    truepadj = []
+    for v, w in zip(df["pvalue"], df["padj"]):
+        if np.isnan(v):
+            truepadj.append(v)
+        else:
+            truepadj.append(w)
+    df["padj"] = truepadj
+
+    return df
 
 def divide_groups(df4c, metad4c, selected_contrast):
         """split into two df"""
@@ -188,79 +203,72 @@ def outStat_df(newdf, metas, contrast, whichtest):
         vInterest = vInterest[~np.isnan(vInterest)]
         vBaseline = vBaseline[~np.isnan(vBaseline)]
 
+        if (len(vInterest) >= 2) and (len(vBaseline) >= 2):  #  2 or more samples required
 
-        if whichtest == "MW":
-            # vInterest = jitterzero(vInterest)
-            # vBaseline = jitterzero(vBaseline)
-            # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
-            # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
-            # DO NOT : use_continuity False AND method "auto" at the same time.
-            # because "auto" will set continuity depending on ties and sample size.
-            # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
-            # check scipy doc
-            usta, p = scipy.stats.mannwhitneyu(
-                vInterest,
-                vBaseline,
-                # method = "auto",
-                use_continuity=False,
-                alternative="less",
-            )
-            usta2, p2 = scipy.stats.mannwhitneyu(
-                vInterest,
-                vBaseline,
-                # method = "auto",
-                use_continuity=False,
-                alternative="greater",
-            )
-            usta3, p3 = scipy.stats.mannwhitneyu(
-                vInterest,
-                vBaseline,
-                # method = "auto",
-                use_continuity=False,
-                alternative="two-sided",
-            )
+            if whichtest == "MW":
+                # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
+                # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
+                # DO NOT : use_continuity False AND method "auto" at the same time.
+                # because "auto" will set continuity depending on ties and sample size.
+                # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
+                # check scipy doc
+                usta, p = scipy.stats.mannwhitneyu(
+                    vInterest,
+                    vBaseline,
+                    # method = "auto",
+                    use_continuity=False,
+                    alternative="less",
+                )
+                usta2, p2 = scipy.stats.mannwhitneyu(
+                    vInterest,
+                    vBaseline,
+                    # method = "auto",
+                    use_continuity=False,
+                    alternative="greater",
+                )
+                usta3, p3 = scipy.stats.mannwhitneyu(
+                    vInterest,
+                    vBaseline,
+                    # method = "auto",
+                    use_continuity=False,
+                    alternative="two-sided",
+                )
 
-            # best (smaller pvalue) among all tailed tests
-            pretups = [(usta, p), (usta2, p2), (usta3, p3)]
-            tups = []
-            for t in pretups:  # make list of tuples with no-nan pvalues
-                if not np.isnan(t[1]):
-                    tups.append(t)
+                # best (smaller pvalue) among all tailed tests
+                pretups = [(usta, p), (usta2, p2), (usta3, p3)]
+                tups = []
+                for t in pretups:  # make list of tuples with no-nan pvalues
+                    if not np.isnan(t[1]):
+                        tups.append(t)
 
-            if len(tups) == 0:  # if all pvalues are nan assign two sided result
-                tups = [(usta3, p3)]
+                if len(tups) == 0:  # if all pvalues are nan assign two sided result
+                    tups = [(usta3, p3)]
 
-            stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
-            stare.append(stap_tup[0])
-            pval.append(stap_tup[1])
+                stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
+                stat_result = stap_tup[0]
+                pval_result = stap_tup[1]
 
-        elif whichtest == "Tt":
-            if (len(vInterest) >= 2) and (len(vBaseline) >= 2): # new: 2 or more samples required
-                tstav, pvaltv = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
-            else:
-                tstav = np.nan
-                pvaltv = np.nan
-            stare.append(tstav)
-            pval.append(pvaltv)
+            elif whichtest == "Tt":
+                stat_result, pval_result = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
+
+            elif whichtest == "K":
+                stat_result, pval_result = scipy.stats.kruskal(vInterest, vBaseline)
+
+
+            stare.append(stat_result)
+            pval.append(pval_result)
+        else:
+            stare.append(np.nan)
+            pval.append(np.nan)
+
         # end if
+
     # end for
-    prediffr = pd.DataFrame(data={"metabolite": mets, "stat": stare, "p-value": pval})
+    prediffr = pd.DataFrame(data={"metabolite": mets, "stat": stare, "pvalue": pval})
     return prediffr
 
 
-def compute_padj_version2(df):
-    df["p-value"] = df[["p-value"]].fillna(1)  # inspired from R documentation in p.adjust
-    (sgs, corrP, _, _) = ssm.multipletests(df["p-value"], method="fdr_bh")  # Benjamini-Hochberg
-    df["padj"] = corrP
-    truepadj = []
-    for v, w in zip(df["p-value"], df["padj"]):
-        if np.isnan(v):
-            truepadj.append(v)
-        else:
-            truepadj.append(w)
-    df["padj"] = truepadj
 
-    return df
 
 
 if __name__ == "__main__":

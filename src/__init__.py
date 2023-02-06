@@ -424,9 +424,10 @@ if args.mode == "diffabund" :
                 out_histo_file = f"{outdiffdir}/extended/{autochoice}/" \
                                  f"{co}_{autochoice}_{strcontrast}_fitdist_plot.pdf"
                 ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
+                ratiosdf = compute_padj_version2(ratiosdf, 0.05, "fdr_bh")
             else:
                 extract_test_df = outStat_df(ratiosdf, metad4c, contrast, whichtest)
-                extract_test_df = compute_padj_version2(extract_test_df)
+                extract_test_df = compute_padj_version2(extract_test_df, 0.05, "fdr_bh")
                 extract_test_df.set_index("metabolite", inplace=True)
                 ratiosdf = pd.merge(ratiosdf, extract_test_df, left_index=True, right_index=True)
 
@@ -509,9 +510,10 @@ if args.mode == "diffabund" :
             if whichtest == "disfit":
                 out_histo_file = f"{outdiffdir}/extended/isos/{co}_m+x_{strcontrast}_fitdist_plot.pdf"
                 ratiosdf2 = steps_fitting_method(ratiosdf2, out_histo_file)
+                ratiosdf2 = compute_padj_version2(ratiosdf2, 0.05, "fdr_bh")
             else:
                 extract_test_df = outStat_df(ratiosdf2, metad4c, contrast, whichtest)
-                extract_test_df = compute_padj_version2(extract_test_df)
+                extract_test_df = compute_padj_version2(extract_test_df, 0.05, "fdr_bh")
                 extract_test_df.set_index("metabolite", inplace=True)
                 ratiosdf2 = pd.merge(ratiosdf2, extract_test_df, left_index=True, right_index=True)
 
