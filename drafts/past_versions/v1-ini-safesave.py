@@ -489,16 +489,60 @@ if args.mode == "diffabund" and whichtest == "disfit":
     for fi in os.listdir(f'{dirtmpdata}preDiff/'):
         print(fi)
 
-    """
-    vec = 
-    crazy = pd.DataFrame({'foo' : [i for i in range(len(vec))],
-                          'zscore' : vec})
-    plt.figure(figsize=(4, 4))
-    sns.histplot(x=crazy['ratio'])
-    plt.title(f"all ratios {strcontrast}")
-    plt.savefig(f"ratios-{strcontrast}.pdf")
-    """
+########### other ancient parts, it worked well
+if args.mode == "OLDdiffabund":
+    print("\n old version:  DAM\n")
+    spefiles = [i for i in os.listdir(abunda_species_4diff_dir)]
 
+    newcateg = confidic["newcateg"]  # see yml in example/configs/
+    contrasts_ = confidic["contrasts"]
+
+    outdiffdir = "results/tables/extended/"
+    detect_and_create_dir(outdiffdir)
+    outputsubdirs = ["m+" + str(i) + "/" for i in range(max_m_species + 1)]
+    outputsubdirs.append("totmk/")
+    outputsubdirs.append("TOTAL/")
+    alloutdirs = list()
+    for exte_sig in ["extended/", "significant/"]:
+        for subdir_spec in outputsubdirs:
+            x = outdiffdir + exte_sig + subdir_spec
+            alloutdirs.append(x)
+            detect_and_create_dir(x)  # each m+x output directory
+
+    outdirs_total_abund_res_ = [d for d in alloutdirs if "TOTAL" in d]
+    for contrast in contrasts_:
+        print("\n    comparison ==>", contrast[0], "vs", contrast[1])
+        for co in names_compartments.values():
+            rundiffer(dirtmpdata, tableAbund, namesuffix,
+                      metadata, newcateg, contrast, whichtest,
+                      co, outdirs_total_abund_res_, "TOTAL")
+
+            tableabuspecies_co_ = [i for i in spefiles if co in i]
+            # any "m+x" where x > max_m_species, must be excluded
+            donotuse = [k for k in tableabuspecies_co_ if "m+" in k.split("_")[2]
+                        and int(k.split("_")[2].split("+")[-1]) > max_m_species]
+            tabusp_tmp_ = set(tableabuspecies_co_) - set(donotuse)
+            tableabuspecies_co_good_ = list(tabusp_tmp_)
+            for tabusp in tableabuspecies_co_good_:
+                outkey = tabusp.split("_")[2]  # the species m+x as saved
+                outdiffdirs = [d for d in alloutdirs if outkey in d]
+                rundiffer(
+                    abunda_species_4diff_dir,
+                    tabusp,
+                    namesuffix,
+                    metadata,
+                    newcateg,
+                    contrast,
+                    whichtest,
+                    co,
+                    outdiffdirs,
+                    outkey
+                )
+                # end for tabusp
+            # end for co
+        # end for contrast
+    print("\nended differential analysis")
+# end if args.mode == "OLDdiffabund"
 
 
 
