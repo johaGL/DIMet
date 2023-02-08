@@ -71,6 +71,7 @@ axisx_labeltilt : 90 # 20 or another
 # Differential Analysis configuration
 max_m_species : 4
 whichtest : "Tt"
+also_total_marked : "No"
 
 # newcateg: column that is a combination of 2 or more metadata categories,
 # new category thus generated, is ready for comparison to its counterpart;

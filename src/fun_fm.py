@@ -157,12 +157,13 @@ def give_coefvar_new(df_red, red_meta, newcol : str):
     return dfout
 
 def compute_gmean_nonan(anarray):
-        anarray = anarray[~np.isnan(anarray)]
-        if sum(anarray) == 0:  # replicates all zero
-            outval = 0
-        else:
-            outval = stats.gmean(anarray)
-        return outval
+    anarray = np.array(anarray, dtype=float)
+    anarray = anarray[~np.isnan(anarray)]
+    if sum(anarray) == 0:  # replicates all zero
+        outval = 0
+    else:
+        outval = stats.gmean(anarray)
+    return outval
 
 def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     """
@@ -219,12 +220,14 @@ def countnan_samples(df, metad4c):
         vec2 = row[gr2].tolist()
         val1 = np.sum(np.isnan(vec1))
         val2 = np.sum(np.isnan(vec2))
-        vecout.append(tuple([val1,val2]))
+        vecout.append(tuple([str(val1)+'/'+str(len(vec1)),
+                             str(val2)+'/'+str(len(vec2))]))
 
     df['count_nan_samples'] = vecout#[str(tup) for tup in vecout]
     return df
 
 def add_alerts(df, metad4c):
+    # deprecated
     df['alert'] = ''
     df.loc[df["distance"] < 0, "alert"] = "overlap"
     alert_reps = list()

@@ -91,7 +91,7 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
 
     prediffresult = outStat_df(newdf_tot_red, metas_tot, contrast, whichtest)
 
-    prediffresult = compute_padj_version2(prediffresult)
+    prediffresult = compute_padj_version2(prediffresult, 0.05, "fdr_bh")
 
     FCresult = outFC_df(newdf_tot_red, metas_tot, contrast)
 
@@ -100,7 +100,7 @@ def rundiffer(datadi, tablePicked, namesuffix, metadata, newcateg, contrast,
         axis=1,
         join="inner").reset_index()
 
-    ocols = ["metabolite", "stat", "p-value", "padj", "FC_geommu", "log2FC"]
+    ocols = ["metabolite", "stat", "pvalue", "padj", "FC_geommu", "log2FC"]
     OUTPUT = DIFFRESULT[ocols]
 
     if outkey.startswith("m+") or (outkey =="mktot") :
