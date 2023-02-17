@@ -2,4 +2,34 @@ ALERT! when finished the fitting part improvements, re-integrate the univariate 
 
 bug when running prepare in example2 dataset, function calculate_meanEnri in loop for met__i in metabolites
 
+!! 17 02 2023 :
+config that I used to put in pycharm:
+--mode diffabund --mywdir ~/myelin_metabo --config ~/myelin_metabo/configs/cmyelin_disfit-1.yml --isotoAbsolutes_zero_replace min/1.01 --padj 0.8
 
+things are going to change deeply, from now
+
+
+--------
+config :
+
+data is data as received !
+
+tmp no, instead 'prepared'
+
+extrulist : "mets_toexclude" : make this a advanced-optional option !
+
+for lineplots fracccontrib: give as many colors (automatic) as metabolites :)
+make the linees plus epaisses
+
+also_total_marked : "N" no by default , BETTER MAKE IT AS ADVANCED-optional OPTION!
+
+
+
+
+- diff:
+change the behaviour, no longer use values * proportions to yield
+those ugly difficult to anlyse isotopologue values.
+ grep abufrom *.py
+abundances_bars.py:This script exploits species and compartment specific tables at 'data/abufromperc/'
+functions_diffmode.py:    abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
+__init__.py:abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
