@@ -38,6 +38,7 @@ cp -r DIMet/example1 .
 cp -r DIMet/example2 .
 ```
 
+ (( CAUTION : FROM HERE !!! BIG CHANGES TO COME ))
 Run and explore the examples, before trying your own data and configuration files. 
 Perform a differential analysis using the example1/:
 ```
