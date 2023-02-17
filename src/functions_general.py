@@ -7,7 +7,7 @@ Created on Tue May 31 12:24:01 2022
 """
 
 import os
-import argparse
+import yaml
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -15,20 +15,38 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def global_args():
-    parser = argparse.ArgumentParser(prog="DIMet.src.prepare")
+def wdir_config_confirmation(wdir, config):
+    aproval = [True,True]
+    if not os.path.isdir(wdir):
+        print(f"not a directory: {wdir}")
+        aproval[0] = False
+    if not os.path.isfile(config):
+        print(f"not a configuration file: {config}")
+        aproval[1] = False
+    if not (aproval[0] and aproval[1]):
+        raise ValueError("\nDid you inverted the order of directory and config file?")
+    #assert aproval[0] and aproval[1], "\nDid you inverted the order of directory and config file?"
 
-    parser.add_argument('wdir', type=str,
-                        help="working directory, absolute path")
-    parser.add_argument('config', type=str,
-                        help="configuration file, also absolute path")
-    return parser
 
+def open_config_file(confifile):
+    try:
+        with open(confifile, "r") as f:
+            confidic = yaml.load(f, Loader=yaml.Loader)
+        return confidic
+    except Exception as e:
+        print(e)
+        print('problem with opening configuration file')
+        confidic = None
+    if confidic is None:
+        raise ValueError("\nproblem opening configuration file")
+    #assert confidic is not None, "problem opening configuration file"
 
 
 def detect_and_create_dir(namenesteddir):
     if not os.path.exists(namenesteddir):
         os.makedirs(namenesteddir)
+
+
 def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
     icdf = pd.read_csv(datadi + tableIC + "_" + namesuffix +".tsv", sep="\t", index_col=0)
     isotopololist_ = icdf.index.tolist()

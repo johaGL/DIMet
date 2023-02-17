@@ -14,8 +14,14 @@ import yaml
 #         givelevels, table_minimalbymet, save_rawisos_plot
 
 
-def prep_advanced_args(global_args_parser):
-    parser = global_args_parser
+def prep_args():
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.prepare")
+
+    parser.add_argument('wdir', type=str,
+                        help="working directory, absolute path")
+    parser.add_argument('config', type=str,
+                        help="configuration file, also absolute path")
+
 
     parser.add_argument('--nesaispas', type=str,
                         help="sfskfjks")
@@ -31,17 +37,21 @@ def bonitox(confidic):
 
 if __name__ == "__main__":
 
-    adv_parser = prep_advanced_args(fg.global_args())  # combine global and advanced prep args
-    adv_args = adv_parser.parse_args()
+    parser = prep_args()  # combine global and advanced prep args
+    args = parser.parse_args()
 
-    confifile = os.path.expanduser(adv_args.config)
-    with open(confifile, "r") as f:
-        confidic = yaml.load(f, Loader=yaml.Loader)
+    fg.wdir_config_confirmation(args.wdir, args.config)
+
+    confifile = os.path.expanduser(args.config)
+    confidic = fg.open_config_file(confifile)
+
+
+
 
     for k in confidic.keys():
         print(k, ":", confidic[k])
 
-    print(adv_args.nesaispas)
+    print(args.nesaispas)
 
 
 
