@@ -23,6 +23,14 @@ make the linees plus epaisses
 
 also_total_marked : "N" no by default , BETTER MAKE IT AS ADVANCED-optional OPTION!
 
+- PREP DANGER !! 
+  # both abus and isotopologues ???? :
+
+    parser.add_argument("--amountMaterial", default=None, type=str,
+                        help="path to a .tsv file containing the amount of material (number of cells, mg tissue) by sample.\
+                         The abundances will be divided by these values (sample specific)")
+                         
+                         is this to absolute isotopologues as well ??
 
 
 

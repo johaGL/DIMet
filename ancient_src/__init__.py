@@ -37,22 +37,6 @@ parser.add_argument("--isotopologue-preview", action=argparse.BooleanOptionalAct
 parser.add_argument("--mode",  help="prepare | PCA | diffabund | abundplots \
                             | timeseries_isotopologues |  timeseries_fractional | metabologram")
 
-parser.add_argument("--absolute-isotopologues-available", default="N",
-                    dest="absolute_isos_avail", help="[Y/N]. To use with mode prepare.\
-                      Y if you have  absolute values (not in percentage) for isotopologues. Default : N")
-
-parser.add_argument("--isos_detect_cutoff", default=-0.05, type= float,
-                    help="With mode prepare. When in percentages, metabolites whose isotopologues exhibit\
-                     proportions less or equal this cutoff are removed (neg can occur). Default: -0.05")
-
-parser.add_argument("--stomp_values", default="Y", help="[Y/N]. To use with mode prepare. \
-                    Stomps isotopologues' proportions to max 1.0 and min 0.0. Default : Y")
-
-parser.add_argument("--zero_to_nan", default=0, type=int,
-                    help="Optional, with mode prepare. Only keep zero if entire group is zeros\
-                    i.e. given 3 bio replicates:[0 22 0] change to [NaN 22 NaN].\
-                    Will be performed in abundances, isotopologue and rawintensity. \
-                     Default : 0 (not to perform) ")
 
 parser.add_argument("--totalAbund_zero_replace", default="min", type=str,
                     help="To use with mode diffabund, treat zeroes before reduction and gmean. \n\
