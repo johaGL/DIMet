@@ -8,7 +8,8 @@ config that I used to put in pycharm:
 
 things are going to change deeply, from now
 
-
+-----------------
+NEW VERSION since 17 02 2023 (Friday)
 --------
 config :
 
@@ -19,7 +20,7 @@ tmp no, instead 'prepared'
 extrulist : "mets_toexclude" : make this a advanced-optional option !
 
 for lineplots fracccontrib: give as many colors (automatic) as metabolites :)
-make the linees plus epaisses
+make the linees plus epaisses !
 
 also_total_marked : "N" no by default , BETTER MAKE IT AS ADVANCED-optional OPTION!
 
@@ -30,7 +31,7 @@ also_total_marked : "N" no by default , BETTER MAKE IT AS ADVANCED-optional OPTI
                         help="path to a .tsv file containing the amount of material (number of cells, mg tissue) by sample.\
                          The abundances will be divided by these values (sample specific)")
                          
-                         is this to absolute isotopologues as well ??
+                         is this to absolute isotopologues as well ?? i would say yes
 
 
 
@@ -41,3 +42,38 @@ those ugly difficult to anlyse isotopologue values.
 abundances_bars.py:This script exploits species and compartment specific tables at 'data/abufromperc/'
 functions_diffmode.py:    abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 __init__.py:abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
+
+
+
+------
+complete readme:
+"""
+    put into readme:
+    
+    - metadata related:
+    
+    # systematically README says that metadata has 'former_name','sample' and the other columns, and it is 'sample' what will replace former_name in the tables !
+    # and it can be the same if you want to keep the spirit.
+    # other_prep NO, better 'universal_prep' :  and set a toyUni1/ with which I call universal data
+
+    
+    -  concerning the isocorOutput:
+    the output as in :https://isocor.readthedocs.io/en/latest/tutorials.html#output-files
+    is transformed into tables, as follows:
+    column -> table name
+    corrected_area -> isotopologuesAbsolute;  
+    isotopologue_fraction -> isotopologuesProportions;
+    mean_enrichment ->  meanEnrich_or_fracContrib
+     ; and at the end, Abundance table is the sum (per metabolite) of IsotopologuesAbsolute ;
+    
+    Please stick to the example 'toy2' for the names of the tables for isocorOutput
+    note:   mean_enrichment (isocor) is the same as fractionalContribution (VIB) .
+    
+    
+    But for the example 'toy1' give the names of the sheets 
+     
+    * # the advantage of absolute is that, if more than 5 samples, T-test is allowed, whereas proportions allways disfit or KW *
+     
+    """
+---------
+

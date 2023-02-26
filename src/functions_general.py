@@ -15,15 +15,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-def wdir_config_confirmation(wdir, config):
-    aproval = [True,True]
+def wdir_configpaths_validate(wdir, config):
+    aproval = [True,True, True]
     if not os.path.isdir(wdir):
         print(f"not a directory: {wdir}")
         aproval[0] = False
     if not os.path.isfile(config):
         print(f"not a configuration file: {config}")
         aproval[1] = False
-    if not (aproval[0] and aproval[1]):
+    if not os.path.exists(wdir + "data/"):
+        print(f"data/ folder is missing in {wdir}")
+    if not (aproval[0] and aproval[1] and aproval[2]):
         raise ValueError("\nDid you inverted the order of directory and config file?")
     #assert aproval[0] and aproval[1], "\nDid you inverted the order of directory and config file?"
 
@@ -45,6 +47,18 @@ def open_config_file(confifile):
 def detect_and_create_dir(namenesteddir):
     if not os.path.exists(namenesteddir):
         os.makedirs(namenesteddir)
+
+def fullynumeric(mystring):
+    try:
+        float(mystring)
+        return True
+    except Exception as e:
+        return False
+
+
+def open_metadata(workingdir, confidic):
+    metadata = pd.read_csv(workingdir + "data/" + confidic['metadata_file'])
+    return metadata
 
 
 def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
