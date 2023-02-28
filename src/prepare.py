@@ -12,7 +12,8 @@ import re
 
 
 def prep_args():
-    parser = argparse.ArgumentParser(prog="python -m DIMet.src.prepare")
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.prepare",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('wdir', type=str,
                         help="working directory, absolute path")
@@ -30,25 +31,25 @@ def prep_args():
     parser.add_argument("--subtract_blankavg", action=argparse.BooleanOptionalAction, default=True,
                         help="On VIB results. From samples' abundances, subtract the average of the blanks")
 
-    parser.add_argument("--amount_material_div_alternative", action=argparse.BooleanOptionalAction, default=False,
-                        help="On VIB results, when dividing abundances by amount of material, \
-                             stay in the abundance scale: (abundance_i/amountMaterial_i) * mean(amountMaterial)")
+    parser.add_argument("--alternative_div_amount_material", action=argparse.BooleanOptionalAction, default=False,
+                        help="On VIB results, when dividing abundances by amount of material, calculate\
+                        (abundance_i/amountMaterial_i) * mean(amountMaterial) to stay in abundance units")
 
     parser.add_argument("--use_internal_standard", default=None, type=str,
                         help='Internal Standard for performing the division: abundances/internal_standard, \
-                        example : "Myristic_acid_d27". By default is not performed')
+                        example: --use_internal_standard Myristic_acid_d27. By default is not performed')
 
     # for isotopologues
     parser.add_argument("--isosprop_min_admitted", default=-0.05, type=float,
-                        help="Negative proportions can occur, for example, after El-Maven isotopologues correction.  \
-                        Setting a cutoff, metabolites whose isotopologues are less or equal this cutoff are removed")
+                        help="Metabolites whose isotopologues are less or equal this cutoff are removed " )
 
     parser.add_argument("--stomp_values", action=argparse.BooleanOptionalAction, default=True, \
                         help="Stomps isotopologues' proportions to max 1.0 and min 0.0")
 
     # for all
-    parser.add_argument("--exclude_list", default=None, type=str,
-                        help="path to .csv file with columns: compartment, metabolite. Metabolites to be excluded")
+    parser.add_argument("--remove_these_metabolites", default=None, type=str,
+                        help="absolute path to the .csv file with columns: compartment, metabolite. This file contains \
+                        metabolites to be completely excluded from all analysis (you know what you are doing)")
                         # all tables affected
 
     return parser
@@ -153,7 +154,27 @@ def abund_under_lod_set_nan(confidic, frames_dic,
     return frames_dic
 
 
-def auto_drop_metabolites(confidic, frames_dic, lod_values,
+def drop__metabolites_not_transposed(frames_dic_orig, bad_metabolites_dic):
+    frames_dic = frames_dic_orig.copy()
+    for tab_name in frames_dic.keys():
+        for co in frames_dic[tab_name].keys():
+            tmpdf = frames_dic[tab_name][co]
+            if not "isotopolog" in tab_name.lower():
+                to_drop_now =  bad_metabolites_dic[co]
+                tmpdf = tmpdf.drop(columns=to_drop_now)
+                frames_dic[tab_name][co] = tmpdf
+            else:
+                to_drop_now_isos = list()
+                for i in tmpdf.columns:
+                    for j in bad_metabolites_dic[co]:
+                        if i.startswith(j):
+                            to_drop_now_isos.append(i)
+                tmpdf = tmpdf.drop(columns=to_drop_now_isos)
+                frames_dic[tab_name][co] = tmpdf
+    return frames_dic
+
+
+def auto_detect_and_drop_metabolites(confidic, frames_dic, lod_values,
                           auto_drop_metabolite_LOD_based: bool) -> dict:
     # affects all the datasets in frames_dic
     auto_bad_metabolites = dict()
@@ -162,31 +183,16 @@ def auto_drop_metabolites(confidic, frames_dic, lod_values,
         auto_bad_metabolites[k] = list()
 
     if auto_drop_metabolite_LOD_based:
-
         for co in compartments:
             abund_co = frames_dic[confidic['name_abundance']][co]
             abund_coT = abund_co.T
             for i, r in abund_coT.iterrows():
                 nb_nan = abund_coT.loc[i, :].isna().sum()
                 nb_under_LOD = (abund_coT.loc[i, :] <= lod_values[i]).sum()
-                if (nb_under_LOD >= r.size - 1) or (nb_nan <= r.size - 1):
+                if (nb_under_LOD >= r.size - 1) or (nb_nan >= r.size - 1):
                     auto_bad_metabolites[co].append(i)
+        frames_dic = drop__metabolites_not_transposed(frames_dic, auto_bad_metabolites)
 
-        for tab_name in frames_dic.keys():
-            for co in compartments:
-                tmpdf = frames_dic[tab_name][co]
-                if not "isotopolog" in tab_name.lower():
-                    to_drop_now = auto_bad_metabolites[co]
-                    tmpdf = tmpdf.drop(columns=to_drop_now)
-                    frames_dic[tab_name][co] = tmpdf
-                else:
-                    to_drop_now_isos = list()
-                    for i in tmpdf.columns:
-                        for j in auto_bad_metabolites[co]:
-                            if i.startswith(j):
-                                to_drop_now_isos.append(i)
-                    tmpdf = tmpdf.drop(columns=to_drop_now_isos)
-                frames_dic[tab_name][co] = tmpdf
     return frames_dic
 
 
@@ -286,18 +292,25 @@ def set_samples_names(frames_dic, todrop_x_y):
     return
 
 
-def drop_metabolites_infile(frames_dic, workingdir, exclude_list: [str, None]):
+def drop_metabolites_infile(frames_dic, exclude_list: [str, None]):
     if exclude_list is not None:
         # a file name to open
         try:
-            file = workingdir + "data/" + exclude_list
-            exclude_df = pd.read_csv(file, index_col=0)
+            file = exclude_list
+            exclude_df = pd.read_csv(file,  header=0)
         except FileNotFoundError as err_file:
             print(err_file)
         except Exception as e:
             print(e)
 
-    return 0
+        unwanted_metabolites = dict()
+        for co in exclude_df["short_comp"].unique():
+            mets_l = exclude_df.loc[exclude_df["short_comp"] == co, 'metabolite'].tolist()
+            unwanted_metabolites[co] = mets_l
+
+        frames_dic = drop__metabolites_not_transposed(frames_dic, unwanted_metabolites)
+
+    return frames_dic
 
 
 def propagate_nan(confidic, frames_dic):
@@ -308,7 +321,7 @@ def propagate_nan(confidic, frames_dic):
         frac_co.mask(abu_co.isnull())
         # pending the propagation to isotopologues, think !
 
-    return frames_dic
+    return frames_diccolumns
 
 
 def prep_isotopologues_df(isos_df, isosprop_min_admitted: float, stomp_values: bool):
@@ -328,17 +341,18 @@ def do_vib_prep(workingdir, args, confidic):
     frames_dic = reshape_frames_dic_elems(frames_dic, metadata, bad_x_y)
     frames_dic = abund_under_lod_set_nan(confidic, frames_dic, lod_values,
                                          args.under_detection_limit_set_nan)
-    frames_dic = auto_drop_metabolites(confidic, frames_dic,  lod_values,
-                                       args.auto_drop_metabolite_LOD_based)
+    frames_dic = auto_detect_and_drop_metabolites(confidic, frames_dic,  lod_values,
+                                                  args.auto_drop_metabolite_LOD_based)
     frames_dic = abund_subtract_blankavg(frames_dic, confidic,
                                               blanks_df, args.subtract_blankavg)
     frames_dic = abund_divideby_amount_material(frames_dic, workingdir, confidic['amountMaterial'],
-                                                args.amount_material_div_alternative)
+                                                args.alternative_div_amount_material)
     frames_dic = abund_divideby_internalStandard(frames_dic, confidic, internal_standards_df,
                                                  args.use_internal_standard)
 
     # # set_sample_names(df, metadata)
-    # drop_metabolites_infile(df, exclude_list)
+    frames_dic = drop_metabolites_infile(frames_dic, args.remove_these_metabolites)
+    hihi = 1
     # propagate_nan
     # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values) **
     # savetables_bycompartment()
@@ -359,28 +373,25 @@ def generictype_div_intern_stand(frames_dic, confidic, picked_internal_standard)
 def do_isocorOutput_prep(workingdir, args, confidic):
     # frames_dic =
     #frames_dic = abund_divideby_amount_material(frames_dic, workingdir, confidic['amountMaterial'],
-    #                                                     args.amount_material_div_alternative)
+    #                                                     args.alternative_div_amount_material)
     frames_dic = generictype_div_intern_stand(frames_dic, confidic, args.use_internal_standard)
 
     # # set_sample_names(df, metadata)
     # drop_metabolites_infile(df, exclude_list)
     # propagate_nan
     # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values) **
-    # savetables_bycompartment()
 
-
-    
     return 0 #
 
 def do_generic_prep(): #  because user has a 'generic' set of csv tables, and does not have blanks nor LOD infos
-    # frames_dicto = funcitonharvesting the tables into a dictionary
-    # frames_dicto = functionthat makes the frames to transposed or not, looking the metadata.samples in index and cols
+    # frames_dicto = funcitonharvesting the tables into a dictionary : first checks if metadata.sample and
+                                       # rows in the tables match perfectly, if not, print and stop
     # frames_dic_trans = abund_divideby_amount_material(frames_dic_trans, workingdir, confidic['amountMaterial'],
-    #                                                     args.amount_material_div_alternative)
+    #                                                     args.alternative_div_amount_material)
     # frames_dic = generictype_div_intern_stand(frames_dic, confidic, args.use_internal_standard)
 
-    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values)
     # frames_dicto = drop_metabolites_infile(df, exclude_list)
+    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values)
     return 0
 
 
@@ -395,9 +406,6 @@ def perform_type_prep(workingdir, args, confidic):
     outputdir = args.config.split("/")[-2] + "/results/prepared_tables/"
     fg.detect_and_create_dir(workingdir + outputdir)
     # save all tables :
-
-def save_advanced_options_used(args):
-    return 0  # see better how to save a 'log'
 
 
 
