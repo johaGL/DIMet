@@ -27,34 +27,35 @@ def prep_args():
                         help="On VIB results.  By compartment, a metabolite is automatically rejected \
                         if all abundances are under the detection limit. Has effect in all tables.")
 
-    parser.add_argument("--substract_blankavg", action=argparse.BooleanOptionalAction, default=True,
-                        help="On VIB results. To samples' abundances, substract the average of the blanks")
+    parser.add_argument("--subtract_blankavg", action=argparse.BooleanOptionalAction, default=True,
+                        help="On VIB results. From samples' abundances, subtract the average of the blanks")
 
     parser.add_argument("--amount_material_div_alternative", action=argparse.BooleanOptionalAction, default=False,
                         help="On VIB results, when dividing abundances by amount of material, \
-                             stay in the abundance scale: (abundance_i/amountMaterial_i)* mean(amountMaterial)")
+                             stay in the abundance scale: (abundance_i/amountMaterial_i) * mean(amountMaterial)")
 
     parser.add_argument("--use_internal_standard", default=None, type=str,
-                        help='The name of the Internal Standard for performing the division: abundances/internal_standard, \
+                        help='Internal Standard for performing the division: abundances/internal_standard, \
                         example : "Myristic_acid_d27". By default is not performed')
 
     # for isotopologues
-    parser.add_argument("--isosprop_min_admitted", default=-0.05, type=float, # TODO: change this default to -1 ! keep-0.05 for my cmd file
-                        help="Negative proportions can occur, for example, after El-Maven isotopologues correction,  \
-                        metabolites whose isotopologues are less or equal this cutoff are removed") # only isotopologues
+    parser.add_argument("--isosprop_min_admitted", default=-0.05, type=float,
+                        help="Negative proportions can occur, for example, after El-Maven isotopologues correction.  \
+                        Setting a cutoff, metabolites whose isotopologues are less or equal this cutoff are removed")
 
     parser.add_argument("--stomp_values", action=argparse.BooleanOptionalAction, default=True, \
                         help="Stomps isotopologues' proportions to max 1.0 and min 0.0")
 
     # for all
     parser.add_argument("--exclude_list", default=None, type=str,
-                        help="path to .csv file with columns: compartment, metabolite. Metabolites to be excluded")  # all tables affected
+                        help="path to .csv file with columns: compartment, metabolite. Metabolites to be excluded")
+                        # all tables affected
 
     return parser
 
 
-def excel2individual_dic(workingdir: str, confidic: dict) -> dict:
-    individual_dic = dict()
+def excel2frames_dic(workingdir: str, confidic: dict) -> dict:
+    frames_dic = dict()
     vib_excel = workingdir + "data/" + confidic['input_file']
     xl = pd.ExcelFile(vib_excel)
     sheetsnames = xl.sheet_names
@@ -79,14 +80,14 @@ def excel2individual_dic(workingdir: str, confidic: dict) -> dict:
                             header=0,  index_col=0)
 
         badcols = [i for i in list(tmp.columns) if i.startswith("Unnamed")]
-        tmp = tmp.loc[:,~tmp.columns.isin(badcols)]
+        tmp = tmp.loc[:, ~tmp.columns.isin(badcols)]
         tmp.columns = tmp.columns.str.replace(" ", "_")
         tmp.index = tmp.index.str.replace(" ", "_")
         tmp = tmp.replace(" ", "_", regex=False)
         tmp = tmp.dropna(axis=0, how="all")
-        individual_dic[i] = tmp
+        frames_dic[i] = tmp
 
-    return individual_dic
+    return frames_dic
 
 
 def pull_LOD_blanks_IS(abund_df) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame, dict]:
@@ -122,10 +123,10 @@ def pull_LOD_blanks_IS(abund_df) -> tuple[pd.Series, pd.DataFrame, pd.DataFrame,
     return lod_values, blanks_df, internal_standards_df, todrop_x_y
 
 
-def reshape_individual_dic_elems(individual_dic: dict, metadata: pd.DataFrame, todrop_x_y: dict):
+def reshape_frames_dic_elems(frames_dic: dict, metadata: pd.DataFrame, todrop_x_y: dict):
     trans_dic = dict()
-    for k in individual_dic.keys():
-        df = individual_dic[k]
+    for k in frames_dic.keys():
+        df = frames_dic[k]
         df = df.loc[:, ~df.columns.isin(todrop_x_y["x"])]
         df = df.loc[~df.index.isin(todrop_x_y["y"]), :]
         compartments = metadata['short_comp'].unique().tolist()
@@ -135,51 +136,49 @@ def reshape_individual_dic_elems(individual_dic: dict, metadata: pd.DataFrame, t
             df_co = df.loc[metada_co['former_name'], :]
             trans_dic[k][co] = df_co
 
-    individual_dic = trans_dic.copy()
-    return individual_dic
+    frames_dic = trans_dic.copy()
+    return frames_dic
 
 
-def abund_under_lod_set_nan(confidic, individual_dic,
+def abund_under_lod_set_nan(confidic, frames_dic,
                        lod_values, under_detection_limit_set_nan) -> dict:
-
     if under_detection_limit_set_nan:
-
         for co in confidic['compartments']:
-            abund_co = individual_dic[confidic['name_abundance']][co]
+            abund_co = frames_dic[confidic['name_abundance']][co]
             abund_coT = abund_co.T
             for i, r in abund_coT.iterrows():
                 abund_coT.loc[i, :].loc[abund_coT.loc[i, :] < lod_values[i]] = np.nan
-            individual_dic[confidic['name_abundance']][co] = abund_coT.T #tmp_coT.T
+            frames_dic[confidic['name_abundance']][co] = abund_coT.T
 
-    return individual_dic
+    return frames_dic
 
 
-def auto_drop_metabolites(compartments, individual_dic, lod_values,
+def auto_drop_metabolites(confidic, frames_dic, lod_values,
                           auto_drop_metabolite_LOD_based: bool) -> dict:
-    # affects all the datasets in individual_dic
+    # affects all the datasets in frames_dic
     auto_bad_metabolites = dict()
+    compartments = confidic['compartments']
     for k in compartments:
         auto_bad_metabolites[k] = list()
 
     if auto_drop_metabolite_LOD_based:
 
         for co in compartments:
-            abund_co = individual_dic[confidic['name_abundance']][co]
+            abund_co = frames_dic[confidic['name_abundance']][co]
             abund_coT = abund_co.T
             for i, r in abund_coT.iterrows():
-                # nbzeros = (abund_coT.loc[i, :] == 0).sum()
                 nb_nan = abund_coT.loc[i, :].isna().sum()
                 nb_under_LOD = (abund_coT.loc[i, :] <= lod_values[i]).sum()
-                if (nb_under_LOD >= r.size - 1) or (nb_nan <= r.size -1):
+                if (nb_under_LOD >= r.size - 1) or (nb_nan <= r.size - 1):
                     auto_bad_metabolites[co].append(i)
 
-        for tab_name in individual_dic.keys():
+        for tab_name in frames_dic.keys():
             for co in compartments:
-                tmpdf = individual_dic[tab_name][co]
+                tmpdf = frames_dic[tab_name][co]
                 if not "isotopolog" in tab_name.lower():
                     to_drop_now = auto_bad_metabolites[co]
                     tmpdf = tmpdf.drop(columns=to_drop_now)
-                    individual_dic[tab_name][co] = tmpdf
+                    frames_dic[tab_name][co] = tmpdf
                 else:
                     to_drop_now_isos = list()
                     for i in tmpdf.columns:
@@ -187,14 +186,14 @@ def auto_drop_metabolites(compartments, individual_dic, lod_values,
                             if i.startswith(j):
                                 to_drop_now_isos.append(i)
                     tmpdf = tmpdf.drop(columns=to_drop_now_isos)
-                individual_dic[tab_name][co] = tmpdf
-    return individual_dic
+                frames_dic[tab_name][co] = tmpdf
+    return frames_dic
 
 
-def abund_substract_blankavg(individual_dic: dict, confidic: dict,
-                             blanks_df: pd.Series, substract_blankavg: bool):
-    abund_dic = individual_dic[confidic['name_abundance']].copy()
-    if substract_blankavg:
+def abund_subtract_blankavg(frames_dic: dict, confidic: dict,
+                             blanks_df: pd.Series, subtract_blankavg: bool):
+    abund_dic = frames_dic[confidic['name_abundance']].copy()
+    if subtract_blankavg:
         for compartment in abund_dic.keys():
             blanks_df_s = blanks_df[list(abund_dic[compartment].columns)]
             blanksAvg_s = blanks_df_s.mean(axis=0)
@@ -203,16 +202,14 @@ def abund_substract_blankavg(individual_dic: dict, confidic: dict,
             tmp[tmp < 0] = 0
             abund_dic[compartment] = tmp.T
 
-        individual_dic[confidic['name_abundance']] = abund_dic
+        frames_dic[confidic['name_abundance']] = abund_dic
 
-    return individual_dic
+    return frames_dic
 
 
-def abund_divideby_amount_material(individual_dic: dict, workingdir: str,
+def abund_divideby_amount_material(frames_dic: dict, workingdir: str,
                                    amount_material: str, alternative_method: bool):
-    if amount_material is None:
-        return individual_dic
-    else:
+    if amount_material is not None:
         try:
             file = workingdir + "data/" + amount_material
             material_df = pd.read_csv(file, index_col=0)
@@ -222,8 +219,9 @@ def abund_divideby_amount_material(individual_dic: dict, workingdir: str,
             print(e)
 
         assert material_df.shape[1] == 1, "amountMaterial table must have 1 single column"
-        assert (material_df.iloc[:, 0] <= 0).sum() == 0, "amountMaterial table must not contain zeros nor negative numbers"
-        abund_dic = individual_dic[confidic['name_abundance']].copy()
+        assert (material_df.iloc[:, 0] <= 0).sum() == 0, "\
+                    amountMaterial table must not contain zeros nor negative numbers"
+        abund_dic = frames_dic[confidic['name_abundance']].copy()
         for compartment in abund_dic.keys():
             material_df_s = material_df.loc[list(abund_dic[compartment].index), :]
             if alternative_method:
@@ -231,38 +229,41 @@ def abund_divideby_amount_material(individual_dic: dict, workingdir: str,
                 material_avg_ser = pd.Series([float(material_avg) for i in range(material_df_s.shape[0])],
                                              index = material_df_s.index)
                 tmp = abund_dic[compartment].div(material_df_s.iloc[:, 0], axis=0)
-                tmp = tmp.mul(material_avg_ser, axis = 0)
+                tmp = tmp.mul(material_avg_ser, axis=0)
             else:
                 tmp = abund_dic[compartment].div(material_df_s.iloc[:, 0], axis=0)
 
-            individual_dic[confidic['name_abundance']][compartment] = tmp
+            frames_dic[confidic['name_abundance']][compartment] = tmp
 
-        return individual_dic
+    return frames_dic
 
 
-def abund_divideby_internalStandard(individual_dic, confidic,
+def abund_divideby_internalStandard(frames_dic, confidic,
                                     internal_standards_df, use_internal_standard: [str, None]):
+    # only useful for in vib preparation
     if use_internal_standard is None:
-        return individual_dic
+        return frames_dic
     else:
         picked_internal_standard = use_internal_standard
         assert picked_internal_standard in internal_standards_df.columns, "\
                Error, that internal standard is not present in the data"
-        abund_dic = individual_dic[confidic['name_abundance']].copy()
+        abund_dic = frames_dic[confidic['name_abundance']].copy()
         for compartment in abund_dic.keys():
             inte_sta_co = internal_standards_df.loc[abund_dic[compartment].index, :]
             inte_sta_co_is = inte_sta_co[picked_internal_standard]
             # replace zeros to avoid zero division, uses min of the pd series :
             inte_sta_co_is[inte_sta_co_is == 0] = inte_sta_co_is[inte_sta_co_is > 0].min()
             tmp = abund_dic[compartment].div(inte_sta_co_is, axis = 0)
-            individual_dic[confidic['name_abundance']][compartment] = tmp
-        return individual_dic
+            frames_dic[confidic['name_abundance']][compartment] = tmp
+        return frames_dic
 
 
-def set_samples_names(individual_dic, todrop_x_y):
+def set_samples_names(frames_dic, todrop_x_y):
+    # do smartest as possible: detect if dfs' rownames match to former_name or sample or none,
+    # if match sample do nothing, if match former_name set sample as rownames, finally if none, error stop
     trans_dic = dict()
-    for k in individual_dic.keys():
-        df = individual_dic[k]
+    for k in frames_dic.keys():
+        df = frames_dic[k]
         df = df.loc[:, ~df.columns.isin(todrop_x_y["x"])]
         df = df.loc[~df.index.isin(todrop_x_y["y"]), :]
         # df.reset_index(inplace=True)
@@ -281,78 +282,105 @@ def set_samples_names(individual_dic, todrop_x_y):
             df_co = df.loc[metada_co['former_name'], :]
             trans_dic[k][co] = df_co
 
-    individual_dic = trans_dic.copy()
+    frames_dic = trans_dic.copy()
     return
 
-def propagate_nan(confidic, individual_dic):
+
+def drop_metabolites_infile(frames_dic, workingdir, exclude_list: [str, None]):
+    if exclude_list is not None:
+        # a file name to open
+        try:
+            file = workingdir + "data/" + exclude_list
+            exclude_df = pd.read_csv(file, index_col=0)
+        except FileNotFoundError as err_file:
+            print(err_file)
+        except Exception as e:
+            print(e)
+
+    return 0
+
+
+def propagate_nan(confidic, frames_dic):
     # propagates nan from abundance to isotopologues and fractional contributions
     for co in confidic['compartments']:
-        abu_co = individual_dic[confidic['name_abundance']][co]
-        frac_co = individual_dic[confidic['name_meanE_or_fracContrib']][co]
+        abu_co = frames_dic[confidic['name_abundance']][co]
+        frac_co = frames_dic[confidic['name_meanE_or_fracContrib']][co]
         frac_co.mask(abu_co.isnull())
         # pending the propagation to isotopologues, think !
 
-    return individual_dic
-def drop_metabolites_infile( df ,exclude_list: [str, None]):
-    print(exclude_list)
-    return 0
+    return frames_dic
+
 
 def prep_isotopologues_df(isos_df, isosprop_min_admitted: float, stomp_values: bool):
+    # threshold for negatives
+    # stomp values
+    # recognize style and make names as said in somewhere function
     return 0
-
-def prep_fractionalcontrib_df():
-    tableFC = confidic["name_fractional_contribs"].split(".")[0]  # no extension
 
 
 
 def do_vib_prep(workingdir, args, confidic):
     # the order of the steps is the one recommended by VIB
-    individual_dic = excel2individual_dic(workingdir,  confidic)
+    frames_dic = excel2frames_dic(workingdir,  confidic)
     metadata = fg.open_metadata(workingdir, confidic)
-    abundance_df = individual_dic[confidic['name_abundance']]
+    abundance_df = frames_dic[confidic['name_abundance']]
     lod_values, blanks_df, internal_standards_df, bad_x_y = pull_LOD_blanks_IS(abundance_df)
-    individual_dic = reshape_individual_dic_elems(individual_dic, metadata, bad_x_y)
+    frames_dic = reshape_frames_dic_elems(frames_dic, metadata, bad_x_y)
+    frames_dic = abund_under_lod_set_nan(confidic, frames_dic, lod_values,
+                                         args.under_detection_limit_set_nan)
+    frames_dic = auto_drop_metabolites(confidic, frames_dic,  lod_values,
+                                       args.auto_drop_metabolite_LOD_based)
+    frames_dic = abund_subtract_blankavg(frames_dic, confidic,
+                                              blanks_df, args.subtract_blankavg)
+    frames_dic = abund_divideby_amount_material(frames_dic, workingdir, confidic['amountMaterial'],
+                                                args.amount_material_div_alternative)
+    frames_dic = abund_divideby_internalStandard(frames_dic, confidic, internal_standards_df,
+                                                 args.use_internal_standard)
 
-    individual_dic = abund_under_lod_set_nan(confidic, individual_dic, lod_values,
-                                             args.under_detection_limit_set_nan)
-
-    individual_dic = auto_drop_metabolites(confidic['compartments'],
-                                           individual_dic,  lod_values,
-                                           args.auto_drop_metabolite_LOD_based)
-
-    individual_dic = abund_substract_blankavg(individual_dic, confidic,
-                                              blanks_df, args.substract_blankavg)
-    individual_dic = abund_divideby_amount_material(individual_dic, workingdir, confidic['amountMaterial'],
-                                                    args.amount_material_div_alternative)
-    individual_dic = abund_divideby_internalStandard(individual_dic, confidic, internal_standards_df,
-                                                     args.use_internal_standard)
-
-    # prep_isotopologues_df
     # # set_sample_names(df, metadata)
     # drop_metabolites_infile(df, exclude_list)
     # propagate_nan
+    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values) **
     # savetables_bycompartment()
     return 0
 
-def do_isocorOutput_prep():
-    # individual_dic =
 
-    #individual_dic = abund_divideby_amount_material(individual_dic, workingdir, confidic['amountMaterial'],
+def generictype_div_intern_stand(frames_dic, confidic, picked_internal_standard):
+    if picked_internal_standard is not None:
+        # make a here_IS_df (single column)
+        hereISdf = 0
+        # take away that column from abund and everything else in frames_dic
+        # ...
+        # and finally do :
+        frames_dic =  abund_divideby_internalStandard(frames_dic, confidic, hereISdf,
+                                                       picked_internal_standard)
+    return frames_dic
+
+def do_isocorOutput_prep(workingdir, args, confidic):
+    # frames_dic =
+    #frames_dic = abund_divideby_amount_material(frames_dic, workingdir, confidic['amountMaterial'],
     #                                                     args.amount_material_div_alternative)
+    frames_dic = generictype_div_intern_stand(frames_dic, confidic, args.use_internal_standard)
 
-    # set_sample_names(df, metadata)
+    # # set_sample_names(df, metadata)
     # drop_metabolites_infile(df, exclude_list)
+    # propagate_nan
+    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values) **
+    # savetables_bycompartment()
+
+
+    
     return 0 #
 
-def do_simple_prep(): #  because user did pretreatment his own
-
-    # individual_dic =
-
-    # individual_dic = abund_divideby_amount_material(individual_dic, workingdir, confidic['amountMaterial'],
+def do_generic_prep(): #  because user has a 'generic' set of csv tables, and does not have blanks nor LOD infos
+    # frames_dicto = funcitonharvesting the tables into a dictionary
+    # frames_dicto = functionthat makes the frames to transposed or not, looking the metadata.samples in index and cols
+    # frames_dic_trans = abund_divideby_amount_material(frames_dic_trans, workingdir, confidic['amountMaterial'],
     #                                                     args.amount_material_div_alternative)
-    # set_sample_names(df, metadata)
+    # frames_dic = generictype_div_intern_stand(frames_dic, confidic, args.use_internal_standard)
 
-    # drop_metabolites_infile(df, exclude_list)
+    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values)
+    # frames_dicto = drop_metabolites_infile(df, exclude_list)
     return 0
 
 
@@ -361,15 +389,15 @@ def perform_type_prep(workingdir, args, confidic):
         do_vib_prep(workingdir, args, confidic)
     elif confidic['typeprep'] == 'isocorOutput_prep':
         do_isocorOutput_prep(workingdir, args, confidic)
-    elif confidic['typeprep'] == 'simple':
-        do_simple_prep(workingdir, args, confidic)
-
+    elif confidic['typeprep'] == 'generic_prep':
+        do_generic_prep(workingdir, args, confidic)
+    # for saving, transpose as finally desired: met x sam
     outputdir = args.config.split("/")[-2] + "/results/prepared_tables/"
-    print(outputdir)
     fg.detect_and_create_dir(workingdir + outputdir)
+    # save all tables :
 
 def save_advanced_options_used(args):
-    return 0
+    return 0  # see better how to save a 'log'
 
 
 
@@ -388,7 +416,6 @@ if __name__ == "__main__":
 
     perform_type_prep(workingdir, args, confidic)
 
-    save_advanced_options_used
 
 
 
