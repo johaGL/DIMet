@@ -43,12 +43,17 @@ abundances_bars.py:This script exploits species and compartment specific tables 
 functions_diffmode.py:    abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 __init__.py:abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 
+PCA problem ! :  the thing "sample_descrip" (old __init__) pases to pca_fun as pointlabels. Solve: create sample_descrip before invoking pca, because that column does not exist in metadata!!! 
 
-
+- resolve: - fracccontrib and isos proportions when not given ! 
 ------
 complete readme:
 """
     put into readme:
+    
+    - You, the user, your results passed already through the procedure of correcting (the areas or intensities) for the presence of isotopologues in nature. There are several software options (for example IsoCor or El-Maven) to perform that correction, before using our DIMet. 
+    
+    
     
     - metadata related:
     

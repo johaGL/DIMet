@@ -13,9 +13,10 @@ import pandas as pd
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
+import warnings
 
 
-def wdir_configpaths_validate(wdir, config):
+def wdir_configpaths_validate(wdir, config) -> None:
     aproval = [True,True, True]
     if not os.path.isdir(wdir):
         print(f"not a directory: {wdir}")
@@ -27,26 +28,29 @@ def wdir_configpaths_validate(wdir, config):
         print(f"data/ folder is missing in {wdir}")
     if not (aproval[0] and aproval[1] and aproval[2]):
         raise ValueError("\nDid you inverted the order of directory and config file?")
-    #assert aproval[0] and aproval[1], "\nDid you inverted the order of directory and config file?"
 
 
 def open_config_file(confifile):
     try:
         with open(confifile, "r") as f:
             confidic = yaml.load(f, Loader=yaml.Loader)
-        return confidic
+    except yaml.YAMLError as yam_err:
+        print(yam_err)
+        confidic = None
     except Exception as e:
         print(e)
-        print('problem with opening configuration file')
         confidic = None
+
     if confidic is None:
-        raise ValueError("\nproblem opening configuration file")
-    #assert confidic is not None, "problem opening configuration file"
+        raise ValueError("\nimpossible to read configuration file")
+
+    return confidic
 
 
 def detect_and_create_dir(namenesteddir):
     if not os.path.exists(namenesteddir):
         os.makedirs(namenesteddir)
+
 
 def fullynumeric(mystring):
     try:
@@ -57,8 +61,32 @@ def fullynumeric(mystring):
 
 
 def open_metadata(workingdir, confidic):
-    metadata = pd.read_csv(workingdir + "data/" + confidic['metadata_file'])
-    return metadata
+    try:
+        metadata = pd.read_csv(workingdir + "data/" + confidic['metadata_file'])
+        return metadata
+    except Exception as e:
+        print(e)
+        print('problem with opening metadata file')
+        metadata = None
+    if metadata is None:
+        raise ValueError("\nproblem opening configuration file")
+
+
+def verify_metadata_sample_not_duplicated(metadata_df) -> None:
+    def yield_repeated_elems(mylist):
+        occur_dic = dict(map(lambda x: (x, list(mylist).count(x)), mylist)) # credits: w3resource.com
+        repeated_elems = list()
+        for k in occur_dic.keys():
+            if occur_dic[k] > 1:
+                repeated_elems.append(k)
+        return repeated_elems
+
+    sample_duplicated = yield_repeated_elems(list(metadata_df['sample']))
+    if len(sample_duplicated) > 0:
+        txt_errors = f"-> duplicated sample names: {sample_duplicated}\n"
+        raise ValueError(f"Error, found these conflicts in your metadata:\n{txt_errors}")
+
+
 
 
 def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
@@ -388,4 +416,6 @@ def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
     plt.close()
     return 0
 
-# end functions for isotopologue preview (mode None)
+# end functions for isotopologue preview
+# END
+# dico with nb occur: https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
