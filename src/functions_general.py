@@ -16,20 +16,6 @@ import seaborn as sns
 import warnings
 
 
-def wdir_configpaths_validate(wdir, config) -> None:
-    aproval = [True,True, True]
-    if not os.path.isdir(wdir):
-        print(f"not a directory: {wdir}")
-        aproval[0] = False
-    if not os.path.isfile(config):
-        print(f"not a configuration file: {config}")
-        aproval[1] = False
-    if not os.path.exists(wdir + "data/"):
-        print(f"data/ folder is missing in {wdir}")
-    if not (aproval[0] and aproval[1] and aproval[2]):
-        raise ValueError("\nDid you inverted the order of directory and config file?")
-
-
 def open_config_file(confifile):
     try:
         with open(confifile, "r") as f:
@@ -60,9 +46,9 @@ def fullynumeric(mystring):
         return False
 
 
-def open_metadata(workingdir, confidic):
+def open_metadata(file_path):
     try:
-        metadata = pd.read_csv(workingdir + "data/" + confidic['metadata_file'])
+        metadata = pd.read_csv(file_path)
         return metadata
     except Exception as e:
         print(e)
@@ -87,32 +73,15 @@ def verify_metadata_sample_not_duplicated(metadata_df) -> None:
         raise ValueError(f"Error, found these conflicts in your metadata:\n{txt_errors}")
 
 
-
-
-def autodetect_isotop_nomenclature(datadi, tableIC, namesuffix) :
-    icdf = pd.read_csv(datadi + tableIC + "_" + namesuffix +".tsv", sep="\t", index_col=0)
-    isotopololist_ = icdf.index.tolist()
-    vibg1 = [i for i in isotopololist_ if  "_C13-label-" in i]
-    vibg2 = [i for i in isotopololist_ if "_PARENT" in i]
-    if (len(vibg1) + len(vibg2)) == len(isotopololist_):
-        return "VIB"
-    else:
-        styuni = [ i for i in isotopololist_ if "_label" in i]
-        if len(styuni) == len(isotopololist_):
-            return "generic"
-        else:
-            return "style not recognized"
-
-
-def yieldrowdataB(newdf):
-    xu = {"metabolite": [], "m+x": [], "isotopolgFull": []}
-    for ch in newdf.index:
+def isotopologues_meaning_df(isotopologues_full_list):
+    xu = {"metabolite": [], "m+x": [], "isotopologue_name": []}
+    for ch in isotopologues_full_list:
         elems = ch.split("_m+")
         xu["metabolite"].append(elems[0])
         xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
         xu["isotopolgFull"].append(ch)
-    rowdata = pd.DataFrame.from_dict(xu)
-    return rowdata
+    df = pd.DataFrame.from_dict(xu)
+    return df
 
 
 def prepare4contrast(idf, ametadata, newcateg, contrast):
@@ -163,15 +132,6 @@ def a12(lst1, lst2, rev=True):
                 more += 1
     return (more + 0.5 * same) / (len(lst1) * len(lst2))
 
-
-def detect_fraccontrib_missing(the_tsv_files_):
-    fraccontribfile = ""
-    for fi in the_tsv_files_:
-        if "frac" in fi.lower():
-            fraccontribfile = fi
-    if fraccontribfile != "":
-        return True
-    return False
 
 
 def compute_reduction(df, ddof):
@@ -322,7 +282,6 @@ def calcgeommean(avector, eps):
     return np.exp(np.mean(np.log(vech)))
 
 
-
 def plot_overlap_hist(df_overls, colname_symetric, colname_assymetric, fileout):
     import seaborn as sns
     import matplotlib as plt
@@ -419,3 +378,5 @@ def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
 # end functions for isotopologue preview
 # END
 # dico with nb occur: https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
+
+

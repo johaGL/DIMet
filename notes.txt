@@ -8,6 +8,8 @@ config that I used to put in pycharm:
 
 things are going to change deeply, from now
 
+- reminder: isotopologues_meaning_df was before 
+
 -----------------
 NEW VERSION since 17 02 2023 (Friday)
 --------
@@ -73,7 +75,6 @@ complete readme:
     -  concerning the isocorOutput:
     the output as in :https://isocor.readthedocs.io/en/latest/tutorials.html#output-files
     is transformed into tables, as follows:
-    column -> table name
     corrected_area -> isotopologuesAbsolute;  
     isotopologue_fraction -> isotopologuesProportions;
     mean_enrichment ->  meanEnrich_or_fracContrib
@@ -92,8 +93,14 @@ complete readme:
 
 
     * Negative proportions can occur, for example, after El-Maven isotopologues correction.
+    
+    
+    
+    
+Say thanks to Joris and Thomas Daubon's team for their data, cite joris in the readme ! 
     """
 
 
 ---------
+
 
