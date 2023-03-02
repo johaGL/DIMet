@@ -40,14 +40,14 @@ def prep_args():
                         example: --use_internal_standard Myristic_acid_d27. By default is not performed')
 
     # for isotopologues
-    parser.add_argument("--isosprop_min_admitted", default=-0.05, type=float,
-                        help="Metabolites whose isotopologues are less or equal this cutoff are removed " )
-
-    parser.add_argument("--stomp_values", action=argparse.BooleanOptionalAction, default=True, \
-                        help="Stomps isotopologues' proportions to max 1.0 and min 0.0")
-
-    parser.add_argument("--isos_preview", action=argparse.BooleanOptionalAction, default=False, \
+    parser.add_argument("--isos_preview", action=argparse.BooleanOptionalAction, default=False,
                         help="Plot for isotopologue values overview")
+
+    parser.add_argument("--isosprop_min_admitted", default=-0.05, type=float,
+                        help="Metabolites whose isotopologues are less or equal this cutoff are removed" )
+
+    parser.add_argument("--stomp_values", action=argparse.BooleanOptionalAction, default=True,
+                        help="Stomps isotopologues' proportions to max 1.0 and min 0.0")
 
     # for all
     parser.add_argument("--remove_these_metabolites", default=None, type=str,
@@ -177,8 +177,8 @@ def drop__metabolites_not_transposed(frames_dic_orig, bad_metabolites_dic):
     return frames_dic
 
 
-def auto_detect_and_drop_metabolites(confidic, frames_dic, lod_values,
-                          auto_drop_metabolite_LOD_based: bool) -> dict:
+def auto_drop_metabolites_uLOD(confidic, frames_dic, lod_values,
+                               auto_drop_metabolite_LOD_based: bool) -> dict:
     # affects all the datasets in frames_dic
     auto_bad_metabolites = dict()
     compartments = confidic['compartments']
@@ -227,7 +227,7 @@ def abund_divideby_amount_material(frames_dic: dict, workingdir: str,
         except Exception as e:
             print(e)
 
-        assert material_df.shape[1] == 1, "amountMaterial table must have 1 single column"
+        assert material_df.shape[1] == 1, "amountMaterial table must have only 2 columns"
         assert (material_df.iloc[:, 0] <= 0).sum() == 0, "\
                     amountMaterial table must not contain zeros nor negative numbers"
         abund_dic = frames_dic[confidic['name_abundance']].copy()
@@ -342,11 +342,11 @@ def set_samples_names(frames_dic, metadata):
     return frames_dic
 
 
-def drop_metabolites_infile(frames_dic, exclude_list: [str, None]): # TODO
+def drop_metabolites_infile(frames_dic, workingdir, exclude_list: [str, None]):
     if exclude_list is not None:
         # a file name to open
         try:
-            file = exclude_list
+            file = workingdir + "data/" + exclude_list
             exclude_df = pd.read_csv(file,  header=0)
         except FileNotFoundError as err_file:
             print(err_file)
@@ -392,7 +392,7 @@ def do_vib_prep(workingdir, args, confidic, output_plots_dir):
     frames_dic = reshape_frames_dic_elems(frames_dic, metadata, bad_x_y)
     frames_dic = abund_under_lod_set_nan(confidic, frames_dic, lod_values,
                                          args.under_detection_limit_set_nan)
-    frames_dic = auto_detect_and_drop_metabolites(confidic, frames_dic,  lod_values,
+    frames_dic = auto_drop_metabolites_uLOD(confidic, frames_dic,  lod_values,
                                                   args.auto_drop_metabolite_LOD_based)
     frames_dic = abund_subtract_blankavg(frames_dic, confidic,
                                               blanks_df, args.subtract_blankavg)
@@ -414,19 +414,17 @@ def do_vib_prep(workingdir, args, confidic, output_plots_dir):
     save_isos_preview(frames_dic[confidic['name_isotopologue_prop']], metadata,
                       workingdir, output_plots_dir, args.isos_preview) # TODO: reactivate
     frames_dic = set_samples_names(frames_dic, metadata)
-    frames_dic = drop_metabolites_infile(frames_dic, args.remove_these_metabolites)
+    frames_dic = drop_metabolites_infile(frames_dic, workingdir,  args.remove_these_metabolites)
 
     # propagate_nan
     # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values) **
     return frames_dic
 
 
-def generictype_div_intern_stand(frames_dic, confidic, picked_internal_standard):
+def generictype_div_intern_stand(frames_dic, confidic, picked_internal_standard, ISdf):
     if picked_internal_standard is not None:
-        hereIS_dic = frames_dic[confidic['name_abundance']]
-        frames_dic = abund_divideby_internalStandard(frames_dic, confidic, hereIS_dic,
+        frames_dic = abund_divideby_internalStandard(frames_dic, confidic, ISdf,
                                                      picked_internal_standard)
-        print("meoooo")
     return frames_dic
 
 
@@ -441,70 +439,19 @@ def compute_abund_from_absolute_isotopol(df, metabos_isos_df):
         abundance.loc[m, :] = sub_df_sum
     return abundance.T
 
-def compute_isotopologues_proportions_from_absolute(frames_dic):
-    return frames_dic
-
-
-def compute_MEorFC_from_isotopologues_proportions(frames_dic):
-    return frames_dic
-
-
-def complete_missing_dfs(confidic, frames_dic, metabolites_isos_df):
-    dic_config_tabs = {'name_abundance': confidic['name_abundance'],
-                       'name_meanE_or_fracContrib' : confidic['name_meanE_or_fracContrib'],
-                       'name_isotopologue_prop' : confidic['name_isotopologue_prop'],
-                        'name_isotopologue_abs': confidic['name_isotopologue_abs']}
-    list_config_tabs = [confidic['name_abundance'],
-     confidic['name_meanE_or_fracContrib'],
-     confidic['name_isotopologue_prop'],
-     confidic['name_isotopologue_abs']]
-
-    existing = list(frames_dic.keys())
-
-    list_none_tabs = [i for i in list_config_tabs if i not in existing ]
-    #ok_tabs = [i for i in dic_config_tabs.keys() if dic_config_tabs[i] is not None]
-    ok_tabs = [i for i in list_config_tabs if i in existing]
-    compartments = confidic['compartments']
-    if 'name_abundance' in list_none_tabs:
-        if 'name_isotopologue_abs' in ok_tabs:
-            for co in compartments:
-                df_co = frames_dic[confidic['name_isotopologue_abs']][co]
-                tmp_co = compute_abund_from_absolute_isotopol(df_co, metabolites_isos_df)
-                frames_dic[confidic['name_abundance']][co] = tmp_co
-        elif 'name_isotopologue_abs' in list_none_tabs:
-            print(" isotopologues' absolute values not available, impossible to get proportions")
-    if 'name_isotopologue_prop' in list_none_tabs :
-        if 'name_isotopologue_abs' in ok_tabs:
-            for co in compartments:
-                df_co = frames_dic[confidic['name_isotopologue_abs']][co]
-                tmp_co = compute_isotopologues_proportions_from_absolute(df_co)
-                frames_dic[confidic['name_abundance']][co] = tmp_co
-        elif 'name_isotopologue_abs' in list_none_tabs:
-            print(" isotopologues' absolute values not available, impossible to get proportions")
-    if 'name_meanE_or_fracContrib' in list_none_tabs:
-        try:
-            for co in compartments:
-                df_co = frames_dic[confidic['name_isotopologue_prop']][co]
-                tmp_co = compute_MEorFC_from_isotopologues_proportions(df_co)
-                frames_dic[confidic['name_abundance']][co] = tmp_co
-        except Exception as e:
-            print("impossible to calculate: mean enrichment  or  fractional contribution")
-            print(e)
-
-    # TODO : create a prefixes.txt file that contains the all tables, existing and completedmissing:  name_annnana, thePrefix\n .....
-    return frames_dic
-
 
 def do_isocorOutput_prep(workingdir, args, confidic, output_plots_dir):
 
-    def myfunx(df, metadata): # TODO change name
+    def df2dic_comp(df, metadata): # TODO change name
+        # splits df into dictionary of dataframes, each for one compartment
         out_dic = dict()
         for co in metadata['short_comp'].unique():
             metada_co = metadata.loc[metadata['short_comp'] == co, :]
             df_co = df.loc[metada_co['former_name'], :]
             out_dic[co] = df
         return out_dic
-    def isocorOutput2frames_dic(isocor_out_df, metadata, confidic):
+
+    def isocorOutput2frames_dic(isocor_out_df, metadata, confidic, internal_standard: [str, None]):
         df = isocor_out_df[['sample', 'metabolite', 'isotopologue', 'corrected_area',
                             'isotopologue_fraction', 'mean_enrichment']]
         isonames = df.metabolite.str.cat(df.isotopologue.astype(str), sep="_m+")
@@ -533,36 +480,43 @@ def do_isocorOutput_prep(workingdir, args, confidic, output_plots_dir):
         isos_absolute = isos_absolute.set_index('sample')
 
         abundance = compute_abund_from_absolute_isotopol(isos_absolute, metabos_isos_df)
+        if internal_standard is not None:
+            intesta_abun_df = abundance[[internal_standard]]
+        else:
+            intesta_abun_df = None
 
         frames_dic = dict()
 
-        frames_dic[confidic['name_meanE_or_fracContrib']] = myfunx(me_or_fc, metadata)
-        frames_dic[confidic['name_isotopologue_prop']] = myfunx(isos_prop, metadata)
-        frames_dic[confidic['name_isotopologue_abs']] = myfunx(isos_absolute, metadata)
-        frames_dic[confidic['name_abundance']] = myfunx(abundance, metadata)
+        frames_dic[confidic['name_meanE_or_fracContrib']] = df2dic_comp(me_or_fc, metadata)
+        frames_dic[confidic['name_isotopologue_prop']] = df2dic_comp(isos_prop, metadata)
+        frames_dic[confidic['name_isotopologue_abs']] = df2dic_comp(isos_absolute, metadata)
+        frames_dic[confidic['name_abundance']] = df2dic_comp(abundance, metadata)
 
-        return frames_dic
+        return frames_dic, intesta_abun_df
 
     isocor_output_df = pd.read_excel(workingdir + "data/" + confidic['input_file'])
     metadata = fg.open_metadata(workingdir, confidic)
     fg.verify_metadata_sample_not_duplicated(metadata)
-    frames_dic = isocorOutput2frames_dic(isocor_output_df, metadata, confidic)
+    frames_dic, intesta_abun_df = isocorOutput2frames_dic(isocor_output_df, metadata, confidic,
+                                         args.use_internal_standard)
 
     save_isos_preview(frames_dic[confidic['name_isotopologue_prop']], metadata,
                       workingdir, output_plots_dir, args.isos_preview)
-    # TODO: verify these two :
+
     frames_dic = abund_divideby_amount_material(frames_dic, workingdir, confidic['amountMaterial'],
                                                          args.alternative_div_amount_material)
-    frames_dic = generictype_div_intern_stand(frames_dic, confidic, args.use_internal_standard)
+    frames_dic = generictype_div_intern_stand(frames_dic, confidic, args.use_internal_standard, intesta_abun_df)
 
     frames_dic = set_samples_names(frames_dic, metadata)
-    # drop_metabolites_infile(df, exclude_list)
+    print(args.remove_these_metabolites)
+    frames_dic = drop_metabolites_infile(frames_dic, workingdir,  args.remove_these_metabolites)
     # propagate_nan
-    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values) **
-
-    return 0 #
+    # prep_isotopologues_df(isos_df, isosprop_min_admitted, stomp_values)
+    aa = 1
+    return frames_dic
 
 def do_generic_prep(): #  because user has a 'generic' set of csv tables, and does not have blanks nor LOD infos
+    # inte_sta_direct_df = take it from abundance !
     # frames_dicto = funcitonharvesting the tables into a dictionary : first checks if metadata.sample and
                                        # rows in the tables match perfectly, if not, print and stop
     # frames_dic_trans = abund_divideby_amount_material(frames_dic_trans, workingdir, confidic['amountMaterial'],
@@ -575,7 +529,60 @@ def do_generic_prep(): #  because user has a 'generic' set of csv tables, and do
     return 0
 
 
+def compute_isotopologues_proportions_from_absolute(frames_dic):
+    return frames_dic
 
+
+def compute_MEorFC_from_isotopologues_proportions(frames_dic):
+    return frames_dic
+
+
+def complete_missing_dfs(confidic, frames_dic, metabolites_isos_df):
+    list_config_tabs = [confidic['name_abundance'],
+     confidic['name_meanE_or_fracContrib'],
+     confidic['name_isotopologue_prop'],
+     confidic['name_isotopologue_abs']]
+
+    existing = list(frames_dic.keys())
+    key_name_suffixes = {'name_abundance': confidic['name_abundance'],
+                         'name_meanE_or_fracContrib' : confidic['name_meanE_or_fracContrib'],
+                         'name_isotopologue_prop' : confidic['name_isotopologue_prop'],
+                         'name_isotopologue_abs': confidic['name_isotopologue_abs']}
+
+    list_none_tabs = [i for i in list_config_tabs if i not in existing ]
+    #ok_tabs = [i for i in dic_config_tabs.keys() if dic_config_tabs[i] is not None]
+    ok_tabs = [i for i in list_config_tabs if i in existing]
+    compartments = confidic['compartments']
+    if 'name_abundance' in list_none_tabs:
+        if 'name_isotopologue_abs' in ok_tabs:
+            for co in compartments:
+                df_co = frames_dic[confidic['name_isotopologue_abs']][co]
+                tmp_co = compute_abund_from_absolute_isotopol(df_co, metabolites_isos_df)
+                frames_dic["abundance_computed"][co] = tmp_co
+                key_name_suffixes['name_abundance'] = "abundance_computed"
+        elif 'name_isotopologue_abs' in list_none_tabs:
+            print(" isotopologues' absolute values not available, impossible to get proportions")
+    if 'name_isotopologue_prop' in list_none_tabs :
+        if 'name_isotopologue_abs' in ok_tabs:
+            for co in compartments:
+                df_co = frames_dic[confidic['name_isotopologue_abs']][co]
+                tmp_co = compute_isotopologues_proportions_from_absolute(df_co)
+                frames_dic["isotopologues_props_computed"][co] = tmp_co
+                key_name_suffixes['name_isotopologue_prop'] = "isotopologues_props_computed"
+        elif 'name_isotopologue_abs' in list_none_tabs:
+            print(" isotopologues' absolute values not available, impossible to get proportions")
+    if 'name_meanE_or_fracContrib' in list_none_tabs:
+        try:
+            for co in compartments:
+                df_co = frames_dic[confidic['name_isotopologue_prop']][co]
+                tmp_co = compute_MEorFC_from_isotopologues_proportions(df_co)
+                frames_dic["meanEnr_or_FracC_computed"][co] = tmp_co
+                key_name_suffixes['name_meanE_or_fracContrib'] = "meanEnr_or_FracC_computed"
+        except Exception as e:
+            print("impossible to calculate: mean enrichment  or  fractional contribution\
+                  isotopologues proportions not found")
+            print(e)
+    return frames_dic, key_name_suffixes
 
 def perform_type_prep(workingdir, args, confidic):
     output_plots_dir = args.config.split("/")[-2] + "/results/plots/preview/"
@@ -593,7 +600,17 @@ def perform_type_prep(workingdir, args, confidic):
         frames_dic = do_generic_prep(workingdir, args, confidic,
                                      output_plots_dir)
 
+    frames_dic, the_finale_blah = complete_missing_dfs(confidic, frames_dic, metabolites_isos_df)
     # for saving, transpose as finally desired: met x sam
+    the_finale_blah = dict()
+    txt_real_available_tables : ""
+    for k in the_finale_blah:
+        pass
+        #txt_real_available_tables += f'{k},{}\n'
+    with open(workingdir + output_tabs_dir + "nohope.csv") as f:
+        f.write(txt_real_available_tables)
+    # TODO : create a prefixes.txt file that contains the all tables, existing and completedmissing:  name_annnana, thePrefix\n .....
+
 
     # save all tables :
     return 0

@@ -46,6 +46,10 @@ __init__.py:abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 PCA problem ! :  the thing "sample_descrip" (old __init__) pases to pca_fun as pointlabels. Solve: create sample_descrip before invoking pca, because that column does not exist in metadata!!! 
 
 - resolve: - fracccontrib and isos proportions when not given ! 
+
+
+
+
 ------
 complete readme:
 """
@@ -54,6 +58,10 @@ complete readme:
     - You, the user, your results passed already through the procedure of correcting (the areas or intensities) for the presence of isotopologues in nature. There are several software options (for example IsoCor or El-Maven) to perform that correction, before using our DIMet. 
     
     
+    - config file related : 
+    
+    # when IsoCor type of input, just declare the desired tables' names
+# if 'generic' type of input, any missing table must be: null.
     
     - metadata related:
     
