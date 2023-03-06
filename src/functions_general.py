@@ -79,7 +79,7 @@ def isotopologues_meaning_df(isotopologues_full_list):
         elems = ch.split("_m+")
         xu["metabolite"].append(elems[0])
         xu["m+x"].append("m+{}".format(elems[-1].split("-")[-1]))
-        xu["isotopolgFull"].append(ch)
+        xu["isotopologue_name"].append(ch)
     df = pd.DataFrame.from_dict(xu)
     return df
 
