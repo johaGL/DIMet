@@ -33,8 +33,14 @@ def open_config_file(confifile):
     return confidic
 
 
-def verify_and_complete(confidic):
-    
+def auto_check_validity_configuration_file(confidic) -> None:
+    expected_keys = ['metadata_path', 'targetedMetabo_path', 'amountMaterial_path',
+                     'typeprep','name_abundance', 'name_meanE_or_fracContrib',
+                     'name_isotopologue_prop', 'name_isotopologue_abs', 'conditions',
+                     'suffix', 'out_path']
+    for k in expected_keys:
+        assert k in confidic.keys(), f"{k} : missing in configuration file! "
+
 
 def detect_and_create_dir(namenesteddir):
     if not os.path.exists(namenesteddir):
@@ -228,7 +234,6 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     return dfout, geomcol_interest, geomcol_control
 
 
-
 def give_ratios_df(df1, geomInterest, geomControl):
     print("give RATIO")
     df = df1.copy()
@@ -261,6 +266,7 @@ def countnan_samples(df, metad4c):
     df['count_nan_samples'] = vecout#[str(tup) for tup in vecout]
     return df
 
+
 def add_alerts(df, metad4c):
     # deprecated
     df['alert'] = ''
@@ -278,11 +284,11 @@ def add_alerts(df, metad4c):
     return df
 
 
-def calcgeommean(avector, eps):
-    # TODO: old, used in differential_univariate, work pending
-    vech = np.array(avector)
-    vech[vech == 0] = eps  # replace any zeroes
-    return np.exp(np.mean(np.log(vech)))
+# def calcgeommean(avector, eps):
+#     # TODO: old, used in differential_univariate, work pending
+#     vech = np.array(avector)
+#     vech[vech == 0] = eps  # replace any zeroes
+#     return np.exp(np.mean(np.log(vech)))
 
 
 def plot_overlap_hist(df_overls, colname_symetric, colname_assymetric, fileout):
@@ -379,7 +385,10 @@ def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
     return 0
 
 # end functions for isotopologue preview
+
 # END
-# dico with nb occur: https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
+
+# useful resources:
+# count nb of occurrences: https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
 
 

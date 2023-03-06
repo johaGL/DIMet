@@ -1,6 +1,6 @@
 ALERT! when finished the fitting part improvements, re-integrate the univariate tests . == DONE
 
-bug when running prepare in example2 dataset, function calculate_meanEnri in loop for met__i in metabolites
+
 
 !! 17 02 2023 :
 config that I used to put in pycharm:
@@ -8,7 +8,7 @@ config that I used to put in pycharm:
 
 things are going to change deeply, from now
 
-- reminder: isotopologues_meaning_df was before 
+- reminder: isotopologues_meaning_df was before ???
 
 -----------------
 NEW VERSION since 17 02 2023 (Friday)
@@ -19,21 +19,14 @@ data is data as received ! from isocor or VIB. Third option for 'generic'
 
 tmp no, instead 'prepared'
 
-extrulist : "mets_toexclude" : make this a advanced-optional option !
+PCA problem ! :  the thing "sample_descrip" (old __init__) pases to pca_fun as pointlabels. Solve: create sample_descrip before invoking pca, because that column does not exist in metadata!!! 
+
+
 
 for lineplots fracccontrib: give as many colors (automatic) as metabolites :)
 make the linees plus epaisses !
 
 also_total_marked : "N" no by default , BETTER MAKE IT AS ADVANCED-optional OPTION!
-
-- PREP DANGER !! 
-  # both abus and isotopologues ???? :
-
-    parser.add_argument("--amountMaterial", default=None, type=str,
-                        help="path to a .tsv file containing the amount of material (number of cells, mg tissue) by sample.\
-                         The abundances will be divided by these values (sample specific)")
-                         
-                         is this to absolute isotopologues as well ?? i would say yes
 
 
 
@@ -44,10 +37,6 @@ those ugly difficult to anlyse isotopologue values.
 abundances_bars.py:This script exploits species and compartment specific tables at 'data/abufromperc/'
 functions_diffmode.py:    abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
 __init__.py:abunda_species_4diff_dir = dirtmpdata + "abufromperc/"
-
-PCA problem ! :  the thing "sample_descrip" (old __init__) pases to pca_fun as pointlabels. Solve: create sample_descrip before invoking pca, because that column does not exist in metadata!!! 
-
-- resolve: - fracccontrib and isos proportions when not given ! 
 
 
 
@@ -92,15 +81,23 @@ complete readme:
 
 
 
-    * Negative proportions can occur, for example, after El-Maven isotopologues correction.
+    * Negative proportions/fractions can occur, for example, after El-Maven correction.
     
-    
+
     
     
 Say thanks to Joris and Thomas Daubon's team for their data, cite joris in the readme ! 
     """
-
-
+    
+---------------------
+Do separate readmes for each module:
 ---------
+- prepare readme:
+
+do your yaml, we supply good examples (you can use any of them as template, to double-check the modifications in your yaml you can use a online editor, such as https://yamlchecker.com/, just copy-paste and edit)
 
 
+
+- metabologram readme
+The metabologram module is inspired on the work of the authors of 'An Integrated Metabolic Atlas of Clear Cell Renal Cell Carcinoma' (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4809063/ ,   
+https://rdrr.io/bioc/bioCancer/man/metabologram.html). They developed as well an interactive public version of their tool but unfortunately for users it seems to be unaccessible (http://kidneymetab.chenghsiehlab.org).
