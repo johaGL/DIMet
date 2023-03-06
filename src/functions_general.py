@@ -33,6 +33,9 @@ def open_config_file(confifile):
     return confidic
 
 
+def verify_and_complete(confidic):
+    
+
 def detect_and_create_dir(namenesteddir):
     if not os.path.exists(namenesteddir):
         os.makedirs(namenesteddir)
