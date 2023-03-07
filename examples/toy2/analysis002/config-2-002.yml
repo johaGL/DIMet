@@ -1,0 +1,112 @@
+# This is toy2 configuration file example
+# Note: for indentation use space (never tab!), 2-space indents
+# coments start with #
+
+# -----------------------------
+# necesary to all steps
+# -----------------------------
+metadata_path : ~/toy2/data/metadata_toy2.csv
+targetedMetabo_path: ~/toy2/data/metabo_toy2.xlsx
+amountMaterial_path : ~/toy2/data/nbcells-or-amountOfMaterial.csv # null or the file name, if available
+typeprep : VIBMEC_output_prep
+
+name_abundance : rawAbundances
+name_meanE_or_fracContrib : FracContribution_C
+name_isotopologue_prop : CorrectedIsotopologues # isotopologue proportions
+name_isotopologue_abs : null  # isotopologue absolute values (for toy2 not avail)
+
+conditions : [Control, L-Cycloserine] # first must be control
+suffix : toy2a002
+out_path : ~/toy2/analysis002/
+
+
+# -----------------------------
+# Plots
+# -----------------------------
+
+
+# Abundances
+# -----------------------------
+time_sel : [T0, T2h]
+selectedmets_forbars:
+  cell: [L-Lactic_acid, Pyruvic_acid, L-Malic_acid,
+                          Fumaric_acid, L-Alanine, L-Glutamic_acid,
+                          L-Glutamine, L-Aspartic_acid]
+  med:  [L-Lactic_acid, Pyruvic_acid, L-Alanine,
+                         L-Glutamine, L-Asparagine]
+
+# axisx_barcolor says x and colored categories, respectively 
+axisx_barcolor : [condition, timepoint] #  [condition, timepoint]
+# xticks_text must be coherent with axisx_barcolonamer first element
+xticks_text : [Cont, Cyc] 
+width_each_subfig : 3
+wspace_subfigs : 1
+axisx_labeltilt : 90 # 20 or another
+
+
+# Fractional Contributions lineplot configuration
+# -----------------------------
+groups_toplot_frac_contribs:
+  cell:
+    0: [ L-Lactic_acid , Pyruvic_acid ]
+    1: [ L-Alanine ]
+    2: [ Fumaric_acid, L-Malic_acid ]
+    3: [ L-Glutamic_acid, L-Glutamine ]
+    4: [ L-Aspartic_acid ]
+  med:
+    0: [ L-Lactic_acid , Pyruvic_acid ]
+    1: [ L-Alanine ]
+    2: [ L-Glutamine ,L-Asparagine ]
+# try to group them by similarity in values !!!
+
+
+# Isotopologue Contribution plot configuration
+# -----------------------------
+width_each_stack : !!float 2.8
+wspace_stacks : !!float 1.1
+numbers_size : 13
+groups_toplot_isotopol_contribs:
+  cell :
+    0: [L-Lactic_acid, Pyruvic_acid , L-Malic_acid,
+                  Fumaric_acid]
+    1 : [ L-Alanine, L-Glutamic_acid,
+              L-Glutamine,  L-Aspartic_acid]
+  med :
+    0 : [ L-Lactic_acid, Pyruvic_acid ]
+    1 : [L-Alanine, L-Glutamine,L-Asparagine]
+
+
+# -----------------------------
+# differential analysis
+# -----------------------------
+newcateg : [condition, timepoint]  # see explanation at the file end
+
+contrasts : [ [L-Cycloserine_T0, Control_T0], # for each pair,last must be control
+              [L-Cycloserine_T2h, Control_T2h] ]     
+              
+              
+# ask myself: all the following as given here ? or as options in argparse ? :        
+              
+abundances:
+  test : KW 
+  
+fractionalcontribs:
+  test: KW 
+    
+isotopologues:
+  max_m_species_output : 4 # all will enter into the analysis though
+  test : KW 
+  
+thresholds:
+  padj: 1
+  absolute_log2FC: 0
+  distance_over_blah : 0 # here pending correct the name
+
+# newcateg: column that is a combination of 2 metadata categories,
+# new category thus generated, is ready for comparison. Example :
+#  Control (a condition) combined with T0 (a timepoint), yields Control_T0
+#  L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
+#  thus now, we are able to compare L-Cyclo_T0 against Control_T0 .
+
+# -------------------- end of config file ---------------------         
+# NOTE: Metabolograms need a separated configuration file
