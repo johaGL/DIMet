@@ -125,9 +125,25 @@ Feel free to contact us so we can help you to make your data a suitable input fo
  
 ### users having IsoCor results as input
 
-Options regarding to detection limit (LOD) and blanks will not have any effect on the analysis. LOD is not provided in the data, and ame is true for blanks. 
+A typical IsoCor results table is described in: https://isocor.readthedocs.io/en/latest/tutorials.html#output-files
+ 
+ Our pipeline transforms its columns into tables, so here the 'Isocor column : DIMet table' relations:
+    - corrected_area : isotopologuesAbsolute  
+    - isotopologue_fraction : isotopologuesProportions
+    - mean\_enrichment :  meanEnrich\_or_fracContrib
+    - (nothing)   : Abundance 
+
+Abundance table is the sum (per metabolite) of IsotopologuesAbsolute, we also perform it automatically, as this column is not present in the input data.     
+    
+Please stick to the example 'toy1' for the names of the tables in the **.yml** file for isocorOutput
+    
+    
+Note:   mean_enrichment (IsoCor) is the same as fractionalContribution (VIB) .
+
+Options regarding to detection limit (LOD) and blanks will not have any effect on the analysis. LOD is not provided in the data, and the same is true for blanks. 
 
 All the other options have effect, those related to internal standard, amount of material, and isotopologues.
+ 
  
  
 ### Metadata
