@@ -10,211 +10,153 @@
 
 Closely related to conventional metabolomics, stable isotope-resolved metabolomics (SIRM) uses an isotope labeled substrate to track specific pathways. From these data, it is possible to compute differences in isotope enrichment, changes in the labeling pattern, or differences in the contribution of nutrients to a metabolite pool, yielding knowledge of the metabolic state [1, 2]. Targeted metabolomics, when combined to transcriptomics, allows to better characterize perturbations within the pathways of interest.  
 
-DIMet supports the analysis of full metabolite abundances and isotopologue contributions, and allows to perform it either in the differential comparison mode or as a time-series analysis. As input, the DIMet accepts three types of measures: a) isotopologues’ contributions, b) fractional contributions, c) full metabolites’ abundances. Specific functions process each of the three types of measures separately:  
+DIMet supports the analysis of full metabolite abundances and isotopologue contributions, and allows to perform it either in the differential comparison mode or as a time-series analysis. As input, the DIMet accepts three types of measures: a) isotopologues’ contributions, b) fractional contributions, c) full metabolites’ abundances. Specific functions process each of the three types of measures separately.
+
+DIMet is intended for downstream analysis in corrected tracer data (corrected for the presence of natural isotopologues). Make sure you that you or your platform provides the output of the correction before using our DIMet pipeline. 
 
 ![schema](imgs/schemaAlone4github.png)
 
 
-### Requirements
+
+##### Table of Contents  
+[Requirements](###Requirements)  
+[Run the Analysis (fast guide):](#Run\ DIMet\ analysis)
+- [Run a quick preparation](##Prepare)  
+- [Get PCA(s)](##Get\ PCA(s))
+- [Get plots](##Get\ plots)
+- [Run Differential analysis](##Differential\ analysis)
+- [..](##Get\ grams)
+- 
+[Into the deep](#Detailed\ guide)
+- [Prepare in depth](##Prepare\ in\ depth)
+
+
+## Requirements
+
 You need a UNIX system, with conda or miniconda3 installed, see [https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
 Then clone DIMet repository in your `$HOME` directory, and set the virtual environment by running (from terminal):
 ```
 cd $HOME
-git clone 
+git clone git@github.com:cbib/DIMet.git
 conda env create --file DIMet/dimet.yml
 conda activate dimet 
 ```
+# Run DIMet Analysis
 
-To visualize the help menu:
+## Prepare
+Three types of input are accepted, as xlsx files:
+- IsoCor output .xlsx files
+- Results provided by the VIB Metabolomics Expertise Center (El-Maven results are shaped in .xlsx files )  
+- 'generic' .xlsx files.
+
+Please see and use the examples we provide [here][examples/readme_examples.md]
+Your data is expected to correspond to one of the three types we can process.  Attach to the example most suited to your data.
+
+For example, if your data is 'generic',  do as shown [here][examples/toy3]
+In any of the three possible scenario, you need two directories: 
+1. data, containing:
+    - the .xlsx file 
+    - a file with the samples description, we call this the _metadata_
+2. a folder with your configuration file (extension .yml)
+
+Regarding the _metadata_, follow the toy examples. For more details check this [Metadata](###Metadata)
+
+Regarding this .yml file we supply good examples that you can use as template, such  [this one][examples/toy1/analysis001/config-1-001.yml]. To double-check the modifications you can use a online editor, such as https://yamlchecker.com/, just copy-paste and edit!
+
+Following the same example, take 
+
+The prepare output consist of different dataframes (by compartment and by )
+
+## Get PCA(s)
+
+In construction
+
+## Get plots
+
+In construction
+
+## Run a differential analysis
+
+In construction
+
+## Get grams
+
+In construction
+
+# Detailed guide
+
+## Prepare in depth
+
+To remind, your data is already the result of the procedure of correcting (the areas or intensities) for the presence of isotopologues in nature. There are several software options (for example, IsoCor, El-Maven, etc) to perform that correction. After correction, you can use our DIMet for the downstream analysis.
+
+We provide advanced options for, check the help:
 ```
-python3 DIMet --help
+python -m DIMet.src.prepare --help
 ```
-
-Take both examples outside of DIMet:
-```
-cd $HOME
-cp -r DIMet/example1 .
-cp -r DIMet/example2 .
-```
-
- (( CAUTION : FROM HERE !!! BIG CHANGES TO COME ))
-Run and explore the examples, before trying your own data and configuration files. 
-Perform a differential analysis using the example1/:
-```
-python3 DIMet --mode prepare --config example1/configs/cc.yml --mywdir example1 
-python3 DIMet --mode diffabund --config example1/configs/cc.yml --mywdir example1 
-```
-
-Sections *Prepare your analysis* and *Run your analysis* will guide you step by step.
-
-## Prepare your analysis
-
-### Create your project folder
-Your project folder must be completely outside of DIMet, with the minimal required structure : 
-```
-MYPROJECT_MYSUFFIX
-├── configs <-- your configuration file 
-│   └── config_MYSUFFIX.yml
-├── data
-│   ├── Abundances_MYSUFFIX.tsv
-│   ├── CorrectedIsotopologues_MYSUFFIX.tsv
-│   └── metadata_MYSUFFIX.csv
-└── results
-```
-
-The `results/` is an empty folder, where your results will be written.
-
-The `data/` folder contains:
-- The Isotopologues Contributions file
-- The total metabolites Abundances file 
-- A metadata, describing the samples
-
-For details about appropriate formatting these three types of files, see Notes.
-
-### Create your configuration file
-
-The `configs` folder contains all your "instructions" for running the analysis. 
-These instructions must be written in a `.yaml` file.
-Example of such a file (any word(s) precedded by `#` is ignored): 
-```
-mywdir : "~/example1/" # the full path of MYPROJECT
-datadi : "data/"
-extrulist_fi : "mets_toexclude.csv" 
-
-names_compartments : # set abreviations (better), or rewrite the same compartment names
-  Cell_extracts : "cell"
-  Medium : "med"
-  
-namesuffix : "cycloser"
-metadata_fi : "metadata_cycloser.csv"
-
-# global configuration 
-levelstime : ["T0", "T1h","T2h", "T4h","T6h","T24h"]
-conditions : ["Control", "L-Cycloserine"] # first must be control
-name_abundances : "rawAbundances"
-name_isotopologue_contribs : "CorrectedIsotopologues"
-
-# Differential Analysis configuration
-max_m_species : 4
-whichtest : "Tt"
+### for all users
+You can:
+- normalize by the amount of material (number of cells, tissue weight): setting the path to the file in your *.yml* configuration. The file must be like [this one][examples/toy2/data/nbcells-or-amountOfMaterial.csv], and the first column must contain the same names as in metadata 'former\_name'.
+- normalize by an internal standard (present in your data) at choice: using the advanced option `--use_internal_standard`.
 
 
-newcateg : ["condition", "timepoint"]  # example 'Control_T0'
-
-contrasts : [ ['L-Cycloserine_T0', 'Control_T0'], # for each pair,last must be control
-              ['L-Cycloserine_T6h', 'Control_T6h'],
-              ['L-Cycloserine_T24h', 'Control_T24h'] ]
-```
-
-See Notes for a detailed explanation, which will help you to write down your own configuration file.
-Please check the full configuration files located in both example folders, which are provided with our DIMet pipeline.
-These files give you nice examples of how to include the parameters for any of the time series plots and `abundplots` in your configuration file. 
-
-## Run your analysis
-
-First explore your isotopologues  with the mode `isotopologue_preview`. In this way the proportions (which are fractions: 0.6, 0.3, 0.07, etc, that must sum up to 1 for a given metabolite) are further understood across your data. This is relevant if to detect any aberrant data related to isotopologues proportions. Will produce "isotop\_preview/minextremesIso.csv" file, this file being informative for setting the "isos\_detect\_cutoff" that can be employed in combination to prepare mode. 
-
-DIMet `--mode` options are:
-
-- `prepare` : need to be executed before any other type of analysis, because it checks your input files and creates tmp/ folder with clean, compartment specific versions of your input files.
-- `PCA` : principal components analysis
-- `diffabund` : differential abundances of metabolites and isotopologues
-- `abundplots` : comparative bars of isotopologue's and total metabolites abundances
-- `timeseries_isotopologues` : isotopologues' stacked bars and
-- `timeseries_fractional` : fractional contributions line-plots
 
 
-So the mode `prepare` is compulsory to be the first, the others can be made in any desired order.
-
-```
-python3 DIMet --mode prepare --config example1/configs/cc.yml --mywdir example1 
-python3 DIMet --mode diffabund --config example1/configs/cc.yml --mywdir example1 
-```
-
-### Notes
-
-**Regarding the project folder**
-
-MYSUFFIX is just a short word describing your experiment.
-
-You will notice in the examples provided by our pipeline, that there is also a folder 'smpls_raw/' which is an example of data as received by the metabolomics platform, but that has been properly formatted:
-- Rows must be metabolites, or the isotopologues.
-- Columns must be the samples. 
-- A correct samples naming: unambiguous and the most detailed possible.
-All three requirements must be assured manually or by custom bioiformatic scripts ('example1/smpls\_raw/formatter\_be.py' is such an example). 
-
-**Regarding the metadata file**
-
-Here the first lines of the minimal required metadata columns, which must be saved in a .csv (comma delimited) file : 
-
-| sample            | timepoint | condition | timenum | short_comp |
-|-------------------|-----------|-----------|-------|------------|
-| Control\_cell\_T0-1 | T0        | Control   | 0     | cell       |
-| Control\_cell\_T0-2 | T0        | Control   | 0     | cell       |
-| Control\_cell\_T0-3 | T0        | Control   | 0     | cell       |
-
-Column names in metadata must be exactly: sample, timepoint, condition, short\_comp, timenum.
-The column *timenum* contains only the number, without letters ("T", "t", "s", "h" etc) , only numeric data, of your timepoint column.
+### Users having VIB results as input:
+As shown in the example 'toy2' [here][],  give the names of the sheets in your excel file as indicated. 
+You can use the advanced options (appearing as 'optional arguments' in the help menu). All these options can be modified. 
+Our pipeline performs, by default:
+- the subtraction of the means of the blanks across all metabolites' abundance for each sample.
+- seting to NaN the values of abundance that are under the limit of detection (LOD).
+- excluding metabolites whose abundance values across all samples are under LOD (excluded then from all tables by default).
+- stomping fractions values to be comprised between 0 and 1 (some negative and some superior to 1 values can occur after )
+- excluding metabolites
 
 
-Please do not use underscore `_` inside any of the columns other than 'sample' ( 'T\_0' not! , 'Control\_oxy' not!). 
-DIMet uses underscore as a separator to join and split terms, depending on the needs.
-The 'sample' column in metadata must match perfectly with the column names of your .tsv files
-The column ordering is free. 
+#### Users having generic data
 
-**Regarding the configuration file**
+We have created this option for those formats that are not the other two scenarios, so your data is expectd to be in the form of a .xlsx file with sheets (similar as in VIB results):
+- sheets corresponding to isotopologue Proportions (when available) and isotopologue Absolute values must have isotopologues as columns and samples as rows.
+- sheets corresponding to abundance and mean enrichment  must have metabolites as columns and samples as rows.
 
-The yaml example above has two sections: 
+If you only have isotopologue Absolute values, but not the other tables, do not worry, we automatically generate them for you !
 
-*global configuration*:
-* `extrulist_fi` : a file which contains metabolites that you decided to exclude owing to bad quality or technical issues. Comma delimited .csv
-* `names_compartments` : if available, fill them all. If no information about compartment, set to `cell : "cell"`
-* `namesuffix` : the same short word to describe your experiment that you used (MYSUFFIX) for file names
-* `levelstime` : the order of your time points
-* `conditions` : your conditions or genotypes or treatments, first must be the control
-* `name_abundances` and `name_isotopologue_contribs` : The names of the files must be given without suffix nor extension
+Feel free to contact us so we can help you to make your data a suitable input for DIMet.
+ 
+### users having IsoCor results as input
 
-*Differential analysis configuration*:
-* `max_m_species` : in the case of isotopologues the maximal n+x species to be subjected to comparison
-* `which_test` : we support currently the parametric t-test "Tt" and the non-parametric Wilcoxon-Mann-Whitney test "MW".
-By default, we apply Benjamini-Hochberg procedure to correct for multiple testing.
+Options regarding to detection limit (LOD) and blanks will not have any effect on the analysis. LOD is not provided in the data, and ame is true for blanks. 
 
-* `newcateg` : column that is a combination of 2 or more metadata categories. 
-	The new category thus generated, is ready for comparison to its counterpart/opposite, example :
-		
-		- Control (a condition) combined with T0 (a timepoint), yields Control_T0.  
-		
-		- L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0.
-		
-		
-		So now, we are able to compare L-Cyclo_T0 against Control_T0.
-You only have to set the columns to combine to create that new category.
-		
-* `contrasts` : all your comparisons to be performed, in the form of a list of pairs, where each pair is a comparison.
-	For each pair, the last element must be the control.	
+All the other options have effect, those related to internal standard, amount of material, and isotopologues.
+ 
+ 
+### Metadata
 
-A very common error is to use 'tab' to create your indentations in the yaml file, but this can make the file unreadable. To create indentations, use spaces instead.
+Here the first lines of the required metadata table, which must be a .csv (comma delimited) file : 
 
-**Files' format and extensions**:
+| sample            | timepoint | condition | timenum | short_comp  |  former_name |
+|-------------------|-----------|-----------|-------|------------|--------------- |
+| Control\_cell\_T0-1 | T0        | Control   | 0     | cell       | MCF001089_TD01 |
+| Control\_cell\_T0-2 | T0        | Control   | 0     | cell       | MCF001089_TD02 |
+| Control\_cell\_T0-3 | T0        | Control   | 0     | cell       |  MCF001089_TD03|
 
+Column names in metadata must be exactly: sample, timepoint, condition, short\_comp, timenum and former\_name.
+The column **former\_name** has the names of the samples **as given in your data**. If the samples' names in your data are already as you need, former\_name and sample can have the same values in the metadata table. 
+Note: This permits you to obtain sample names that have meaning for your results.
 
-Excel files are not allowed, as sheets organization is too customized. Please imitate the style of the examples, giving allowed format and extension to files:
-- **.tsv** (tabular delimited), for: 
-    * isotopologues contributions 
-    * metabolites abundances
-    * and, if available, the fractional contributions
--  **.csv** (comma delimited) for:
-    * metadata 
-    * table of metabolites to exclude
-    
-See example1/ and example2/
-
+The column *timenum* contains only the number of the timepoint (this means, without letters ("T", "t", "s", "h" etc) nor any other symbol) for example 2, 10, 100. Make sure your time points are in the same units.
+ 
+ 
+ 
+ 
 ### References
 
 [1] Bruntz, R. C., Lane, A. N., Higashi, R. M., & Fan, T. W. M. (2017). Exploring cancer metabolism using stable isotope-resolved metabolomics (SIRM). Journal of Biological Chemistry, 292(28), 11601-11609.
 
 [2] Buescher, J. M. et al. A roadmap for interpreting (13)C metabolite labeling patterns from cells. Curr Opin Biotechnol 34, 189–201, https://doi.org/10.1016/j.copbio.2015.02.003 (2015).
+
+[3] Guyon J, Fernandez‐Moncada I, Larrieu C, M, Bouchez C, L, Pagano Zottola AC, Galvis J,...& Daubon T, (2022). Lactate dehydrogenases promote glioblastoma growth and invasion via a metabolic symbiosis, EMBO Molecular Medicine, e15343
+
 
 
 

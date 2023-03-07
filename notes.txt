@@ -89,6 +89,10 @@ complete readme:
 Say thanks to Joris and Thomas Daubon's team for their data, cite joris in the readme ! 
     """
     
+    
+** for myself ** : do not modify NEVER toy configurations in the D..../examples/,  but in *HOME*, and replace them each time they are modified at home   
+
+ 
 ---------------------
 Do separate readmes for each module:
 ---------
