@@ -1,12 +1,19 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Prepare tables, 
+user defined config file and args
+
+@author: johanna
+"""
 import os
 import sys
-sys.path.append(os.path.dirname(__file__))
 import argparse
-import functions_general as fg
 import pandas as pd
 import numpy as np
 import re
-
+sys.path.append(os.path.dirname(__file__))
+import functions_general as fg
 
 
 def prep_args():

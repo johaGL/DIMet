@@ -9,7 +9,6 @@ Created on  Nov 15  2022
 
 import os
 import sys
-sys.path.append(os.path.dirname(__file__))
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,8 +16,10 @@ from sklearn.decomposition import PCA
 import seaborn as sns
 from scipy import stats
 import argparse
-import functions_general as fg
 from matplotlib.patches import Ellipse
+sys.path.append(os.path.dirname(__file__))
+import functions_general as fg
+
 
 
 
@@ -30,7 +31,10 @@ def pca_args():
                         help="configuration file in absolute path")
 
     parser.add_argument('--draw_ellipses', action=argparse.BooleanOptionalAction, default=False,
-                        help="draw ellipse for each group/cluster in the pca scatter plot")
+                        help="draw ellipse for each group in the pca scatter plot")
+
+    parser.add_argument('--run_iris_demo', action=argparse.BooleanOptionalAction, default=False,
+                        help="draws full pca with ellipses by default, in iris data")
 
     return parser
 
@@ -67,30 +71,28 @@ def eigsorted(cov):
 
 def clean_reduce_datadf_4pca(df, metadatasub):
     df = df[metadatasub['sample']]
-    df = df.loc[~(df == 0).all(axis=1)]  # drop zero all rows
+    df = df.loc[~(df == 0).all(axis=1)]  # drop 'zero all' rows
     df = df.fillna(df[df > 0].min().min())
     df = df.replace(0, df[df > 0].min().min())
-    df_red = fg.give_reduced_df(df, ddof=0) # reduce rows
-    if np.isinf(np.array(df_red)).any(): # Inf rescue with df
+    df_red = fg.give_reduced_df(df, ddof=0)  # reduce rows
+    if np.isinf(np.array(df_red)).any():  # avoid Inf error
         return df
     else:
         return df_red
 
 
-
 def compute_pca(mymat, metadata):
 
-    desdim = min(metadata.shape[0], mymat.shape[0]) # min(nb_samples, nb_features)
+    dims = min(metadata.shape[0], mymat.shape[0]) # min(nb_samples, nb_features)
 
     X = np.transpose(np.array(mymat))
 
-    pca = PCA(n_components=desdim)
-
+    pca = PCA(n_components=dims)
 
     pc = pca.fit_transform(X)
 
     pc_df = pd.DataFrame(data=pc,
-                         columns=['PC' + str(i) for i in range(1, desdim + 1)])
+                         columns=['PC' + str(i) for i in range(1, dims + 1)])
     pc_df = pc_df.assign(sample=mymat.columns)
 
     pc_df = pd.merge(pc_df, metadata, on="sample")
@@ -98,7 +100,7 @@ def compute_pca(mymat, metadata):
     var_explained_df = pd.DataFrame({
         # 'var': pca.explained_variance_ratio_,
         'var': pca.explained_variance_ratio_ * 100,
-        'PC': ['PC' + str(i) for i in range(1, desdim + 1)]})
+        'PC': ['PC' + str(i) for i in range(1, dims + 1)]})
 
     return pc_df, var_explained_df
 
@@ -195,41 +197,48 @@ def run_steps_pca(type_measure: str, table_prefix: str, metadatadf: pd.DataFrame
         meta_sub = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{out_path}results/prepared_tables/{table_prefix}--{co}--{suffix}.tsv'
         measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
-        mat = clean_reduce_datadf_4pca(measurements, meta_sub)
-        pc_df, dfvare = compute_pca(mat, meta_sub)
-        pc_df = pc_df.assign(col_label=pc_df["sample"].str.replace(co, ""))
-        title = f'{type_measure} {co} {suffix}'
-        if args.draw_ellipses:
-            # with label
-            save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "col_label",
-                               out_plot_dir, "timepoint")
-            # no label
-            save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "",
-                         out_plot_dir, "timepoint")
-        else:
-            # with label
-            save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "col_label",
-                              out_plot_dir)
-            # no label
-            save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "",
-                              out_plot_dir)
 
         timepoints = meta_sub['timepoint'].unique().tolist()
-        if len(timepoints) > 1:
-            for ti in timepoints:
-                title_ti = f'{type_measure} {co} {ti} {suffix}'
-                meta_ti = meta_sub.loc[(meta_sub['short_comp'] == co) & (meta_sub['timepoint'] == ti), :]
-                mat_ti = clean_reduce_datadf_4pca(measurements, meta_ti)
-                pc_df, dfvare = compute_pca(mat_ti, meta_ti)
-                # always with labels
-                pc_df = pc_df.assign(col_label=pc_df["sample"].str.replace(co, ""))
-                save_pca_plots(title_ti, pc_df, dfvare, "condition", "condition", "col_label",
-                             out_plot_dir)
+
+        if len(timepoints) >= 2: # worthed
+            mat = clean_reduce_datadf_4pca(measurements, meta_sub)
+            pc_df, dfvare = compute_pca(mat, meta_sub)
+            pc_df = pc_df.assign(col_label=pc_df["sample"].str.replace(co, ""))
+            title = f'{type_measure} {co} {suffix}'
+            if args.draw_ellipses:
+                # with label
+                save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "col_label",
+                                   out_plot_dir, "timepoint")
+                # no label
+                save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "",
+                             out_plot_dir, "timepoint")
+            else:
+                # with label
+                save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "col_label",
+                                  out_plot_dir)
+                # no label
+                save_pca_plots(title, pc_df, dfvare, "timepoint", "condition", "",
+                                  out_plot_dir)
         # end if
+
+        # valid for any timepoints length:
+        for ti in timepoints:
+            title_ti = f'{type_measure} {co} {ti} {suffix}'
+            meta_ti = meta_sub.loc[(meta_sub['short_comp'] == co) & (meta_sub['timepoint'] == ti), :]
+            mat_ti = clean_reduce_datadf_4pca(measurements, meta_ti)
+            pc_df, dfvare = compute_pca(mat_ti, meta_ti)
+            # always with labels
+            pc_df = pc_df.assign(col_label=pc_df["sample"].str.replace(co, ""))
+            if args.draw_ellipses:
+                save_pca_plots(title_ti, pc_df, dfvare, "condition", "condition", "col_label",
+                               out_plot_dir, "condition")
+            else:
+                save_pca_plots(title_ti, pc_df, dfvare, "condition", "condition", "col_label",
+                               out_plot_dir)
     # end for
 
 
-def run_pca_in_iris() -> None:
+def run_pca_in_iris(outdir) -> None:
     iris = sns.load_dataset("iris")
     sns.relplot(data=iris, x="sepal_width", y="petal_width",
                 hue="species")
@@ -242,7 +251,9 @@ def run_pca_in_iris() -> None:
     fakedf.columns = [str(i) for i in iris.index]
     pc_df, dfvare = compute_pca(fakedf, fakemeta)
     save_pca_plots("Iris", pc_df, dfvare,
-                 "species", "species", "", "./Iris", "species")
+                 "species", "species", "", outdir, "species")
+
+
 
 
 if __name__ == "__main__":
@@ -256,13 +267,16 @@ if __name__ == "__main__":
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
+    if args.run_iris_demo:
+        run_pca_in_iris(out_path+"results/plots/")
+
     # tpd : tables prefixes dictionary
     tpd = fg.clean_tables_names2dict(f'{out_path}results/prepared_tables/TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
     # separately using fracContrib and abundance for the pca plots
 
-    # # pca's for abund
+    # pca's for abund
 
     abund_tab_prefix = tpd['name_abundance']
     out_plot_dir_pca_abun = out_path + "results/plots/pca_Abundance/"
