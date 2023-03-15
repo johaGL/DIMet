@@ -3,12 +3,10 @@ import sys
 sys.path.append(os.path.dirname(__file__))
 import argparse
 import functions_general as fg
-import shutil
-import yaml
 import pandas as pd
 import numpy as np
 import re
-import warnings
+
 
 
 def prep_args():
@@ -694,7 +692,7 @@ def perform_type_prep(args, confidic,  meta_path, targetedMetabo_path, amount_ma
     output_plots_dir = out_path + "results/plots/preview/"
     fg.detect_and_create_dir(output_plots_dir)
 
-    output_tabs_dir = out_path + "results/prepared_tables/"
+    output_tabs_dir = out_path + "results/prepared_tables/", ""
     fg.detect_and_create_dir(output_tabs_dir)
 
     if confidic['typeprep'] == 'IsoCor_output_prep':

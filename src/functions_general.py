@@ -93,6 +93,21 @@ def isotopologues_meaning_df(isotopologues_full_list):
     return df
 
 
+def clean_tables_names2dict(filename) -> dict:
+    """
+    filename : table created by the module prepare.py:
+       {out_path}/results/prepared_tables/TABLESNAMES.csv
+       comma delimited, no headers
+    """
+    df = pd.read_csv(filename, header=None, index_col=None)
+    clean_tables_d = dict()
+    for i, row in df.iterrows():
+        name_topic = df.iloc[i, 0]
+        suffix_name = df.iloc[i, 1]
+        clean_tables_d[name_topic] = suffix_name
+
+    return clean_tables_d
+
 def prepare4contrast(idf, ametadata, newcateg, contrast):
     """
     newcateg : example :  ['condition', 'timepoint' ]
