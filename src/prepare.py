@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Prepare tables, 
+Prepare tables,
 user defined config file and args
 
 @author: johanna

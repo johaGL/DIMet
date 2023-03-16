@@ -21,9 +21,6 @@ sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 
 
-
-
-
 def pca_args():
     parser = argparse.ArgumentParser(prog="python -m DIMet.src.pca",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -37,7 +34,6 @@ def pca_args():
                         help="draws full pca with ellipses by default, in iris data")
 
     return parser
-
 
 
 def make_ellipse(mean, cov,  level=0.95, color=None):
@@ -188,7 +184,7 @@ def save_pca_plots(title, pc_df, var_explained_df, col1, col2, pointlabels,
 
 
 def run_steps_pca(type_measure: str, table_prefix: str, metadatadf: pd.DataFrame,
-               out_plot_dir: str, confidic: dict, args):
+               out_plot_dir: str, confidic: dict, args) -> None:
     out_path = os.path.expanduser(confidic['out_path'])
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
@@ -252,8 +248,6 @@ def run_pca_in_iris(outdir) -> None:
     pc_df, dfvare = compute_pca(fakedf, fakemeta)
     save_pca_plots("Iris", pc_df, dfvare,
                  "species", "species", "", outdir, "species")
-
-
 
 
 if __name__ == "__main__":

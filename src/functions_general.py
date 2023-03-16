@@ -108,15 +108,22 @@ def clean_tables_names2dict(filename) -> dict:
 
     return clean_tables_d
 
-def prepare4contrast(idf, ametadata, newcateg, contrast):
+
+def prepare4contrast(idf, ametadata, grouping, contrast):
     """
-    newcateg : example :  ['condition', 'timepoint' ]
+    grouping : example :  ['condition', 'timepoint' ]
+          if (for a sample)  condition = "treatment" and  timepoint = "t12h",
+          then newcol = "treatment_t12h"
     contrast : example : ["treatment_t12h", "control_t12h" ]
-    creates column "newcol" : aa_bb <as in newcateg> suitable to contrast
     """
     cc = ametadata.copy()
-    l_ = (ametadata[newcateg[0]] + "_" + ametadata[newcateg[1]]).tolist()
-    cc["newcol"] = l_
+    if len(grouping) > 1:
+        cc = cc.assign(newcol=['' for i in range(cc.shape[0])])
+        for i, row in cc.iterrows():
+            elems = row[grouping].tolist()
+            cc.at[i, "newcol"] = "_".join(elems)
+    else:
+        cc = cc.assign(newcol=cc[grouping])
     metas = cc.loc[cc["newcol"].isin(contrast), :]
     newdf = idf[metas["sample"]]
     return newdf, metas
