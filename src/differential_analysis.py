@@ -23,19 +23,33 @@ from distrib_fit_fromProteomix import compute_z_score, find_best_distribution, c
    # give_coefvar_new, give_geommeans_new, give_ratios_df
 
 
-
 def diff_args():
     parser = argparse.ArgumentParser(prog="python -m DIMet.src.differential_analysis",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
 
+    # Before reduction and gmean, way to replace zeros:
+    parser.add_argument("--abundance_replace_zero_with", default="min", type=str, help="min | min/n | VALUE")
+
+    parser.add_argument( "--meanEnrichOrFracContrib_replace_zero_with", metavar="ME-FC-RZW",
+                        default="min", type=str,
+                        help="min | min/n | VALUE")
+
+    parser.add_argument("--isotopologueProp_replace_zero_with", default="min", type=str,
+                        help="min | min/n | VALUE")
+
+    parser.add_argument("--isotopologueAbs_replace_zero_with", default="min", type=str,
+                        help="min | min/n | VALUE")
+
+    # by default include all the types of measurements
     parser.add_argument('--abundances', action=argparse.BooleanOptionalAction, default=True)
 
-    parser.add_argument('--meanEnrichment_or_fractionalContribC',
+    parser.add_argument('--meanEnrich_or_fracContrib',
                         action=argparse.BooleanOptionalAction, default=True)
 
     parser.add_argument('--isotopologues', action=argparse.BooleanOptionalAction, default=True)
+
 
     parser.add_argument("--qualityDistanceOverSpan", default=-0.3, type=float,
                         help="For each metabolite, for samples (x, y)  the\
@@ -125,7 +139,7 @@ def calc_reduction(df, metad4c, selected_contrast):
     ddof = 0  # for compute reduction
     df4c = df[metad4c['sample']]
 
-    df4c = give_reduced_df(df4c, ddof)
+    df4c = fg.give_reduced_df(df4c, ddof)
 
     df_orig_vals = renaming_original_col_sams(df[metad4c['sample']])
 
@@ -138,10 +152,10 @@ def calc_ratios(df4c, metad4c, selected_contrast):
     c_interest = selected_contrast[0]
     c_control = selected_contrast[1]
     # geometric means
-    df4c, geominterest, geomcontrol = give_geommeans_new(df4c, metad4c,
+    df4c, geominterest, geomcontrol = fg.give_geommeans_new(df4c, metad4c,
                                                          'newcol', c_interest, c_control)
 
-    df4c = give_ratios_df(df4c, geominterest, geomcontrol)
+    df4c = fg.give_ratios_df(df4c, geominterest, geomcontrol)
 
     return df4c
 
@@ -166,6 +180,7 @@ def compute_span_incomparison(df, metadata, contrast):
     for i in df.index.values:
         df.loc[i, 'span_allsamples'] = max(selcols_df.loc[i,:]) - min(selcols_df.loc[i,:])
     return df
+
 
 
 def auto_detect_tailway(good_df, best_distribution, args_param):
@@ -277,9 +292,8 @@ def outStat_df(newdf, metas, contrast, whichtest):
             elif whichtest == "Tt":
                 stat_result, pval_result = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
 
-            elif whichtest == "K":
+            elif whichtest == "KW":
                 stat_result, pval_result = scipy.stats.kruskal(vInterest, vBaseline)
-
 
             stare.append(stat_result)
             pval.append(pval_result)
@@ -288,7 +302,6 @@ def outStat_df(newdf, metas, contrast, whichtest):
             pval.append(np.nan)
 
         # end if
-
     # end for
     prediffr = pd.DataFrame(data={"metabolite": mets, "stat": stare, "pvalue": pval})
     return prediffr
@@ -315,7 +328,7 @@ def divide_before_stats(ratiosdf, quality_dist_span):
     try:
         quality_dist_span = float(quality_dist_span)
         good_df = ratiosdf.loc[(ratiosdf['distance/span'] >= quality_dist_span) &
-                        (ratiosdf['has_replicates'] == 1) ]
+                        (ratiosdf['has_replicates'] == 1) ] # has_replicates: 0 true, 1 false
 
         undesired_mets = set(ratiosdf.index) - set(good_df.index)
         bad_df = ratiosdf.loc[list(undesired_mets)]
@@ -335,11 +348,10 @@ def complete_columns_for_bad(bad_df, ratiosdf):
     return bad_df
 
 
-def filter_diff_results(ratiosdf, padj_cutoff, log2FC_cutoff, distance_span):
+def filter_diff_results(ratiosdf, padj_cutoff, log2FC_abs_cutoff):
     ratiosdf['abslfc'] = ratiosdf['log2FC'].abs()
     ratiosdf = ratiosdf.loc[( ratiosdf['padj'] <= padj_cutoff ) &
-                        ( ratiosdf['abslfc'] >= log2FC_cutoff ) &
-                        ( ratiosdf['distance/span'] >= distance_span ), :]
+                        ( ratiosdf['abslfc'] >= log2FC_abs_cutoff ), :]
     ratiosdf = ratiosdf.drop(columns=['abslfc'])
     return ratiosdf
 
@@ -355,28 +367,118 @@ def save_each_df(good_df, bad_df, outdiffdir,
     return "saved to results"
 
 # --
+def validate_zero_repl_arg(zero_repl_arg) -> None:
+    isvalid = False
+    if zero_repl_arg == "min":
+        isvalid = True
+    elif zero_repl_arg.startswith("min/"):
+        try:
+            float(str(zero_repl_arg.split("/")[1]))
+            isvalid = True
+        except ValueError:
+            pass
+    else:
+        try:
+            float(args.zero_repl_arg)
+            isvalid = True
+        except ValueError:
+            pass
 
-def whatever_the_table(df, metadatadf, out_file_name, confidic, args):
-    quality_dist_span = args.qualityDistanceOverSpan
-    print(quality_dist_span)
-    huge_df = 2
-    return huge_df
+    assert isvalid, "Your value for zero replacement is not valid"
 
 
-def blah_abund(clean_tables_path, table_prefix, metadatadf, out_diff_abun, confidic, args):
-    test_abu = confidic['statistical_test']['abundances']
+def arg_repl_zero2value(argum_zero_rep, df) -> float:
+    if argum_zero_rep.startswith("min"):
+        try:
+            divisor_min = float(argum_zero_rep.split("/")[1])
+        except IndexError:
+            divisor_min = 1
+        value_out = df.min().min() / divisor_min
+    else:
+        value_out = float(args.zero_repl_arg)
+    return value_out
+
+# --
+
+def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
+                       out_file_elements: dict, confidic: dict, whichtest:str,  args):
+
+    out_dir = out_file_elements['odir']
+    prefix = out_file_elements['prefix']
+    co = out_file_elements['co']
+    suffix = out_file_elements["suffix"]
+    # out_file_elements[]
+
+    fg.detect_and_create_dir(f"{out_dir}/extended/")
+    fg.detect_and_create_dir(f"{out_dir}/filtered/")
+
+    for contrast in confidic['comparisons']:
+        strcontrast = '_'.join(contrast)
+        df4c, metad4c = fg.prepare4contrast(measurements, metadatadf,
+                                       confidic['grouping'], contrast)
+        # delete rows being zero everywhere
+        df4c = df4c[(df4c.T != 0).any()]
+        # sort them by 'newcol' the column created by prepare4contrast
+        metad4c = metad4c.sort_values("newcol")
+        df4c = calc_reduction(df4c, metad4c, contrast)
+        df4c = fg.countnan_samples(df4c, metad4c)  # adds nan_count_samples column
+        df4c = distance_or_overlap(df4c, metad4c, contrast)
+        df4c = compute_span_incomparison(df4c, metad4c, contrast)
+        df4c['distance/span'] = df4c.distance.div(df4c.span_allsamples)
+        ratiosdf = calc_ratios(df4c, metad4c, contrast)
+        ratiosdf, df_bad = divide_before_stats(ratiosdf, args.qualityDistanceOverSpan)
+        if whichtest == "disfit":
+            out_histo_file = f"{out_dir}/extended/{prefix}-{co}-{suffix}-{strcontrast}_fitdist_plot.pdf"
+
+            ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
+            ratiosdf = compute_padj_version2(ratiosdf, 0.05, "fdr_bh")
+        elif whichtest == "permutations":
+            print("to develop") # TODO: add what I did in rough code
+        else:
+            extract_test_df = outStat_df(ratiosdf, metad4c, contrast, whichtest)
+            extract_test_df = compute_padj_version2(extract_test_df, 0.05, "fdr_bh")
+            extract_test_df.set_index("metabolite", inplace=True)
+            ratiosdf = pd.merge(ratiosdf, extract_test_df, left_index=True, right_index=True)
+
+        ratiosdf["log2FC"] = np.log2(ratiosdf['ratio'])
+        df_bad = complete_columns_for_bad(df_bad, ratiosdf) #HERE
+        if df_bad.shape[0] >= 1:
+            ratiosdf = pd.concat([ratiosdf, df_bad])  # HERE
+
+        ratiosdf["compartment"] = co
+
+        ratiosdf.to_csv(f"{out_dir}/extended/{prefix}-{co}-{suffix}--{strcontrast}--{whichtest}.tsv",
+                        index_label="metabolite", header=True, sep='\t')
+        #HERE :
+        filtered_df = filter_diff_results(ratiosdf,
+                                          confidic['thresholds']['padj'],
+                                          confidic['thresholds']['absolute_log2FC'])
+        filfi = f"{out_dir}/filtered/{prefix}-{co}-{suffix}--{strcontrast}--{whichtest}_filter.tsv"
+        filtered_df.to_csv(filfi, index_label="metabolite", header=True, sep='\t')
+
+    return 0
+
+
+def compute_on_abund(clean_tables_path, table_prefix, metadatadf,  confidic, args):
+    out_diff_abun = out_path + "results/differential_analysis/abundance/"
+    fg.detect_and_create_dir(out_diff_abun)
+    whichtest = confidic['statistical_test']['abundances']
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
     # dynamically open the file based on prefix, compartment and suffix:
     for co in compartments:
-        meta_sub = metadatadf.loc[metadatadf['short_comp'] == co, :]
+        meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
-        df, meta_sub = fg.prepare4contrast(measurements, meta_sub,
-                                           confidic['grouping'], confidic['contrasts'])
-    out_file_name = 44
-    huge_df = whatever_the_table(df, meta_sub, out_file_name, confidic, args )
+        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0) # compartment specific
+        val_instead_zero = arg_repl_zero2value(args.abundance_replace_zero_with, measurements)
+        measurements = measurements.replace(to_replace=0, value=val_instead_zero)
+        out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix, 'co': co, "suffix":suffix}
+        huge_df = whatever_the_table(measurements, meta_co,
+                                     out_file_elems,
+                                     confidic, whichtest, args)
+
     return 0
+
 
 
 
@@ -392,30 +494,37 @@ if __name__ == "__main__":
     clean_tables_path = out_path + "results/prepared_tables/"
 
     # tpd : tables prefixes dictionary
+
     tpd = fg.clean_tables_names2dict(f'{clean_tables_path}TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
 
-    print(confidic['contrasts'])
-    # abu
-    abund_tab_prefix = tpd['name_abundance']
-    out_diff_abun = out_path + "results/differential_analysis/abundance/"
-    fg.detect_and_create_dir(out_diff_abun)
-    blah_abund(clean_tables_path, abund_tab_prefix, metadatadf, out_diff_abun, confidic, args)
+
+    validate_zero_repl_arg(args.meanEnrichOrFracContrib_replace_zero_with) # TODO use
+    validate_zero_repl_arg(args.isotopologueProp_replace_zero_with) # TODO use
+    validate_zero_repl_arg(args.isotopologueAbs_replace_zero_with) # TODO use
 
 
-    # ME or FC
-    fraccon_tab_prefix = tpd['name_meanE_or_fracContrib']
+    # 1- abu
+    if args.abundances:
+        abund_tab_prefix = tpd['name_abundance']
+        compute_on_abund(clean_tables_path, abund_tab_prefix, metadatadf,  confidic, args)
 
-    # ii
-    isos_abs_tab_prefix = tpd['name_isotopologue_abs']
-    if isos_abs_tab_prefix == "None":  # is string because prepare.py did it
-        print("fun in prop")
-        # run here the function on proportions
-        isos_prop_tab_prefix = tpd['name_isotopologue_prop']
-    else:
-        print("fun on absolutes")
-        # run here the function on absolute vals
+    # 2- ME or FC
+    if args.meanEnrich_or_fracContrib:
+        fraccon_tab_prefix = tpd['name_meanE_or_fracContrib']
+        # ...
+
+    # 3- isotopologues
+    if args.isotopologues:
+        isos_abs_tab_prefix = tpd['name_isotopologue_abs']
+        if isos_abs_tab_prefix == "None":  # is string because prepare.py did it
+            print("fun in prop")
+            # run on proportions
+            isos_prop_tab_prefix = tpd['name_isotopologue_prop']
+        else:
+            print("fun on absolutes")
+            # run on absolute vals
 
         # for each of these make a separate function :
     #1 -abundance : allows all tests

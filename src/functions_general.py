@@ -232,7 +232,6 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     """
     output: df, str, str
     """
-    print("give GEO")
 
     sams_interest = metad4c.loc[metad4c['newcol'] == c_interest, "sample"]
     sams_control = metad4c.loc[metad4c['newcol'] == c_control, "sample"]
@@ -257,7 +256,6 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
 
 
 def give_ratios_df(df1, geomInterest, geomControl):
-    print("give RATIO")
     df = df1.copy()
     df = df.assign(ratio=[np.nan for i in range(df.shape[0])])
     for i, row in df1.iterrows():
