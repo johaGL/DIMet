@@ -1,14 +1,19 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Prepare tables,
+user defined config file and args
+
+@author: johanna
+"""
 import os
 import sys
-sys.path.append(os.path.dirname(__file__))
 import argparse
-import functions_general as fg
-import shutil
-import yaml
 import pandas as pd
 import numpy as np
 import re
-import warnings
+sys.path.append(os.path.dirname(__file__))
+import functions_general as fg
 
 
 def prep_args():
@@ -411,7 +416,7 @@ def compute_abund_from_absolute_isotopol(df, metabos_isos_df):
     for m in metabos_uniq:
         isos_here = metabos_isos_df.loc[metabos_isos_df['metabolite'] == m, 'isotopologue_name']
         sub_df = df.loc[isos_here, :]
-        sub_df_sum = sub_df.sum(axis=0, skipna=False)
+        sub_df_sum = sub_df.sum(axis=0, skipna=False) # False makes sure that, if all values nan, sum = nan
         abundance.loc[m, :] = sub_df_sum
     return abundance.T
 

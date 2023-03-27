@@ -93,15 +93,37 @@ def isotopologues_meaning_df(isotopologues_full_list):
     return df
 
 
-def prepare4contrast(idf, ametadata, newcateg, contrast):
+def clean_tables_names2dict(filename) -> dict:
     """
-    newcateg : example :  ['condition', 'timepoint' ]
+    filename : table created by the module prepare.py:
+       {out_path}/results/prepared_tables/TABLESNAMES.csv
+       comma delimited, no headers
+    """
+    df = pd.read_csv(filename, header=None, index_col=None)
+    clean_tables_d = dict()
+    for i, row in df.iterrows():
+        name_topic = df.iloc[i, 0]
+        suffix_name = df.iloc[i, 1]
+        clean_tables_d[name_topic] = suffix_name
+
+    return clean_tables_d
+
+
+def prepare4contrast(idf, ametadata, grouping, contrast):
+    """
+    grouping : example :  ['condition', 'timepoint' ]
+          if (for a sample)  condition = "treatment" and  timepoint = "t12h",
+          then newcol = "treatment_t12h"
     contrast : example : ["treatment_t12h", "control_t12h" ]
-    creates column "newcol" : aa_bb <as in newcateg> suitable to contrast
     """
     cc = ametadata.copy()
-    l_ = (ametadata[newcateg[0]] + "_" + ametadata[newcateg[1]]).tolist()
-    cc["newcol"] = l_
+    if len(grouping) > 1:
+        cc = cc.assign(newcol=['' for i in range(cc.shape[0])])
+        for i, row in cc.iterrows():
+            elems = row[grouping].tolist()
+            cc.at[i, "newcol"] = "_".join(elems)
+    else:
+        cc = cc.assign(newcol=cc[grouping])
     metas = cc.loc[cc["newcol"].isin(contrast), :]
     newdf = idf[metas["sample"]]
     return newdf, metas
@@ -197,6 +219,7 @@ def give_coefvar_new(df_red, red_meta, newcol : str):
     dfout.index = df_red.index
     return dfout
 
+
 def compute_gmean_nonan(anarray):
     anarray = np.array(anarray, dtype=float)
     anarray = anarray[~np.isnan(anarray)]
@@ -206,16 +229,16 @@ def compute_gmean_nonan(anarray):
         outval = stats.gmean(anarray)
     return outval
 
+
 def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     """
     output: df, str, str
     """
-    print("give GEO")
 
-    sams_interest = metad4c.loc[metad4c['newcol'] == c_interest, "sample"]
-    sams_control = metad4c.loc[metad4c['newcol'] == c_control, "sample"]
+    sams_interest = metad4c.loc[metad4c[newcol] == c_interest, "sample"]
+    sams_control = metad4c.loc[metad4c[newcol] == c_control, "sample"]
     dfout = df_red.copy()
-    geomcol_interest = "gm_"+c_interest
+    geomcol_interest = "gm_" + c_interest
     geomcol_control = "gm_" + c_control
     dfout[geomcol_interest] = [np.nan for i in range(dfout.shape[0])]
     dfout[geomcol_control] = [np.nan for i in range(dfout.shape[0])]
@@ -235,7 +258,6 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
 
 
 def give_ratios_df(df1, geomInterest, geomControl):
-    print("give RATIO")
     df = df1.copy()
     df = df.assign(ratio=[np.nan for i in range(df.shape[0])])
     for i, row in df1.iterrows():
