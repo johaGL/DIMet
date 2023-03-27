@@ -19,9 +19,6 @@ import functions_general as fg
 from distrib_fit_fromProteomix import compute_z_score, find_best_distribution, compute_p_value
 
 
-    #prepare4contrast, give_reduced_df,
-   # give_coefvar_new, give_geommeans_new, give_ratios_df
-
 
 def diff_args():
     parser = argparse.ArgumentParser(prog="python -m DIMet.src.differential_analysis",
@@ -160,7 +157,6 @@ def calc_ratios(df4c, metad4c, selected_contrast):
     return df4c
 
 
-
 def distance_or_overlap(df4c, metad4c, selected_contrast):
     # distance (syn: overlap)
     groupinterest, groupcontrol = divide_groups(df4c, metad4c, selected_contrast)
@@ -211,14 +207,57 @@ def compute_log2FC(df4c):
     return df4c
 
 
-def outStat_df(newdf, metas, contrast, whichtest):
+def compute_mann_whitney(vInterest, vBaseline):
+    # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
+    # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
+    # DO NOT : use_continuity False AND method "auto" at the same time.
+    # because "auto" will set continuity depending on ties and sample size.
+    # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
+    # check scipy doc
+    usta, p = scipy.stats.mannwhitneyu(
+        vInterest,
+        vBaseline,
+        # method = "auto",
+        use_continuity=False,
+        alternative="less",
+    )
+    usta2, p2 = scipy.stats.mannwhitneyu(
+        vInterest,
+        vBaseline,
+        # method = "auto",
+        use_continuity=False,
+        alternative="greater",
+    )
+    usta3, p3 = scipy.stats.mannwhitneyu(
+        vInterest,
+        vBaseline,
+        # method = "auto",
+        use_continuity=False,
+        alternative="two-sided",
+    )
+
+    # best (smaller pvalue) among all tailed tests
+    pretups = [(usta, p), (usta2, p2), (usta3, p3)]
+    tups = []
+    for t in pretups:  # make list of tuples with no-nan pvalues
+        if not np.isnan(t[1]):
+            tups.append(t)
+
+    if len(tups) == 0:  # if all pvalues are nan assign two sided result
+        tups = [(usta3, p3)]
+
+    stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
+    stat_result = stap_tup[0]
+    pval_result = stap_tup[1]
+
+    return stat_result, pval_result
+
+def outStat_df(redu_df, metas, contrast, whichtest):
     """
     Parameters
     ----------
-    newdf : pandas
-        reduced dataframe
-    metas : pandas
-        2nd element output of prepare4contrast..
+    redu_df : pandas, reduced dataframe
+    metas : pandas, 2nd element output of prepare4contrast.
     contrast : a list
     Returns
     -------
@@ -228,10 +267,10 @@ def outStat_df(newdf, metas, contrast, whichtest):
     mets = []
     stare = []
     pval = []
-    metaboliteshere = newdf.index
+    metaboliteshere = redu_df.index
     for i in metaboliteshere:
         mets.append(i)
-        row = newdf.loc[
+        row = redu_df.loc[
             i,
         ]  # remember row is a seeries, colnames pass to index
 
@@ -241,53 +280,13 @@ def outStat_df(newdf, metas, contrast, whichtest):
         vInterest = np.array(row[columnsInterest], dtype=float)
         vBaseline = np.array(row[columnsBaseline], dtype=float)
 
-        vInterest = vInterest[~np.isnan(vInterest)]
-        vBaseline = vBaseline[~np.isnan(vBaseline)]
+        vInterest = vInterest[~np.isnan(vInterest)]  # exclude nan elements
+        vBaseline = vBaseline[~np.isnan(vBaseline)]  # exclude nan elements
 
         if (len(vInterest) >= 2) and (len(vBaseline) >= 2):  #  2 or more samples required
 
             if whichtest == "MW":
-                # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
-                # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
-                # DO NOT : use_continuity False AND method "auto" at the same time.
-                # because "auto" will set continuity depending on ties and sample size.
-                # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
-                # check scipy doc
-                usta, p = scipy.stats.mannwhitneyu(
-                    vInterest,
-                    vBaseline,
-                    # method = "auto",
-                    use_continuity=False,
-                    alternative="less",
-                )
-                usta2, p2 = scipy.stats.mannwhitneyu(
-                    vInterest,
-                    vBaseline,
-                    # method = "auto",
-                    use_continuity=False,
-                    alternative="greater",
-                )
-                usta3, p3 = scipy.stats.mannwhitneyu(
-                    vInterest,
-                    vBaseline,
-                    # method = "auto",
-                    use_continuity=False,
-                    alternative="two-sided",
-                )
-
-                # best (smaller pvalue) among all tailed tests
-                pretups = [(usta, p), (usta2, p2), (usta3, p3)]
-                tups = []
-                for t in pretups:  # make list of tuples with no-nan pvalues
-                    if not np.isnan(t[1]):
-                        tups.append(t)
-
-                if len(tups) == 0:  # if all pvalues are nan assign two sided result
-                    tups = [(usta3, p3)]
-
-                stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
-                stat_result = stap_tup[0]
-                pval_result = stap_tup[1]
+                stat_result, pval_result = compute_mann_whitney(vInterest, vBaseline)
 
             elif whichtest == "Tt":
                 stat_result, pval_result = scipy.stats.ttest_ind(vInterest, vBaseline, alternative="two-sided")
@@ -295,8 +294,12 @@ def outStat_df(newdf, metas, contrast, whichtest):
             elif whichtest == "KW":
                 stat_result, pval_result = scipy.stats.kruskal(vInterest, vBaseline)
 
+            elif whichtest == "Wcox": # signed-rank test: one sample (independence), or two paired or related samples
+                stat_result, pval_result = scipy.stats.wilcoxon(vInterest, vBaseline)
+
             stare.append(stat_result)
             pval.append(pval_result)
+
         else:
             stare.append(np.nan)
             pval.append(np.nan)
@@ -400,6 +403,79 @@ def arg_repl_zero2value(argum_zero_rep, df) -> float:
 
 # --
 
+def permutations_test_v1(redu_df, metad4c, contrast):
+    """
+    redu_df : pandas, reduced dataframe
+    metas : pandas, 2nd element output of prepare4contrast.
+    contrast : a list
+    """
+    import permutations_test_v1 as prm
+
+    columnsInterest = metad4c.loc[metad4c["newcol"] == contrast[0], "sample"].tolist()
+    columnsBaseline = metad4c.loc[metad4c["newcol"] == contrast[1], "sample"].tolist()
+
+    allcols = columnsBaseline.copy()
+    for i in columnsInterest:
+        allcols.append(i)
+
+    mingroupsize_admitted = 1  # TODO : define if set as option or not
+    maxgroupsize = len(allcols) - 1
+    dico_permus_res = dict()
+    for i, row in redu_df.iterrows():
+        tmp_arr = np.array(row[allcols])
+        for p_size in range(mingroupsize_admitted, maxgroupsize):
+            reso = prm.compute_differences_p_permutations(tmp_arr, p_size)
+        dico_permus_res[i] = reso
+
+    # # visualization # TODO: make disappear later
+    # for k in dico_permus_res.keys():
+    #     differences_permuts = dico_permus_res[k]
+    #     r_df = pd.DataFrame({'differences_permut': differences_permuts})
+    #     r_df = r_df.assign(id_unique=["permut%" + str(i) for i in r_df.index])
+    #
+    #     print("Obtained differences from", r_df.shape[0], "permutations. Metabolite:", k)
+    #     print("mean:", r_df['differences_permut'].to_numpy().mean())
+    #     print("median:", r_df['differences_permut'].median())
+    #
+    #     row = redu_df.loc[k, allcols]  # row of the metabolite in observations
+    #     interest = row[columnsInterest]
+    #     baseline = row[columnsBaseline]
+    #     observed_diff = fg.compute_gmean_nonan(np.array(interest)) - fg.compute_gmean_nonan(np.array(baseline))
+    #
+    #     plt.hist(r_df['differences_permut'].tolist(), bins=30, color='darkgreen', alpha=0.4)
+    #     plt.title(f"differences resulting from {r_df.shape[0]} permutations. {k}")
+    #     plt.axvline(x=observed_diff,  color="orange")
+    #     plt.show()
+    #
+    #     r_df = prm.perm_results_2_pvalues(r_df, 'differences_permut')
+    #     myvar_plot = "pvalues"  # "scaled"
+    #     sns.histplot(r_df, x=myvar_plot, hue="rel_to_0_origi_locati", alpha=0.5, bins=30)
+    #     plt.title(f"computed {myvar_plot}, from permutations. {k}")
+    #     plt.xlabel("values")
+    #     plt.show()
+
+    # continue
+    out_dico = {"metabolite": [], "pvalue": []}
+    for k in dico_permus_res.keys(): # k is metabolite
+        differences_permuts = dico_permus_res[k]
+        r_df = pd.DataFrame({'differences': differences_permuts})
+        r_df = r_df.assign(id_unique=["permut%" + str(i) for i in r_df.index])
+        row = redu_df.loc[k, allcols]  # row of the metabolite in observations
+        interest = row[columnsInterest]
+        baseline = row[columnsBaseline]
+        observed_diff = fg.compute_gmean_nonan(np.array(interest)) - fg.compute_gmean_nonan(np.array(baseline))
+        new_row = pd.DataFrame({'differences': [observed_diff], 'id_unique': [k]})
+        r_df = pd.concat([r_df, new_row]).reset_index()
+        r_df = prm.perm_results_2_pvalues(r_df, 'differences')
+        out_dico["metabolite"].append(k)
+        the_p_value = r_df.loc[r_df['id_unique'] == k, "pvalues"]
+        out_dico["pvalue"].append(the_p_value.tolist()[0])
+
+    permu_df = pd.DataFrame(out_dico)
+    permu_df.index = permu_df["metabolite"]
+    return permu_df
+    
+
 def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
                        out_file_elements: dict, confidic: dict, whichtest:str,  args):
 
@@ -428,12 +504,14 @@ def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
         ratiosdf = calc_ratios(df4c, metad4c, contrast)
         ratiosdf, df_bad = divide_before_stats(ratiosdf, args.qualityDistanceOverSpan)
         if whichtest == "disfit":
-            out_histo_file = f"{out_dir}/extended/{prefix}-{co}-{suffix}-{strcontrast}_fitdist_plot.pdf"
+            out_histo_file = f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}_fitdist_plot.pdf"
 
             ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
             ratiosdf = compute_padj_version2(ratiosdf, 0.05, "fdr_bh")
-        elif whichtest == "permutations":
-            print("to develop") # TODO: add what I did in rough code
+        elif whichtest == "prm":
+            permudf = permutations_test_v1(ratiosdf, metad4c, contrast)
+            permudf = compute_padj_version2(permudf, 0.05, "fdr_bh")
+            ratiosdf = pd.merge(ratiosdf, permudf, left_index=True, right_index=True)
         else:
             extract_test_df = outStat_df(ratiosdf, metad4c, contrast, whichtest)
             extract_test_df = compute_padj_version2(extract_test_df, 0.05, "fdr_bh")
@@ -447,13 +525,13 @@ def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
 
         ratiosdf["compartment"] = co
 
-        ratiosdf.to_csv(f"{out_dir}/extended/{prefix}-{co}-{suffix}--{strcontrast}--{whichtest}.tsv",
+        ratiosdf.to_csv(f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}-{whichtest}.tsv",
                         index_label="metabolite", header=True, sep='\t')
         #HERE :
         filtered_df = filter_diff_results(ratiosdf,
                                           confidic['thresholds']['padj'],
                                           confidic['thresholds']['absolute_log2FC'])
-        filfi = f"{out_dir}/filtered/{prefix}-{co}-{suffix}--{strcontrast}--{whichtest}_filter.tsv"
+        filfi = f"{out_dir}/filtered/{prefix}--{co}--{suffix}-{strcontrast}-{whichtest}_filter.tsv"
         filtered_df.to_csv(filfi, index_label="metabolite", header=True, sep='\t')
 
     return 0
@@ -497,7 +575,6 @@ if __name__ == "__main__":
 
     tpd = fg.clean_tables_names2dict(f'{clean_tables_path}TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
-
 
 
     validate_zero_repl_arg(args.meanEnrichOrFracContrib_replace_zero_with) # TODO use

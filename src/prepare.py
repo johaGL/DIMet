@@ -416,7 +416,7 @@ def compute_abund_from_absolute_isotopol(df, metabos_isos_df):
     for m in metabos_uniq:
         isos_here = metabos_isos_df.loc[metabos_isos_df['metabolite'] == m, 'isotopologue_name']
         sub_df = df.loc[isos_here, :]
-        sub_df_sum = sub_df.sum(axis=0, skipna=False)
+        sub_df_sum = sub_df.sum(axis=0, skipna=False) # False makes sure that, if all values nan, sum = nan
         abundance.loc[m, :] = sub_df_sum
     return abundance.T
 
@@ -699,7 +699,7 @@ def perform_type_prep(args, confidic,  meta_path, targetedMetabo_path, amount_ma
     output_plots_dir = out_path + "results/plots/preview/"
     fg.detect_and_create_dir(output_plots_dir)
 
-    output_tabs_dir = out_path + "results/prepared_tables/", ""
+    output_tabs_dir = out_path + "results/prepared_tables/"
     fg.detect_and_create_dir(output_tabs_dir)
 
     if confidic['typeprep'] == 'IsoCor_output_prep':

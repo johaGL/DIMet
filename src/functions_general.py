@@ -219,6 +219,7 @@ def give_coefvar_new(df_red, red_meta, newcol : str):
     dfout.index = df_red.index
     return dfout
 
+
 def compute_gmean_nonan(anarray):
     anarray = np.array(anarray, dtype=float)
     anarray = anarray[~np.isnan(anarray)]
@@ -228,15 +229,16 @@ def compute_gmean_nonan(anarray):
         outval = stats.gmean(anarray)
     return outval
 
+
 def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     """
     output: df, str, str
     """
 
-    sams_interest = metad4c.loc[metad4c['newcol'] == c_interest, "sample"]
-    sams_control = metad4c.loc[metad4c['newcol'] == c_control, "sample"]
+    sams_interest = metad4c.loc[metad4c[newcol] == c_interest, "sample"]
+    sams_control = metad4c.loc[metad4c[newcol] == c_control, "sample"]
     dfout = df_red.copy()
-    geomcol_interest = "gm_"+c_interest
+    geomcol_interest = "gm_" + c_interest
     geomcol_control = "gm_" + c_control
     dfout[geomcol_interest] = [np.nan for i in range(dfout.shape[0])]
     dfout[geomcol_control] = [np.nan for i in range(dfout.shape[0])]
