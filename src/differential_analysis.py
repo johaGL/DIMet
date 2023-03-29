@@ -214,27 +214,14 @@ def compute_mann_whitney(vInterest, vBaseline):
     # because "auto" will set continuity depending on ties and sample size.
     # If ties in the data  and method "exact" (i.e use_continuity False) pvalues cannot be calculated
     # check scipy doc
-    usta, p = scipy.stats.mannwhitneyu(
-        vInterest,
-        vBaseline,
-        # method = "auto",
-        use_continuity=False,
-        alternative="less",
-    )
-    usta2, p2 = scipy.stats.mannwhitneyu(
-        vInterest,
-        vBaseline,
-        # method = "auto",
-        use_continuity=False,
-        alternative="greater",
-    )
-    usta3, p3 = scipy.stats.mannwhitneyu(
-        vInterest,
-        vBaseline,
-        # method = "auto",
-        use_continuity=False,
-        alternative="two-sided",
-    )
+    usta, p = scipy.stats.mannwhitneyu(vInterest,  vBaseline,  # method = "auto",
+                                       use_continuity=False, alternative="less")
+
+    usta2, p2 = scipy.stats.mannwhitneyu(vInterest,  vBaseline,  # method = "auto",
+                                         use_continuity=False, alternative="greater")
+
+    usta3, p3 = scipy.stats.mannwhitneyu(vInterest,  vBaseline,  # method = "auto",
+                                         use_continuity=False, alternative="two-sided")
 
     # best (smaller pvalue) among all tailed tests
     pretups = [(usta, p), (usta2, p2), (usta3, p3)]
@@ -246,11 +233,65 @@ def compute_mann_whitney(vInterest, vBaseline):
     if len(tups) == 0:  # if all pvalues are nan assign two sided result
         tups = [(usta3, p3)]
 
-    stap_tup = min(tups, key=lambda x: x[1])  # if any nan, will always pick nan as min
+    stap_tup = min(tups, key=lambda x: x[1]) # nan already excluded
     stat_result = stap_tup[0]
     pval_result = stap_tup[1]
 
     return stat_result, pval_result
+
+
+def compute_ranksums_allH0(vInterest: np.array, vBaseline: np.array):
+    # The Wilcoxon rank-sum test tests the null hypothesis that two sets of measurements are drawn from the same distribution
+    # ‘two-sided’: one of the distributions (underlying x or y) is stochastically greater than the other.
+    # ‘less’: the distribution underlying x is stochastically less than the distribution underlying y.
+    #  ‘greater’: the distribution underlying x is stochastically greater than the distribution underlying y.
+    vInterest = vInterest[~np.isnan(vInterest)]
+    vBaseline = vBaseline[~np.isnan(vBaseline)]
+    sta, p = scipy.stats.ranksums(vInterest,  vBaseline,  alternative="less")
+    sta2, p2 = scipy.stats.ranksums(vInterest,  vBaseline,  alternative="greater")
+    sta3, p3 = scipy.stats.ranksums(vInterest,  vBaseline, alternative="two-sided")
+
+    # best (smaller pvalue) among all tailed tests
+    pretups = [(sta, p), (sta2, p2), (sta3, p3)]
+    tups = []
+    for t in pretups:  # make list of tuples with no-nan pvalues
+        if not np.isnan(t[1]):
+            tups.append(t)
+
+    if len(tups) == 0:  # if all pvalues are nan assign two sided result
+        tups = [(sta3, p3)]
+
+    stap_tup = min(tups, key=lambda x: x[1]) # nan already excluded
+    stat_result = stap_tup[0]
+    pval_result = stap_tup[1]
+
+    return stat_result, pval_result
+
+
+def compute_wilcoxon_allH0(vInterest: np.array, vBaseline: np.array):
+    #  Wilcoxon signed-rank test
+    vInterest = vInterest[~np.isnan(vInterest)]
+    vBaseline = vBaseline[~np.isnan(vBaseline)]
+    sta, p = scipy.stats.wilcoxon(vInterest,  vBaseline,  alternative="less")
+    sta2, p2 = scipy.stats.wilcoxon(vInterest,  vBaseline,  alternative="greater")
+    sta3, p3 = scipy.stats.wilcoxon(vInterest,  vBaseline, alternative="two-sided")
+
+    # best (smaller pvalue) among all tailed tests
+    pretups = [(sta, p), (sta2, p2), (sta3, p3)]
+    tups = []
+    for t in pretups:  # make list of tuples with no-nan pvalues
+        if not np.isnan(t[1]):
+            tups.append(t)
+
+    if len(tups) == 0:  # if all pvalues are nan assign two sided result
+        tups = [(sta3, p3)]
+
+    stap_tup = min(tups, key=lambda x: x[1]) # nan already excluded
+    stat_result = stap_tup[0]
+    pval_result = stap_tup[1]
+
+    return stat_result, pval_result
+
 
 def outStat_df(redu_df, metas, contrast, whichtest):
     """
@@ -294,8 +335,11 @@ def outStat_df(redu_df, metas, contrast, whichtest):
             elif whichtest == "KW":
                 stat_result, pval_result = scipy.stats.kruskal(vInterest, vBaseline)
 
+            elif whichtest == "ranksum":
+                stat_result, pval_result = compute_ranksums_allH0(vInterest, vBaseline)
+
             elif whichtest == "Wcox": # signed-rank test: one sample (independence), or two paired or related samples
-                stat_result, pval_result = scipy.stats.wilcoxon(vInterest, vBaseline)
+                stat_result, pval_result = compute_wilcoxon_allH0(vInterest, vBaseline)
 
             stare.append(stat_result)
             pval.append(pval_result)
@@ -427,34 +471,6 @@ def permutations_test_v1(redu_df, metad4c, contrast):
             reso = prm.compute_differences_p_permutations(tmp_arr, p_size)
         dico_permus_res[i] = reso
 
-    # # visualization # TODO: make disappear later
-    # for k in dico_permus_res.keys():
-    #     differences_permuts = dico_permus_res[k]
-    #     r_df = pd.DataFrame({'differences_permut': differences_permuts})
-    #     r_df = r_df.assign(id_unique=["permut%" + str(i) for i in r_df.index])
-    #
-    #     print("Obtained differences from", r_df.shape[0], "permutations. Metabolite:", k)
-    #     print("mean:", r_df['differences_permut'].to_numpy().mean())
-    #     print("median:", r_df['differences_permut'].median())
-    #
-    #     row = redu_df.loc[k, allcols]  # row of the metabolite in observations
-    #     interest = row[columnsInterest]
-    #     baseline = row[columnsBaseline]
-    #     observed_diff = fg.compute_gmean_nonan(np.array(interest)) - fg.compute_gmean_nonan(np.array(baseline))
-    #
-    #     plt.hist(r_df['differences_permut'].tolist(), bins=30, color='darkgreen', alpha=0.4)
-    #     plt.title(f"differences resulting from {r_df.shape[0]} permutations. {k}")
-    #     plt.axvline(x=observed_diff,  color="orange")
-    #     plt.show()
-    #
-    #     r_df = prm.perm_results_2_pvalues(r_df, 'differences_permut')
-    #     myvar_plot = "pvalues"  # "scaled"
-    #     sns.histplot(r_df, x=myvar_plot, hue="rel_to_0_origi_locati", alpha=0.5, bins=30)
-    #     plt.title(f"computed {myvar_plot}, from permutations. {k}")
-    #     plt.xlabel("values")
-    #     plt.show()
-
-    # continue
     out_dico = {"metabolite": [], "pvalue": []}
     for k in dico_permus_res.keys(): # k is metabolite
         differences_permuts = dico_permus_res[k]
@@ -505,13 +521,12 @@ def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
         ratiosdf, df_bad = divide_before_stats(ratiosdf, args.qualityDistanceOverSpan)
         if whichtest == "disfit":
             out_histo_file = f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}_fitdist_plot.pdf"
-
             ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
             ratiosdf = compute_padj_version2(ratiosdf, 0.05, "fdr_bh")
-        elif whichtest == "prm":
-            permudf = permutations_test_v1(ratiosdf, metad4c, contrast)
-            permudf = compute_padj_version2(permudf, 0.05, "fdr_bh")
-            ratiosdf = pd.merge(ratiosdf, permudf, left_index=True, right_index=True)
+        # elif whichtest == "prm":
+        #     permudf = permutations_test_v1(ratiosdf, metad4c, contrast)
+        #     permudf = compute_padj_version2(permudf, 0.05, "fdr_bh")
+        #     ratiosdf = pd.merge(ratiosdf, permudf, left_index=True, right_index=True)
         else:
             extract_test_df = outStat_df(ratiosdf, metad4c, contrast, whichtest)
             extract_test_df = compute_padj_version2(extract_test_df, 0.05, "fdr_bh")
