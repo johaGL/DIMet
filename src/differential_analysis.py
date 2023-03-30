@@ -445,52 +445,6 @@ def arg_repl_zero2value(argum_zero_rep, df) -> float:
         value_out = float(args.zero_repl_arg)
     return value_out
 
-# --
-
-def permutations_test_v1(redu_df, metad4c, contrast):
-    """
-    redu_df : pandas, reduced dataframe
-    metas : pandas, 2nd element output of prepare4contrast.
-    contrast : a list
-    """
-    import permutations_test_v1 as prm
-
-    columnsInterest = metad4c.loc[metad4c["newcol"] == contrast[0], "sample"].tolist()
-    columnsBaseline = metad4c.loc[metad4c["newcol"] == contrast[1], "sample"].tolist()
-
-    allcols = columnsBaseline.copy()
-    for i in columnsInterest:
-        allcols.append(i)
-
-    mingroupsize_admitted = 1  # TODO : define if set as option or not
-    maxgroupsize = len(allcols) - 1
-    dico_permus_res = dict()
-    for i, row in redu_df.iterrows():
-        tmp_arr = np.array(row[allcols])
-        for p_size in range(mingroupsize_admitted, maxgroupsize):
-            reso = prm.compute_differences_p_permutations(tmp_arr, p_size)
-        dico_permus_res[i] = reso
-
-    out_dico = {"metabolite": [], "pvalue": []}
-    for k in dico_permus_res.keys(): # k is metabolite
-        differences_permuts = dico_permus_res[k]
-        r_df = pd.DataFrame({'differences': differences_permuts})
-        r_df = r_df.assign(id_unique=["permut%" + str(i) for i in r_df.index])
-        row = redu_df.loc[k, allcols]  # row of the metabolite in observations
-        interest = row[columnsInterest]
-        baseline = row[columnsBaseline]
-        observed_diff = fg.compute_gmean_nonan(np.array(interest)) - fg.compute_gmean_nonan(np.array(baseline))
-        new_row = pd.DataFrame({'differences': [observed_diff], 'id_unique': [k]})
-        r_df = pd.concat([r_df, new_row]).reset_index()
-        r_df = prm.perm_results_2_pvalues(r_df, 'differences')
-        out_dico["metabolite"].append(k)
-        the_p_value = r_df.loc[r_df['id_unique'] == k, "pvalues"]
-        out_dico["pvalue"].append(the_p_value.tolist()[0])
-
-    permu_df = pd.DataFrame(out_dico)
-    permu_df.index = permu_df["metabolite"]
-    return permu_df
-    
 
 def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
                        out_file_elements: dict, confidic: dict, whichtest:str,  args):
@@ -523,10 +477,7 @@ def whatever_the_table(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
             out_histo_file = f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}_fitdist_plot.pdf"
             ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
             ratiosdf = compute_padj_version2(ratiosdf, 0.05, "fdr_bh")
-        # elif whichtest == "prm":
-        #     permudf = permutations_test_v1(ratiosdf, metad4c, contrast)
-        #     permudf = compute_padj_version2(permudf, 0.05, "fdr_bh")
-        #     ratiosdf = pd.merge(ratiosdf, permudf, left_index=True, right_index=True)
+
         else:
             extract_test_df = outStat_df(ratiosdf, metad4c, contrast, whichtest)
             extract_test_df = compute_padj_version2(extract_test_df, 0.05, "fdr_bh")
