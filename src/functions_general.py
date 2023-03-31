@@ -112,7 +112,7 @@ def clean_tables_names2dict(filename) -> dict:
 
 def prepare4contrast(idf, ametadata, grouping, contrast):
     """
-    grouping : example :  ['condition', 'timepoint' ]
+    grouping,  example :  ['condition', 'timepoint' ]
           if (for a sample)  condition = "treatment" and  timepoint = "t12h",
           then newcol = "treatment_t12h"
     contrast : example : ["treatment_t12h", "control_t12h" ]
@@ -169,7 +169,9 @@ def a12(lst1, lst2, rev=True):
 def compute_reduction(df, ddof):
     """
     modified, original from ProteomiX
-    johaGL 2022: if all row is zeroes, set same protein_values
+    johaGL 2023:
+    - if all row is zeroes, set same protein_values
+    - if nanstd(array, ddof) equals 0, set same protein_values (example: nanstd([0.1,nan,0.1,0.1,0.1,nan])
     """
     res = df.copy()
     for protein in df.index.values:
@@ -177,8 +179,8 @@ def compute_reduction(df, ddof):
         protein_values = np.array(
             df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
         # return array with each value divided by standard deviation, row-wise
-        if sum(protein_values) == 0:
-            reduced_abundances = protein_values  # because all row is zeroes
+        if (np.nanstd(protein_values, ddof=ddof) == 0) or (sum(protein_values) == 0):
+            reduced_abundances = protein_values
         else:
             reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
 
@@ -239,8 +241,8 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     sams_interest = metad4c.loc[metad4c[newcol] == c_interest, "sample"]
     sams_control = metad4c.loc[metad4c[newcol] == c_control, "sample"]
     dfout = df_red.copy()
-    geomcol_interest = "gm_" + c_interest
-    geomcol_control = "gm_" + c_control
+    geomcol_interest = "geommean_" + c_interest
+    geomcol_control = "geommean_" + c_control
     dfout[geomcol_interest] = [np.nan for i in range(dfout.shape[0])]
     dfout[geomcol_control] = [np.nan for i in range(dfout.shape[0])]
 
@@ -260,14 +262,14 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
 
 def give_ratios_df(df1, geomInterest, geomControl):
     df = df1.copy()
-    df = df.assign(ratio=[np.nan for i in range(df.shape[0])])
+    df = df.assign(geommean_ratio=[np.nan for i in range(df.shape[0])])
     for i, row in df1.iterrows():
         intere = row[geomInterest]
         contr = row[geomControl]
         if contr == 0 :
-            df.loc[i, "ratio"] = intere / 1e-10
+            df.loc[i, "geommean_ratio"] = intere / 1e-10
         else:
-            df.loc[i, "ratio"] = intere / contr
+            df.loc[i, "geommean_ratio"] = intere / contr
 
     return df
 

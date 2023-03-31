@@ -467,7 +467,7 @@ def complete_missing_frames(confidic, frames_dic, metadata, metabolites_isos_df)
                 frames_dic["abundance_computed"][co] = tmp_co.astype(float)
             confidic_new['name_abundance'] = "abundance_computed"
         elif confidic['name_isotopologue_abs'] is None:
-            print(" isotopologues' absolute values not available, impossible to get proportions")
+            print(" isotopologues' absolute values not available, impossible to get abundance")
     if confidic['name_isotopologue_prop'] is None:
         if confidic['name_isotopologue_abs'] is not None:
             frames_dic['isotopologues_props_computed'] = dict()
