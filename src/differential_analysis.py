@@ -56,7 +56,7 @@ def diff_args():
     return parser
 
 
-def validate_zero_repl_arg(zero_repl_arg) -> None:
+def validate_zero_repl_arg(zero_repl_arg: str) -> None:
     isvalid = False
     if zero_repl_arg == "min":
         isvalid = True
@@ -76,7 +76,7 @@ def validate_zero_repl_arg(zero_repl_arg) -> None:
     assert isvalid, "Your value for zero replacement is not valid"
 
 
-def arg_repl_zero2value(argum_zero_rep, df) -> float:
+def arg_repl_zero2value(argum_zero_rep: str, df: pd.DataFrame) -> float:
     if argum_zero_rep.startswith("min"):
         try:
             divisor_min = float(argum_zero_rep.split("/")[1])
@@ -88,7 +88,7 @@ def arg_repl_zero2value(argum_zero_rep, df) -> float:
     return value_out
 
 
-def flag_has_replicates(ratiosdf):
+def flag_has_replicates(ratiosdf: pd.DataFrame):
     bool_results = list()
     tuples_list = ratiosdf['count_nan_samples'].tolist()
     for tup in tuples_list:
@@ -103,7 +103,7 @@ def flag_has_replicates(ratiosdf):
     return bool_results
 
 
-def compute_span_incomparison(df, metadata, contrast):
+def compute_span_incomparison(df: pd.DataFrame, metadata: pd.DataFrame, contrast: list):
     expected_samples = metadata.loc[metadata['newcol'].isin(contrast), "sample"]
     selcols_df = df[expected_samples].copy()
     for i in df.index.values:
@@ -146,7 +146,7 @@ def overlap_asymmetric(x: np.array, y: np.array) -> int:
     return overlap
 
 
-def calc_reduction(df, metad4c, selected_contrast):
+def calc_reduction(df, metad4c):
     def renaming_original_col_sams(df):
         newcols = ["input_" + i for i in df.columns]
         df.columns = newcols
@@ -528,7 +528,7 @@ def run_differential_steps(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
         df4c = df4c[(df4c.T != 0).any()]  # delete rows being zero everywhere
         # sort them by 'newcol' the column created by prepare4contrast
         metad4c = metad4c.sort_values("newcol")
-        df4c = calc_reduction(df4c, metad4c, contrast)
+        df4c = calc_reduction(df4c, metad4c)
         df4c = fg.countnan_samples(df4c, metad4c)  # adds nan_count_samples column
         df4c = distance_or_overlap(df4c, metad4c, contrast)
         df4c = compute_span_incomparison(df4c, metad4c, contrast)
