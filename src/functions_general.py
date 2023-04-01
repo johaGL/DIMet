@@ -145,7 +145,6 @@ def splitrowbynewcol(row, metas):
     return miniD
 
 
-
 def a12(lst1, lst2, rev=True):
     """
     Non-parametric hypothesis testing using Vargha and Delaney's A12 statistic:
@@ -163,7 +162,6 @@ def a12(lst1, lst2, rev=True):
             elif not rev and x < y:
                 more += 1
     return (more + 0.5 * same) / (len(lst1) * len(lst2))
-
 
 
 def compute_reduction(df, ddof):
@@ -288,55 +286,11 @@ def countnan_samples(df, metad4c):
         vecout.append(tuple([str(val1)+'/'+str(len(vec1)),
                              str(val2)+'/'+str(len(vec2))]))
 
-    df['count_nan_samples'] = vecout#[str(tup) for tup in vecout]
+    df['count_nan_samples'] = vecout
     return df
 
 
-def add_alerts(df, metad4c):
-    # deprecated
-    df['alert'] = ''
-    df.loc[df["distance"] < 0, "alert"] = "overlap"
-    alert_reps = list()
-    for i in df['count_nan_samples'].tolist():
-        if i[0] >= 2 or i[1] >= 2:
-            alert_reps.append("no replicates")
-        else:
-            alert_reps.append('')
-
-    df['foo'] = alert_reps
-    df.loc[df['foo'] != '', "alert"] = "no replicates"
-    df = df.drop(columns = ['foo'])
-    return df
-
-
-# def calcgeommean(avector, eps):
-#     # TODO: old, used in differential_univariate, work pending
-#     vech = np.array(avector)
-#     vech[vech == 0] = eps  # replace any zeroes
-#     return np.exp(np.mean(np.log(vech)))
-
-
-def plot_overlap_hist(df_overls, colname_symetric, colname_assymetric, fileout):
-    import seaborn as sns
-    import matplotlib as plt
-    """just for debugging or other tests"""
-    values_sym = df_overls[colname_symetric]
-    a = pd.DataFrame({'value' : values_sym,
-                      'type_overlap': ["symm" for i in range(len(values_sym))] })
-    vasym = df_overls[colname_assymetric]
-    b = pd.DataFrame({'value': vasym,
-                      'type_overlap': ["assym" for i in range(len(vasym))]})
-    dfplotov = pd.concat([a,b], ignore_index=True, axis=0)
-
-    with sns.axes_style("darkgrid"):
-        sns.displot(data=dfplotov, x = 'value', hue='type_overlap',
-                       kde=False)
-        plt.savefig(fileout)
-    plt.close()
-    return 0
-
-
-# from here, functions for isotopologue preview (mode None)
+# from here, functions for isotopologue preview
 
 def add_metabolite_column(df):
     theindex = df.index
@@ -355,7 +309,7 @@ def add_isotopologue_type_column(df):
     return df
 
 
-def save_heatmap_sums_isos(thesums, figuretitle, outputfigure):
+def save_heatmap_sums_isos(thesums, figuretitle, outputfigure) -> None:
     fig, ax = plt.subplots( figsize=(9,10))
     sns.heatmap(thesums,
                 annot=True, fmt=".1f", cmap="crest",
@@ -369,8 +323,6 @@ def save_heatmap_sums_isos(thesums, figuretitle, outputfigure):
     plt.savefig(outputfigure)
     plt.close()
 
-    return 0
-
 
 def givelevels(melted):
     another = melted.copy()
@@ -383,14 +335,14 @@ def givelevels(melted):
     return melted
 
 
-def table_minimalbymet(melted, fileout):
+def table_minimalbymet(melted, fileout) -> None:
     another = melted.copy()
     another = another.groupby('metabolite').min()
     another = another.sort_values(by='value', ascending=False)
     another.to_csv(fileout, sep='\t', header=True)
 
 
-def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
+def save_rawisos_plot(dfmelt, figuretitle, outputfigure) -> None:
     fig, ax = plt.subplots(1, 1, figsize=(16, 10))
     sns.stripplot(ax=ax, data=dfmelt, x="value", y="metabolite", jitter=False,
                   hue="isotopologue_type", size=4, palette="tab20")
@@ -407,7 +359,7 @@ def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
     plt.xlabel("fraction")
     plt.savefig(outputfigure)
     plt.close()
-    return 0
+
 
 # end functions for isotopologue preview
 

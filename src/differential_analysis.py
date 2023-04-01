@@ -96,7 +96,7 @@ def flag_has_replicates(ratiosdf):
         group_y = tup[1].split("/")
         x_usable = int(group_x[1]) - int(group_x[0])
         y_usable = int(group_y[1]) - int(group_y[0])
-        if x_usable <= 1 or y_usable <= 1 : # if any side only has one replicate
+        if x_usable <= 1 or y_usable <= 1:  # if any side only has one replicate
             bool_results.append(0)
         else:
             bool_results.append(1)
@@ -150,7 +150,7 @@ def calc_reduction(df, metad4c, selected_contrast):
     def renaming_original_col_sams(df):
         newcols = ["input_" + i for i in df.columns]
         df.columns = newcols
-        # origdf.index = metabolites
+
         return df
 
     ddof = 0  # for compute reduction
@@ -166,12 +166,11 @@ def calc_reduction(df, metad4c, selected_contrast):
 
 
 def calc_ratios(df4c, metad4c, selected_contrast):
-    c_interest = selected_contrast[0] # columns names interest
-    c_control = selected_contrast[1] #  columns names control
-    # geometric means
+    c_interest = selected_contrast[0]  # columns names interest
+    c_control = selected_contrast[1]  # columns names control
+
     df4c, col_g_interest, col_g_control = fg.give_geommeans_new(df4c, metad4c,
                                                          'newcol', c_interest, c_control)
-
     df4c = fg.give_ratios_df(df4c, col_g_interest, col_g_control)
 
     return df4c
@@ -191,9 +190,7 @@ def divide_groups(df4c, metad4c, selected_contrast):
 
 
 def distance_or_overlap(df4c, metad4c, selected_contrast):
-    # distance (syn: overlap)
-
-
+    """ calculate distance between groups (synonym: overlap) """
     groupinterest, groupcontrol = divide_groups(df4c, metad4c, selected_contrast)
     rownames = df4c.index
     tmp_df = df4c.copy()
@@ -208,11 +205,10 @@ def distance_or_overlap(df4c, metad4c, selected_contrast):
 
 def separate_before_stats(ratiosdf, quality_dist_span):
     ratiosdf['has_replicates'] = flag_has_replicates(ratiosdf)
-    # m = 0
     try:
         quality_dist_span = float(quality_dist_span)
         good_df = ratiosdf.loc[(ratiosdf['distance/span'] >= quality_dist_span) &
-                        (ratiosdf['has_replicates'] == 1) ] # has_replicates: 0 true, 1 false
+                        (ratiosdf['has_replicates'] == 1) ] # has_replicates: 1 true
 
         undesired_mets = set(ratiosdf.index) - set(good_df.index)
         bad_df = ratiosdf.loc[list(undesired_mets)]
@@ -337,12 +333,12 @@ def compute_brunnermunzel_allH0(vInterest: np.array, vBaseline: np.array):
 
 
 def statistic_absolute_geommean_diff(b_values: np.array, a_values: np.array):
-    m_a = fg.compute_gmean_nonan(b_values)
-    m_b = fg.compute_gmean_nonan(a_values)
+    m_b = fg.compute_gmean_nonan(b_values)
+    m_a = fg.compute_gmean_nonan(a_values)
     #denom = m_a + m_b
-    #diff_normalized = abs((m_a - m_b) / denom)
-    diff_normalized = abs(m_a - m_b)
-    return diff_normalized
+    #diff_normalized = abs((m_b - m_a) / denom)
+    diff_absolute = abs(m_b - m_a)
+    return diff_absolute
 
 
 def run_statistical_test(redu_df, metas, contrast, whichtest):
@@ -506,13 +502,11 @@ def reorder_columns_diff_end(df):
         'count_nan_samples',
         'compartment' ]
 
-    # extract the df by standard_cols
     standard_df = df[standard_cols]
-    # drop (but no drop metabolite) from the initial df
     df = df.drop(columns=standard_cols)
     # reorder the standard part
     standard_df = standard_df[desired_order]
-    # re-join them indexes are the metabolites
+    # re-join them, indexes are the metabolites
     df = pd.merge(standard_df, df, left_index=True, right_index=True, how='left')
     return df
 
@@ -581,7 +575,7 @@ def wrapper_for_abund(clean_tables_path, table_prefix, metadatadf,  confidic, ar
     for co in compartments:
         meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0) # compartment specific
+        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)  # compartment specific
         val_instead_zero = arg_repl_zero2value(args.abundance_replace_zero_with, measurements)
         measurements = measurements.replace(to_replace=0, value=val_instead_zero)
         out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix, 'co': co, "suffix":suffix}
@@ -662,7 +656,6 @@ if __name__ == "__main__":
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
-    # tprefsd : tables prefixes dictionary
     tables_prefixes_dico = fg.clean_tables_names2dict(f'{clean_tables_path}TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
