@@ -308,7 +308,6 @@ def compute_wilcoxon_allH0(vInterest: np.array, vBaseline: np.array):
 
 
 def compute_brunnermunzel_allH0(vInterest: np.array, vBaseline: np.array):
-    #  Wilcoxon signed-rank test
     vInterest = vInterest[~np.isnan(vInterest)]
     vBaseline = vBaseline[~np.isnan(vBaseline)]
     sta, p = scipy.stats.brunnermunzel(vInterest,  vBaseline,  alternative="less")
