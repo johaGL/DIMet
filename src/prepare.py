@@ -573,13 +573,13 @@ def do_generic_prep(meta_path, targetedMetabo_path, args, confidic,
     fg.verify_metadata_sample_not_duplicated(metadata)
     frames_dic = excelsheets2frames_dic(targetedMetabo_path, confidic)
     tabs_isotopologues = [s for s in frames_dic.keys() if "isotopol" in s.lower()]
-
-    # transform isotopologues names to the easier "m+x" style:
+    assert len(tabs_isotopologues) >= 1, "\nError, bad or no isotopologues input"
     for tab in tabs_isotopologues: # tabs are not split by compartment here
         tmp = frames_dic[tab]
         new_col = transformmyisotopologues(tmp.columns, "generic")
         tmp.columns = new_col
         frames_dic[tab] = tmp
+
     # end for
 
     isotopologues_full = frames_dic[tabs_isotopologues[0]].columns

@@ -22,7 +22,7 @@ def bars_args():
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
 
-    parser.add_argument('--palette', action=argparse.BooleanOptionalAction, default="pastel",
+    parser.add_argument('--palette',  default="pastel",
                         help="qualitative or categorical palette name as in Seaborn library (Python)")
 
     return parser

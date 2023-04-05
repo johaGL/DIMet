@@ -1,5 +1,7 @@
 name: dimet
 channels:
+  - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - python=3.9.12
@@ -13,4 +15,9 @@ dependencies:
   - matplotlib
   - seaborn
   - statsmodels
+  - conda-forge::pytest # new
+  - conda-forge::pytest-cov # new
+  - conda-forge::mypy # new
+  - bioconda::snakemake=7.24.0
+  
 

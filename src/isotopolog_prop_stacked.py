@@ -25,9 +25,6 @@ def stacked_args():
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
 
-    #parser.add_argument('--palette', action=argparse.BooleanOptionalAction, default="pastel",
-    #                    help="qualitative or categorical palette name as in Seaborn library (Python)")
-
     return parser
 
 def isotopol_prop_2df4plot(df_co, metada_co, levelshours_str):
