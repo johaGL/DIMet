@@ -723,8 +723,11 @@ def perform_type_prep(args, confidic,  meta_path, targetedMetabo_path, amount_ma
     for k in frames_dic.keys():
         for compartment in frames_dic[k].keys():
             tmp = frames_dic[k][compartment].T
+            tmp.index.name = "metabolite_or_isotopologue"
+            tmp = tmp.reset_index()
+            tmp = tmp.drop_duplicates()
             tmp.to_csv(f"{output_tabs_dir}{k}--{compartment}--{confidic['suffix']}.tsv",
-                       sep='\t', header=True, index=True )
+                       sep='\t', header=True, index=False)
 
     if len(os.listdir(output_plots_dir)) == 0:
         os.removedirs(output_plots_dir)

@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat May 28 09:33:01 2022
+Uses only abundances
+
+@author: johanna
+"""
+import sys
+import os
+import argparse
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+sys.path.append(os.path.dirname(__file__))
+import functions_general as fg
+
+
+def bars_args():
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('config', type=str,
+                        help="configuration file in absolute path")
+
+    parser.add_argument('--palette', action=argparse.BooleanOptionalAction, default="pastel",
+                        help="qualitative or categorical palette name as in Seaborn library (Python)")
+
+    return parser
+
+
+def pile_up_abundance(abu_sel, metada_sel): 
+    dfcompartment = abu_sel.T
+    metabolites = dfcompartment.columns
+    dfcompartment["sample"] = dfcompartment.index
+    dfcompartment = pd.merge(dfcompartment, metada_sel, on="sample")
+    dafull = pd.DataFrame(columns=["timepoint", "condition", "metabolite", "abundance"])
+    for z in range(len(metabolites)):
+        subdf = dfcompartment.loc[:, [metabolites[z], "timepoint", "condition"]]
+        subdf["metabolite"] = metabolites[z]
+        subdf["abundance"] = subdf[metabolites[z]]
+        subdf = subdf.drop(columns=[metabolites[z]])
+        dafull = pd.concat(
+            [dafull, subdf], ignore_index=True
+        )
+    return dafull
+
+
+def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var, plotwidth,
+                           odirbars, xticks_text_l, axisx_labeltilt, wspace_subfigs, args):
+    selected_metabs = selectedmets
+    sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
+    plt.rcParams.update({"font.size": 21})
+    YLABE = "Abundance"
+    fig, axs = plt.subplots(1, len(selected_metabs), sharey=False, figsize=(plotwidth, 5.5))
+    #  constrained_layout=True)
+    for il in range(len(selected_metabs)):
+        herep = piled_sel.loc[piled_sel["metabolite"] == selected_metabs[il], :]
+        herep = herep.reset_index()
+        sns.barplot(
+            ax=axs[il],
+            data=herep,
+            x=axisx_var,
+            y="abundance",
+            hue=hue_var,
+            palette=args.palette,
+            alpha=1,
+            edgecolor="black",
+            errcolor="black",
+            errwidth=1.7,
+            ci="sd",
+            capsize=0.2,
+        )
+        sns.stripplot(
+            ax=axs[il],
+            data=herep,
+            x=axisx_var,
+            y="abundance",
+            hue=hue_var,
+            palette=args.palette,
+            dodge=True,
+            edgecolor="black",
+            linewidth=1.5,
+            alpha=1,
+        )
+        axs[il].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        axs[il].set_xticklabels(xticks_text_l)
+        axs[il].set(title=" " + selected_metabs[il] + "\n")
+        axs[il].set(ylabel="")
+        axs[il].set(xlabel="")
+        sns.despine(ax=axs[il])
+        axs[il].tick_params(axis="x", labelrotation=axisx_labeltilt)
+        axs[il].set_ylim(bottom=0)  # set minimal val display : y axis : 0
+
+    thehandles, thelabels = axs[-1].get_legend_handles_labels()
+    for il in range(len(selected_metabs)):
+        axs[il].legend_.remove()
+
+
+    fig.text(x=0.02, y=0.5, s=YLABE, va="center", rotation="vertical", size=26)
+    fig.suptitle(f"{CO} ({SMX} abundance)".upper())
+    plt.subplots_adjust(top=0.76, bottom=0.2, wspace=wspace_subfigs, hspace=1)
+    # plt.legend(handles=thehandles, labels=thelabels, loc='upper right',
+    #            bbox_to_anchor=(-plotwidth/3, 1))
+    # plt.tight_layout(pad = 0.01, w_pad = -2, h_pad=0.1)
+    plt.savefig(f"{odirbars}bars_{CO}_{SMX}.pdf", format="pdf")
+    plt.close()
+    plt.figure()
+    plt.legend(handles=thehandles, labels=thelabels, loc='upper right')
+    plt.axis("off")
+    plt.savefig(f"{odirbars}legend.pdf", format="pdf")
+
+    return 0
+
+
+def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args) -> None:
+    time_sel = confidic["time_sel"]  # locate where it is used
+    selectedmetsD = confidic["selectedmets_forbars"]  # locate where it is used
+    condilevels = confidic["conditions"]  # <= locate where it is used
+
+    xticks_text_l = confidic["axisx_text"]
+    axisx_labeltilt = int(confidic["axisx_labeltilt"])
+    axisx_var = confidic["axisx"]
+    hue_var = confidic["barcolor"]
+
+    width_each_subfig = float(confidic["width_each_subfig"])
+    wspace_subfigs = float(confidic["wspace_subfigs"])
+
+    out_path = os.path.expanduser(confidic['out_path'])
+    suffix = confidic['suffix']
+    compartments = metadatadf['short_comp'].unique().tolist()
+    # dynamically open the file based on prefix, compartment and suffix:
+    for co in compartments:
+        metada_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
+        fn = f'{out_path}results/prepared_tables/{table_prefix}--{co}--{suffix}.tsv'
+        abutab = pd.read_csv(fn, sep='\t', header=0, index_col=0)
+
+        # metadata and abundances time of interest
+        metada_sel = metada_co.loc[metada_co["timepoint"].isin(time_sel), :]
+        abu_sel = abutab[metada_sel["sample"]]
+
+        # total piled-up data:
+        piled_sel = pile_up_abundance(abu_sel, metada_sel)
+        piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
+        piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
+
+        plotwidth = width_each_subfig * len(selectedmetsD[co])
+
+        printabundbarswithdots(piled_sel, selectedmetsD[co], co, "TOTAL",
+                               axisx_var, hue_var, plotwidth, out_plot_dir, xticks_text_l, axisx_labeltilt,
+                               wspace_subfigs, args)
+
+
+if __name__ == "__main__":
+    parser = bars_args()
+    args = parser.parse_args()
+    configfile = os.path.expanduser(args.config)
+    confidic = fg.open_config_file(configfile)
+    fg.auto_check_validity_configuration_file(confidic)
+    out_path = os.path.expanduser(confidic['out_path'])
+    meta_path = os.path.expanduser(confidic['metadata_path'])
+    clean_tables_path = out_path + "results/prepared_tables/"
+
+    # tpd : tables prefixes dictionary
+    tpd = fg.clean_tables_names2dict(f'{out_path}results/prepared_tables/TABLESNAMES.csv')
+    metadatadf = fg.open_metadata(meta_path)
+
+
+    abund_tab_prefix = tpd['name_abundance']
+    out_plot_dir= out_path + "results/plots/bars_Abundance/"
+    fg.detect_and_create_dir(out_plot_dir)
+    run_steps_abund_bars( abund_tab_prefix,  metadatadf,
+                  out_plot_dir, confidic, args)
+
+
+
+###############
+# https://stackoverflow.com/questions/42017049/how-to-add-error-bars-on-a-grouped-barplot-from-a-column
+# give allways scientific notation :
+# https://www.adamsmith.haus/python/answers/how-to-scale-an-axis-to-scientific-notation-in-a-matplotlib-plot-in-python
