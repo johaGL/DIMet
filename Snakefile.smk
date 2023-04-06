@@ -107,7 +107,7 @@ rule bars:
         #f"python -m DIMet.src.abundances_bars --help > {outdir}results/plots/log/bars.log"
         f"python -m DIMet.src.abundances_bars {primary_config_path} > {outdir}results/plots/log/bars.log"
 
-
+# TODO add rule lineplot and stacked
 
 rule metabologram:
     input:
