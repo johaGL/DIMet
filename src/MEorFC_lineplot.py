@@ -15,7 +15,6 @@ import seaborn as sns
 sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 
-#TODO test color argument all three stuff
 
 def lineplot_args():
     parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
@@ -25,7 +24,17 @@ def lineplot_args():
 
     parser.add_argument('--color_metabolites', type=str,  default="auto_multi_color",
                         help="auto_multi_color | PATH_TO_COLOR_TABLE\n\
-                        \nIf you add a PATH_TO_COLOR_TABLE, must be a .csv with header: metabolite,color")
+                        \nIf you add a PATH_TO_COLOR_TABLE, must be a .csv \
+                        with header: metabolite,color")
+
+    parser.add_argument("--xaxis_title", type=str, default='time',
+                        help="the x axis lab title, for example, \
+                        'time', 'hours', 'minutes', 'seconds'")
+
+    parser.add_argument("--plot_the_rest_of_metabolites",
+                        action=argparse.BooleanOptionalAction, default=False,
+                        help="plot a simple facetgrid with the metabolites that weren't\
+                        in your config (can be slow if many metabolites)")
 
     parser.add_argument('--alpha', type=int, default=1)
 
@@ -92,10 +101,10 @@ $        dataframe by one metabolite, metabolite column deleted:
     return m_s
 
 
-def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
+def complextimetracer_plot(co, df4plot, grmetsD, mycolorsD, outfile, args):
     themets = nestedDi2list(grmetsD)
     hoursticks = df4plot['timenum'].unique()
-    somem = df4plot.loc[df4plot["metabolite"].isin(themets)]
+    somem = df4plot.loc[df4plot["metabolite"].isin(themets), :].copy()
     m_s = pd.DataFrame(columns=["condition", "timenum", "mean", "sd", "metabolite"])
     for k in set(somem["metabolite"]):
         one_m = somem[somem["metabolite"] == k]
@@ -104,26 +113,28 @@ def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
         m_s = pd.concat([m_s, m_s1])  # mean and sd ( bio replicates)
     figziz = 6.2 * len(grmetsD)
     fig, axs = plt.subplots(2, len(grmetsD), sharey=False, figsize=(figziz, 11))
+
     def doemptyrow(axs, nbcolumns):
-        for z in range(nbcolumns): # do empty row
-            axs[0,z].set_axis_off()
+        for z in range(0, nbcolumns): # do empty row
+            axs[0, z].set_axis_off()
         return axs
 
     axs = doemptyrow(axs, len(grmetsD))
 
     for z in range(len(grmetsD)):
         sns.lineplot(
-            ax=axs[1,z],
+            ax=axs[1, z],
             x="timenum",
             y="Fractional Contribution (%)",
             hue="metabolite",
             style="condition",
             err_style=None,
-            alpha=0.9,
-            linewidth = 4.5,
+            alpha=args.alpha,
+            linewidth=4.5,
             palette=mycolorsD,
+            zorder=1,
             data=somem.loc[somem["metabolite"].isin(grmetsD[z])],
-            legend=True,  ## !!!!!!!!!!!!!!!!attention here   <=====
+            legend=True,
         )
         axs[1,z].set_xticks([int(i) for i in hoursticks])
         m_s1 = m_s.loc[m_s["metabolite"].isin(grmetsD[z])]
@@ -137,27 +148,23 @@ def complextimetracer(co, df4plot, grmetsD, mycolorsD, outfile):
             fmt="none",
             capsize=3,
             ecolor="black",
-            zorder=3,
+            zorder=2
         )
-        axs[1,z].set(ylabel=None),
-        axs[1,z].legend(loc="upper center", bbox_to_anchor= (0.5, 2), frameon=False)
-        # ha , la = axs[z].get_legend_handles_labels()
-        # handless.append(ha)
-        # labels.append(la)
+        axs[1, z].set(ylabel=None),
+        axs[1, z].set(xlabel=args.xaxis_title)
+        axs[1, z].legend(loc="upper center", bbox_to_anchor= (0.5, 2), frameon=False)
+
     fig.suptitle(co)
     plt.subplots_adjust(bottom=0.1, right=0.8, hspace=0.1, wspace=0.4)
 
     fig.text(
         0.1, 0.3, "Fractional Contribution (%)", va="center", rotation="vertical"
     )
-    # loc="upper left"
-    # fig.legend(handless, labels, bbox_to_anchor=(0.65,1.05))
-    #fig.legend(handles=handless, labels=labels)
     fig.savefig(outfile, format="pdf")
     return 0
 
 
-def give_colors_by_arg(argument_color_metabolites, confidic):
+def give_colors_by_arg(argument_color_metabolites, metabos_nested_dico):
 
     handycolors = ["rosybrown", "lightcoral", "brown", "firebrick", "tomato", "coral", "sienna",
                   "darkorange",   "peru", "darkgoldenrod", "gold", "darkkhaki", "olive",
@@ -170,10 +177,10 @@ def give_colors_by_arg(argument_color_metabolites, confidic):
 
     if argument_color_metabolites =="auto_multi_color":
         allmets = set()
-        for co in confidic['groups_toplot_frac_contribs'].keys():
-            for k in confidic['groups_toplot_frac_contribs'][co].keys():
-                allmets.update(set(confidic['groups_toplot_frac_contribs'][co][k]))
-        mets_l =  list(allmets)
+        for co in metabos_nested_dico.keys():
+            for k in metabos_nested_dico[co].keys():
+                allmets.update(set(metabos_nested_dico[co][k]))
+        mets_l = sorted(list(allmets))
         if len(mets_l) > 12:
             for i in range(len(mets_l)):
                 dicoout[mets_l[i]] = handycolors[i]
@@ -196,12 +203,46 @@ def give_colors_by_arg(argument_color_metabolites, confidic):
     return dicoout
 
 
+def undesired_metabs_fast_plot(df4plot, trashmets, co, out_plot_dir):
+    ppp = df4plot.loc[df4plot["metabolite"].isin(trashmets)]
+
+    plt.rcParams.update({"font.size": 10})
+
+    g = sns.FacetGrid(
+        ppp, row="condition", col="metabolite", sharey=False, margin_titles=True
+    )
+    g.map(
+        sns.lineplot,
+        "timenum",
+        "Fractional Contribution (%)",
+        size=5,
+        alpha=1,
+        # error bars config :
+        marker="o",
+        err_style="bars",
+        errorbar=('ci', 95),
+        color="darkgray"
+    )
+    g.savefig(out_plot_dir + "undesired_" + co + ".pdf", format="pdf")
 
 
-def savefraccontriplots(table_prefix, metadatadf,
-                         out_plot_dir, confidic, args):
-
-    gbycompD = confidic["groups_toplot_frac_contribs"]
+def savefraccontriplots(table_prefix, metadatadf, out_plot_dir, confidic, args):
+    try:
+        metabos_nested_dico = confidic["groups_toplot_frac_contribs"]
+    except KeyError:
+        try:
+            metabos_simple_dico = confidic["metabolites_to_plot"]
+            single_metab_by_facet_dico = dict()
+            for co in metabos_simple_dico:
+                single_metab_by_facet_dico[co] = dict()
+                i = 0
+                for metabo in confidic["metabolites_to_plot"][co]:
+                    single_metab_by_facet_dico[co][i] = [metabo]
+                    i += 1
+            metabos_nested_dico = single_metab_by_facet_dico
+        except KeyError:
+            print("No metabolites for plotting in your config file")
+    # end try
 
     condilevels = confidic["conditions"]  # <= locate where it is used
 
@@ -209,7 +250,7 @@ def savefraccontriplots(table_prefix, metadatadf,
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
 
-    coloreachmetab = give_colors_by_arg(args.color_metabolites, confidic)
+    coloreachmetab = give_colors_by_arg(args.color_metabolites, metabos_nested_dico)
 
     # dynamically open the file based on prefix, compartment and suffix:
     for co in compartments:
@@ -219,7 +260,7 @@ def savefraccontriplots(table_prefix, metadatadf,
 
         df4plot = yieldfraccountrib(adf, metada_co , co)
         df4plot["condition"] = pd.Categorical(df4plot["condition"], condilevels)
-        grmetsD = gbycompD[co]
+        grmetsD = metabos_nested_dico[co]
 
         sns.set_style(
             {"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"}
@@ -227,39 +268,19 @@ def savefraccontriplots(table_prefix, metadatadf,
         plt.rcParams.update({"font.size": 22})
         # https://stackoverflow.com/questions/53137983/define-custom-seaborn-color-palette
 
-        ofile = "{}fc_plot_{}.pdf".format(out_plot_dir, co)
-        complextimetracer(co, df4plot, grmetsD, coloreachmetab, ofile)
+        ofile = "{}MEorFC_line_plot_{}.pdf".format(out_plot_dir, co)
+        complextimetracer_plot(co, df4plot, grmetsD, coloreachmetab, ofile, args)
 
-        #### uninteresting metabolites : quick ugly print :
+         #### uninteresting metabolites, quick ugly print :
         pickedmets_ = nestedDi2list(grmetsD)
         thiscompartment_mets = set(df4plot["metabolite"])
 
         trashmets = set(thiscompartment_mets) - set(pickedmets_)
-        ppp = df4plot.loc[df4plot["metabolite"].isin(trashmets)]
+        if args.plot_the_rest_of_metabolites:
+            undesired_metabs_fast_plot(df4plot, trashmets, co, out_plot_dir)
 
-        plt.rcParams.update({"font.size": 10})
-
-        g = sns.FacetGrid(
-            ppp, row="condition", col="metabolite", sharey=False, margin_titles=True
-        )
-        g.map(
-            sns.lineplot,
-            "timenum",
-            "Fractional Contribution (%)",
-            size=5,
-            alpha=args.alpha,
-            # error bars config :
-            marker="o",
-            err_style="bars",
-            errorbar=('ci', 95),
-            color="black"
-        )
-        g.savefig(out_plot_dir + "fc_remaining_" + co + ".pdf", format="pdf")
     return 0
 
-
-
-# ##
 
 if __name__ == "__main__":
     parser = lineplot_args()
@@ -280,7 +301,8 @@ if __name__ == "__main__":
     fg.detect_and_create_dir(out_plot_dir)
 
     print(" Mean Enrichment -or Fractional contributions- plots \n")
-
     savefraccontriplots(table_prefix, metadatadf, out_plot_dir, confidic, args)
+
+
 
 

@@ -27,6 +27,7 @@ def stacked_args():
 
     return parser
 
+
 def isotopol_prop_2df4plot(df_co, metada_co, levelshours_str):
     """
     Imitates de behaviour of a 'melt', but this function is more secure
@@ -98,7 +99,7 @@ def preparemeansreplicates(df4plot, selectedmets):
     returns a dictionary of dataframes, keys are metabolites
     """
     dfcopy = df4plot.copy()
-    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "timenum"]).mean()
+    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "timenum"]).mean("Isotopologue Contribution %")
     dfcopy = dfcopy.reset_index()
 
     dfs_Dico = dict()
@@ -108,11 +109,6 @@ def preparemeansreplicates(df4plot, selectedmets):
         tmp["m+x"] = tmp["m+x"].str.split("m+", regex=False).str[1]
         tmp["m+x"] = tmp["m+x"].astype(int)
 
-        #tmp = tmp.sort_values(by="m+x", axis=0, ascending=True, inplace=False)
-        # spnumbers = [k.split("m+")[1] for k in tmp["m+x"].unique()]
-        # maxmx = max([ int(i) for i in spnumbers ])
-        # levelsspecies = ["m+"+str(k) for k in range(maxmx)]
-        # tmp["m+x"] = pd.Categorical(tmp["m+x"], levelsspecies)
         dfs_Dico[i] = tmp
     return dfs_Dico
 
@@ -155,18 +151,17 @@ def yieldpalsauto():
     return palsautoD
 
 
-def complexstacked(co, selectedmets, dfs_Dico,
-        outfilename, figu_width, xlabyesno,  wspace_stacks, numbers_size ):
+def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
+                   xlabyesno,  wspace_stacks, numbers_size ):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
     palsautoD = yieldpalsauto()
-    ### set font style
+
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
     f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 4.8))
     plt.rcParams.update({"font.size": 20})
 
     for z in range(len(selectedmets)):
-        # sns.set_style({ 'font.family': 'sans-serif',
-        #                'font.sans-serif' : 'Liberation Sans'   })
+
         axs[z].set_title(selectedmets[z])
         sns.histplot(
             ax=axs[z],
@@ -192,7 +187,6 @@ def complexstacked(co, selectedmets, dfs_Dico,
 
         for bar in axs[z].patches:
             # assign stacked bars text color
-
             thebarvalue = round(bar.get_height(), 1)
             if thebarvalue >= 100:
                 thebarvalue = 100  # no decimals if 100
@@ -208,12 +202,11 @@ def complexstacked(co, selectedmets, dfs_Dico,
                     thebarvalue,
                     # Center the labels and style them a bit.
                     ha="center",
-                    # size= int((figu_width / len(selectedmets)) * 2) # automatic can be too small
                     size=numbers_size,
                 )  # end axs[z].text
             else:
                 continue
-            # end if round(...)
+            # end if round
         # end for bar
 
         axs[z].set_ylabel("", size=20)
@@ -279,9 +272,6 @@ def save_isotopol_stacked_plot(table_prefix, metadatadf,
     wspace_stacks = float(confidic["wspace_stacks"])
     numbers_size = int(confidic["numbers_size"])
 
-    selbycompD = confidic["groups_toplot_isotopol_contribs"]
-
-
     levelshours_str = [str(i) for i in sorted(metadatadf['timenum'].unique())]
 
     # condilevels, combined_tc_levels = add_joker_tolabs(condilevels, levelshours_str)
@@ -297,7 +287,7 @@ def save_isotopol_stacked_plot(table_prefix, metadatadf,
 
         df4plot = massageisotopologues(df4plot)
 
-        selectedmets = confidic['groups_toplot_isotopol_contribs'][co]
+        selectedmets = confidic['metabolites_to_plot'][co]
         outfname = "{}isotopologues_stacked{}.pdf".format(out_plot_dir, co)
 
         dfs_Dico = preparemeansreplicates( df4plot,  selectedmets )

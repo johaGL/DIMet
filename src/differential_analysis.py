@@ -676,7 +676,9 @@ if __name__ == "__main__":
     if args.isotopologues:
         isos_abs_tab_prefix = tables_prefixes_dico['name_isotopologue_abs']
         isos_prop_tab_prefix = tables_prefixes_dico['name_isotopologue_prop']
-        if isos_abs_tab_prefix != "None":  # is string, prepare.py did it so in TABLESNAMES.csv
+        if (isos_abs_tab_prefix is not np.nan) and \
+            (isos_abs_tab_prefix != "None") and \
+            (isos_abs_tab_prefix is not None):
             print("processing absolute isotopologues")
             validate_zero_repl_arg(args.isotopologueAbs_replace_zero_with)
             wrapper_for_isoAbsol(clean_tables_path, isos_abs_tab_prefix,
@@ -684,7 +686,7 @@ if __name__ == "__main__":
         else:
             print("processing isotopologues (values given as proportions)")
             validate_zero_repl_arg(args.isotopologueProp_replace_zero_with)
-            wrapper_for_isoProp(clean_tables_path,isos_prop_tab_prefix, metadatadf,  confidic, args)
+            wrapper_for_isoProp(clean_tables_path, isos_prop_tab_prefix, metadatadf,  confidic, args)
 
     print("end")
 

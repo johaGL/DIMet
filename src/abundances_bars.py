@@ -25,6 +25,10 @@ def bars_args():
     parser.add_argument('--palette',  default="pastel",
                         help="qualitative or categorical palette name as in Seaborn library (Python)")
 
+    parser.add_argument('--x_text', type=str, default="",
+                        help='abbreviations for x axis ticks text. First run default to get aware of exact ticks text.\
+                        Then write them separated by commas, example: "Ctl,Reac-a,Reac-b,..." ')
+
     return parser
 
 
@@ -46,7 +50,7 @@ def pile_up_abundance(abu_sel, metada_sel):
 
 
 def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var, plotwidth,
-                           odirbars, xticks_text_l, axisx_labeltilt, wspace_subfigs, args):
+                           odirbars, axisx_labeltilt, wspace_subfigs, args):
     selected_metabs = selectedmets
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
     plt.rcParams.update({"font.size": 21})
@@ -58,32 +62,44 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var,
         herep = herep.reset_index()
         sns.barplot(
             ax=axs[il],
-            data=herep,
             x=axisx_var,
             y="abundance",
-            hue=hue_var,
+            hue=str(hue_var),
+            data=herep,
             palette=args.palette,
             alpha=1,
             edgecolor="black",
             errcolor="black",
             errwidth=1.7,
-            ci="sd",
-            capsize=0.2,
+            errorbar='sd',
+            capsize=0.2
         )
-        sns.stripplot(
-            ax=axs[il],
-            data=herep,
-            x=axisx_var,
-            y="abundance",
-            hue=hue_var,
-            palette=args.palette,
-            dodge=True,
-            edgecolor="black",
-            linewidth=1.5,
-            alpha=1,
-        )
+        try:
+            sns.stripplot(
+                ax=axs[il],
+                x=axisx_var,
+                y="abundance",
+                hue=str(hue_var),
+                data=herep,
+                palette=args.palette,
+                dodge=True,
+                edgecolor="black",
+                linewidth=1.5,
+                alpha=1
+            )
+        except: # When Nan it throws error, avoid it
+            pass
+
         axs[il].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        axs[il].set_xticklabels(xticks_text_l)
+
+        if args.x_text != "":
+            the_x_text = args.x_text
+            try:
+                xticks_text_l = the_x_text.split(",")
+                axs[il].set_xticklabels(xticks_text_l)
+            except Exception as e:
+                print(e, "The argument x_text is incorrectly set, see help")
+
         axs[il].set(title=" " + selected_metabs[il] + "\n")
         axs[il].set(ylabel="")
         axs[il].set(xlabel="")
@@ -114,10 +130,9 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var,
 
 def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args) -> None:
     time_sel = confidic["time_sel"]  # locate where it is used
-    selectedmetsD = confidic["selectedmets_forbars"]  # locate where it is used
+    selectedmetsD = confidic["metabolites_to_plot"]  # locate where it is used
     condilevels = confidic["conditions"]  # <= locate where it is used
 
-    xticks_text_l = confidic["axisx_text"]
     axisx_labeltilt = int(confidic["axisx_labeltilt"])
     axisx_var = confidic["axisx"]
     hue_var = confidic["barcolor"]
@@ -146,7 +161,7 @@ def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args
         plotwidth = width_each_subfig * len(selectedmetsD[co])
 
         printabundbarswithdots(piled_sel, selectedmetsD[co], co, "TOTAL",
-                               axisx_var, hue_var, plotwidth, out_plot_dir, xticks_text_l, axisx_labeltilt,
+                               axisx_var, hue_var, plotwidth, out_plot_dir, axisx_labeltilt,
                                wspace_subfigs, args)
 
 
@@ -168,8 +183,7 @@ if __name__ == "__main__":
     abund_tab_prefix = tpd['name_abundance']
     out_plot_dir= out_path + "results/plots/bars_Abundance/"
     fg.detect_and_create_dir(out_plot_dir)
-    run_steps_abund_bars( abund_tab_prefix,  metadatadf,
-                  out_plot_dir, confidic, args)
+    run_steps_abund_bars( abund_tab_prefix,  metadatadf, out_plot_dir, confidic, args)
 
 
 
