@@ -12,7 +12,6 @@ import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 
 

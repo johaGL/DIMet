@@ -6,13 +6,11 @@ Created on Thu Jul 21 14:32:27 2022
 @author: johanna
 """
 import os
-import sys
 import argparse
 import pandas as pd
 import numpy as np
 import scipy.stats
 import statsmodels.stats.multitest as ssm
-sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 from distrib_fit_fromProteomix import compute_z_score, find_best_distribution, compute_p_value
 

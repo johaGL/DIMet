@@ -5,14 +5,13 @@ Created on Mon May  9 11:20:09 2022
 
 @author: johanna
 """
-import sys
+
 import os
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 
 

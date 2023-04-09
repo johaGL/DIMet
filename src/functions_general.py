@@ -14,7 +14,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
 import locale
-import warnings
+
 
 
 def open_config_file(confifile):

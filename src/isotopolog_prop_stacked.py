@@ -5,16 +5,14 @@ Created on Wed May 18 11:14:34 2022
 
 @author: johanna
 """
-import sys
+
 import os
 import argparse
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.ticker as mticker
-sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 
 

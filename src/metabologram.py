@@ -4,7 +4,6 @@
 Metabologram module
 johagl 2023
 """
-import sys
 import os
 import argparse
 import yaml
@@ -15,9 +14,7 @@ import pandas as pd
 from matplotlib.colors import Normalize
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib as mpolib
-sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
-
 
 
 def metabologram_args():

@@ -15,7 +15,7 @@ name_abundance : null
 name_meanE_or_fracContrib : null
 name_isotopologue_prop : null
 name_isotopologue_abs : isotopologuesCorrValues  # isotopologue absolute values
-gedit 
+
 conditions : [sgCont, sgLDHA] # first must be control, when several
 suffix : toy3a01
 out_path : ~/toy3/analysis01/

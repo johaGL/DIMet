@@ -8,7 +8,6 @@ Created on  Nov 15  2022
 """
 
 import os
-import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +16,6 @@ import seaborn as sns
 from scipy import stats
 import argparse
 from matplotlib.patches import Ellipse
-sys.path.append(os.path.dirname(__file__))
 import functions_general as fg
 
 
