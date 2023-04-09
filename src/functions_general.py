@@ -16,7 +16,6 @@ import seaborn as sns
 import locale
 
 
-
 def open_config_file(confifile):
     try:
         with open(confifile, "r") as f:
@@ -35,9 +34,12 @@ def open_config_file(confifile):
 
 
 def auto_check_validity_configuration_file(confidic) -> None:
-    expected_keys = ['metadata_path', 'targetedMetabo_path', 'amountMaterial_path',
-                     'typeprep','name_abundance', 'name_meanE_or_fracContrib',
-                     'name_isotopologue_prop', 'name_isotopologue_abs', 'conditions',
+    expected_keys = ['metadata_path', 'targetedMetabo_path',
+                     'amountMaterial_path',
+                     'typeprep', 'name_abundance',
+                     'name_meanE_or_fracContrib',
+                     'name_isotopologue_prop', 'name_isotopologue_abs',
+                     'conditions',
                      'suffix', 'out_path']
     for k in expected_keys:
         assert k in confidic.keys(), f"{k} : missing in configuration file! "
@@ -52,7 +54,10 @@ def fullynumeric(mystring):
     try:
         float(mystring)
         return True
+    except ValueError:
+        return False
     except Exception as e:
+        print(e)
         return False
 
 
@@ -70,7 +75,8 @@ def open_metadata(file_path):
 
 def verify_metadata_sample_not_duplicated(metadata_df) -> None:
     def yield_repeated_elems(mylist):
-        occur_dic = dict(map(lambda x: (x, list(mylist).count(x)), mylist)) # credits: w3resource.com
+        occur_dic = dict(map(lambda x: (x, list(mylist).count(x)),
+                             mylist))  # credits: w3resource.com
         repeated_elems = list()
         for k in occur_dic.keys():
             if occur_dic[k] > 1:
@@ -80,7 +86,8 @@ def verify_metadata_sample_not_duplicated(metadata_df) -> None:
     sample_duplicated = yield_repeated_elems(list(metadata_df['sample']))
     if len(sample_duplicated) > 0:
         txt_errors = f"-> duplicated sample names: {sample_duplicated}\n"
-        raise ValueError(f"Error, found these conflicts in your metadata:\n{txt_errors}")
+        raise ValueError(
+            f"Error, found these conflicts in your metadata:\n{txt_errors}")
 
 
 def isotopologues_meaning_df(isotopologues_full_list):
@@ -133,7 +140,7 @@ def prepare4contrast(idf, ametadata, grouping, contrast):
 def splitrowbynewcol(row, metas):
     """
     Returns : miniD
-    example : Control_T24h : [0.0, 0.0, 0.0] , L-Cycloserine_T24h : [0.0, 0.0, 0.0]
+    example : Control_T24h : [0.0, 0.0, 0.0] , Treated_T24h : [0.0, 0.0, 0.0]
     """
     newcoluniq = list(set(metas["newcol"]))
     miniD = dict()
@@ -169,27 +176,32 @@ def compute_reduction(df, ddof):
     modified, original from ProteomiX
     johaGL 2023:
     - if all row is zeroes, set same protein_values
-    - if nanstd(array, ddof) equals 0, set same protein_values (example: nanstd([0.1,nan,0.1,0.1,0.1,nan])
+    - if nanstd(array, ddof) equals 0, set same protein_values
+    (example: nanstd([0.1,nan,0.1,0.1,0.1,nan])
     """
     res = df.copy()
     for protein in df.index.values:
         # get array with abundances values
         protein_values = np.array(
-            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
+            df.iloc[protein].map(
+                lambda x: locale.atof(x) if type(x) == str else x))
         # return array with each value divided by standard deviation, row-wise
-        if (np.nanstd(protein_values, ddof=ddof) == 0) or (sum(protein_values) == 0):
+        if (np.nanstd(protein_values, ddof=ddof) == 0) or (
+                sum(protein_values) == 0):
             reduced_abundances = protein_values
         else:
-            reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
+            reduced_abundances = protein_values / np.nanstd(protein_values,
+                                                            ddof=ddof)
 
         # replace values in result df
         res.loc[protein] = reduced_abundances
     return res
 
 
-def give_reduced_df( df, ddof ):
+def give_reduced_df(df, ddof):
     rownames = df.index
-    df.index = range(len(rownames))  # index must be numeric because compute reduction accepted
+    df.index = range(len(rownames))
+    # index must be numeric because compute reduction accepted
     df_red = compute_reduction(df, ddof)  # reduce
     df_red.index = rownames
     return df_red
@@ -205,7 +217,7 @@ def compute_cv(reduced_abund):
         return np.nan
 
 
-def give_coefvar_new(df_red, red_meta, newcol : str):
+def give_coefvar_new(df_red, red_meta, newcol: str):
     print("give cv")
 
     groups_ = red_meta[newcol].unique()
@@ -231,7 +243,7 @@ def compute_gmean_nonan(anarray):
     return outval
 
 
-def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
+def give_geommeans_new(df_red, metad4c, newcol: str, c_interest, c_control):
     """
     output: df, str, str
     """
@@ -245,8 +257,8 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
     dfout[geomcol_control] = [np.nan for i in range(dfout.shape[0])]
 
     for i, row in df_red.iterrows():
-        metabolite = i
-        vec_interest = np.array(row[sams_interest])  #[ sams_interest]
+        # i : the metabolite name in current row
+        vec_interest = np.array(row[sams_interest])  # [ sams_interest]
         vec_control = np.array(row[sams_control])
 
         val_interest = compute_gmean_nonan(vec_interest)
@@ -264,7 +276,7 @@ def give_ratios_df(df1, geomInterest, geomControl):
     for i, row in df1.iterrows():
         intere = row[geomInterest]
         contr = row[geomControl]
-        if contr == 0 :
+        if contr == 0:
             df.loc[i, "geommean_ratio"] = intere / 1e-10
         else:
             df.loc[i, "geommean_ratio"] = intere / contr
@@ -275,16 +287,16 @@ def give_ratios_df(df1, geomInterest, geomControl):
 def countnan_samples(df, metad4c):
     vecout = []
     grs = metad4c['newcol'].unique()
-    gr1 = metad4c.loc[metad4c['newcol']  == grs[0], "sample"]
-    gr2 = metad4c.loc[metad4c['newcol']  == grs[1], "sample"]
+    gr1 = metad4c.loc[metad4c['newcol'] == grs[0], "sample"]
+    gr2 = metad4c.loc[metad4c['newcol'] == grs[1], "sample"]
 
     for i, row in df.iterrows():
         vec1 = row[gr1].tolist()
         vec2 = row[gr2].tolist()
         val1 = np.sum(np.isnan(vec1))
         val2 = np.sum(np.isnan(vec2))
-        vecout.append(tuple([str(val1)+'/'+str(len(vec1)),
-                             str(val2)+'/'+str(len(vec2))]))
+        vecout.append(tuple([str(val1) + '/' + str(len(vec1)),
+                             str(val2) + '/' + str(len(vec2))]))
 
     df['count_nan_samples'] = vecout
     return df
@@ -310,14 +322,14 @@ def add_isotopologue_type_column(df):
 
 
 def save_heatmap_sums_isos(thesums, figuretitle, outputfigure) -> None:
-    fig, ax = plt.subplots( figsize=(9,10))
+    fig, ax = plt.subplots(figsize=(9, 10))
     sns.heatmap(thesums,
                 annot=True, fmt=".1f", cmap="crest",
-                square = True,
-                annot_kws = {
-                    'fontsize' : 6
+                square=True,
+                annot_kws={
+                    'fontsize': 6
                 },
-                ax= ax)
+                ax=ax)
     plt.xticks(rotation=90)
     plt.title(figuretitle)
     plt.savefig(outputfigure)
@@ -360,12 +372,10 @@ def save_rawisos_plot(dfmelt, figuretitle, outputfigure) -> None:
     plt.savefig(outputfigure)
     plt.close()
 
-
 # end functions for isotopologue preview
 
 # END
 
 # useful resources:
-# count nb of occurrences: https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
-
-
+# count nb of occurrences:
+# https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
