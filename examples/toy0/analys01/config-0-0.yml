@@ -25,22 +25,19 @@ out_path : ~/toy0/analys01/
 # -----------------------------
 # Plots
 # -----------------------------
-
+metabolites_to_plot:
+  in: [var_39, var_50, var_18, var_10, var_5, var_1]
 
 # Abundances
 # -----------------------------
 time_sel: 
   - 0
-selectedmets_forbars:
-  in: [var_39, var_50, var_18, var_10, var_5, var_1]
-
 
 barcolor: timepoint
 axisx : condition
 axisx_labeltilt : 0 # 0 is no tilt
 width_each_subfig : 3
 wspace_subfigs : 1
-
 
 
 # -----------------------------

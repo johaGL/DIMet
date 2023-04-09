@@ -2,7 +2,7 @@ metabologram_out_dir : "~/toy0/analys01/results/plots/"
 
 
 ## DEG infos
-dir_deg : "~/toy0/analys01/metabologram/DEG_tables/"
+dir_deg : "~/toy0/analys01/metabologram_data/DEG_tables/"
 DEG_tables:
   1 : "DEG_random.tsv"
   2 : "DEG_random.tsv"
@@ -12,7 +12,7 @@ columns_deg : ['external_gene_name', 'log2FoldChange']
 
 
 ## DAM infos
-dir_dam : "~/toy0/analys01/metabologram/DAM_tables/"
+dir_dam : "~/toy0/analys01/metabologram_data/DAM_tables/"
 DAM_tables:   # fill here 1: 2: etc
   1 : simulfractions--in--toy0-b_a-KW.tsv 
   2 : simulfractions--in--toy0-a_b-KW.tsv
@@ -28,6 +28,6 @@ titles:
   
 # pathways files, both done by you. The one of metabolites has the names as in your DAM table
 pathways_files:
-  genes : "~/toy0/analys01/metabologram/pathways_genes_list_modified.tsv"
-  metabolites : "~/toy0/analys01/metabologram/pathways_metabolites.tsv"
+  genes : "~/toy0/analys01/metabologram_data/pathways_genes_list_modified.tsv"
+  metabolites : "~/toy0/analys01/metabologram_data/pathways_metabolites.tsv"
 

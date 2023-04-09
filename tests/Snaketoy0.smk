@@ -54,11 +54,10 @@ rule all:
         f'{outdir}results/plots/log/pca.log',
         f'{outdir}results/differential_analysis/diff.log',
          f'{outdir}results/plots/log/bars.log',
-        f'{outdir}results/plots/log/metabologram.log',          
-        f'{outdir}results/plots/log/theend.log'
-   # output:
-   # f'{outdir}results/log/metabologram.log'
-    #    f'{outdir}results/plots/log/theend.log'
+        f'{outdir}results/plots/log/metabologram.log'
+    output:        
+        f'{outdir}results/plots/log/end.log'
+
 
 
 
@@ -107,7 +106,7 @@ rule bars:
         #f"python -m DIMet.src.abundances_bars --help > {outdir}results/plots/log/bars.log"
         f"python -m DIMet.src.abundances_bars {primary_config_path} > {outdir}results/plots/log/bars.log"
 
-# TODO add rule lineplot and stacked
+
 
 rule metabologram:
     input:
@@ -118,7 +117,7 @@ rule metabologram:
          f'{outdir}results/plots/log/metabologram.log'
 
     shell:
-         f"python -m DIMet.src.metabologram {metabolog_config_path} > {outdir}results/log/metabologram.log"
+         f"python -m DIMet.src.metabologram {metabolog_config_path} > {outdir}results/plots/log/metabologram.log"
 
 	
 
@@ -131,10 +130,10 @@ rule end:
             f'{outdir}results/plots/log/metabologram.log'
 
     output:
-        f'{outdir}results/plots/log/theend.log'
-         #f'{outdir}results/plots/logs/pca.log'
+        f'{outdir}results/plots/log/end.log'
+
     shell:
-         f"echo 'ended dimet with snakemake' > {outdir}results/plots/log/theend.log"
+         f"echo 'ended dimet with snakemake' > {outdir}results/plots/log/end.log"
 
 
 # END
