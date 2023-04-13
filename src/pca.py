@@ -123,7 +123,7 @@ def save_pca_plots(title, pc_df, var_explained_df, col1, col2, pointlabels,
     except Exception as e:
         print("unknown error! ", e)
 
-    # barplot
+    # barplot (variances explained)
     plt.figure()
     sns.barplot(x='PC', y="var", data=var_explained_df, color="cadetblue")
     plt.title("Principal components: explained variance")
@@ -132,8 +132,6 @@ def save_pca_plots(title, pc_df, var_explained_df, col1, col2, pointlabels,
     plt.close()
 
     # scatterplot
-
-    # sns.set_style("whitegrid")
     fig, ax = plt.subplots()
     sns.scatterplot(x="PC1", y="PC2",
                     ax=ax,
@@ -146,7 +144,6 @@ def save_pca_plots(title, pc_df, var_explained_df, col1, col2, pointlabels,
     ax.axvline(0, ls="--", color="gray", zorder=1)
 
     yesnolabel = "no"
-
     if pointlabels != "":
         yesnolabel = "yes"
         for i, row in pc_df.iterrows():
@@ -162,9 +159,9 @@ def save_pca_plots(title, pc_df, var_explained_df, col1, col2, pointlabels,
         f"{row_xlab['PC']} {round(row_xlab['var'], 2)} %")
     plt.ylabel(
         f'{row_ylab["PC"]} {round(row_ylab["var"], 2)} %')
-    plt.title(title)
+    plt.title("")
 
-    # ellipses, if true
+    # ellipses
     if col_ellipses is not None:
         myellipsesnames = pc_df[col_ellipses].unique()
         for lab in myellipsesnames:
@@ -215,13 +212,11 @@ def run_steps_pca(type_measure: str, table_prefix: str,
         if len(timepoints) >= 2:  # worthed
             mat = clean_reduce_datadf_4pca(measurements, meta_sub)
             pc_df, dfvare = compute_pca(mat, meta_sub)
-            pc_df = pc_df.assign(
-                col_label=pc_df['name_to_plot'].str.replace(co, ""))
             title = f'{type_measure} {co} {suffix}'
             if args.draw_ellipses:
                 # with label
                 save_pca_plots(title, pc_df, dfvare, "timepoint", "condition",
-                               "col_label", out_plot_dir, "timepoint")
+                               "name_to_plot", out_plot_dir, "timepoint")
 
                 # no label
                 save_pca_plots(title, pc_df, dfvare, "timepoint", "condition",
@@ -230,45 +225,47 @@ def run_steps_pca(type_measure: str, table_prefix: str,
             else:
                 # with label
                 save_pca_plots(title, pc_df, dfvare, "timepoint", "condition",
-                               "col_label", out_plot_dir)
+                               "name_to_plot", out_plot_dir)
 
                 # no label
                 save_pca_plots(title, pc_df, dfvare, "timepoint", "condition",
                                "", out_plot_dir)
 
             if args.save_pca_tables:
-                pc_df.to_csv(f'{out_plot_dir}{title.replace(" ","-")}_pc.csv',
+                name_tab_out = title.replace(" ", "-")
+                pc_df.to_csv(f'{out_plot_dir}{name_tab_out}_pc.csv',
                              sep='\t')
-                dfvare.to_csv(f'{out_plot_dir}{title.replace(" ","-")}_var.csv',
-                             sep='\t')
+                dfvare.to_csv(f'{out_plot_dir}{name_tab_out}_var.csv',
+                              sep='\t')
         # end if
 
-        # valid for any timepoints length:
-        for ti in timepoints:
-            title_ti = f'{type_measure} {co} {ti} {suffix}'
-            meta_ti = meta_sub.loc[(meta_sub['short_comp'] == co) & (
-                        meta_sub['timepoint'] == ti), :]
-            mat_ti = clean_reduce_datadf_4pca(measurements, meta_ti)
-            pc_df, dfvare = compute_pca(mat_ti, meta_ti)
+        if len(metadatadf['condition'].unique()) >= 2:
+            # plot pca for each timepoint separately:
+            for ti in timepoints:
+                title_ti = f'{type_measure} {co} {ti} {suffix}'
+                meta_ti = meta_sub.loc[(meta_sub['short_comp'] == co) & (
+                            meta_sub['timepoint'] == ti), :]
+                mat_ti = clean_reduce_datadf_4pca(measurements, meta_ti)
+                pc_df, dfvare = compute_pca(mat_ti, meta_ti)
 
+                # always with labels
 
-            # always with labels
-            pc_df = pc_df.assign(
-                col_label=pc_df['name_to_plot'].str.replace(co, ""))
-            if args.draw_ellipses:
-                save_pca_plots(title_ti, pc_df, dfvare, "condition",
-                               "condition", "col_label",
-                               out_plot_dir, "condition")
-            else:
-                save_pca_plots(title_ti, pc_df, dfvare, "condition",
-                               "condition", "col_label",
-                               out_plot_dir)
+                if args.draw_ellipses:
+                    save_pca_plots(title_ti, pc_df, dfvare, "condition",
+                                   "condition", "name_to_plot",
+                                   out_plot_dir, "condition")
+                else:
+                    save_pca_plots(title_ti, pc_df, dfvare, "condition",
+                                   "condition", "name_to_plot",
+                                   out_plot_dir)
 
-            if args.save_pca_tables:
-                pc_df.to_csv(f'{out_plot_dir}{title_ti.replace(" ","-")}_pc.csv',
-                             sep='\t')
-                dfvare.to_csv(f'{out_plot_dir}{title_ti.replace(" ","-")}_var.csv',
-                              sep='\t')
+                if args.save_pca_tables:
+                    name_tab_out = title_ti.replace(" ", "-")
+                    pc_df.to_csv(f'{out_plot_dir}{name_tab_out}_pc.csv',
+                                 sep='\t')
+                    dfvare.to_csv(f'{out_plot_dir}{name_tab_out}_var.csv',
+                                  sep='\t')
+        # end if
     # end for
 
 
@@ -289,7 +286,6 @@ def run_pca_in_iris(outdir) -> None:
 
 
 if __name__ == "__main__":
-
     parser = pca_args()
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
