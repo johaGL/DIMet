@@ -26,7 +26,7 @@ DIMet is intended for downstream analysis in corrected tracer data (corrected fo
 - [Get PCA(s)](#get-pcas)
 - [Run Differential analysis](#differential-analysis)
 - [Get plots](#get-plots)
-- [Get grams](#get-grams)
+- [Get Metabolograms](#get-Metabolograms)
 - 
 [Detailed guide](#detailed-guide)
 - [Prepare in depth](#prepare-in-depth)
@@ -46,53 +46,46 @@ conda env create --file DIMet/dimet.yml
 conda activate dimet 
 ```
 
-
 # Run the Analysis (fast guide)
 
-
 ## Prepare
-
 
 DIMet `prepare` module is the first step of the entire downstream analysis offered by our pipeline. It is required to be performed before any of the other modules. Its execution takes only few seconds! 
 
 ### Input files
 
-Three types of Tracer data are accepted by our `prepare` module:
-1. IsoCor results (.xlsx measurments file).
-2. Results provided by the VIB Metabolomics Expertise Center (El-Maven results are shaped by VIB MEC team into a multi-sheet .xlsx file).  
-3. A 'generic' .xlsx measurments file.
+The prepare module requires :
 
-Your data is expected to correspond to one of the three types above. We provide you 'toy' examples of each one of them  [here](examples/readme_examples.md). Pick the example most suited to your data.
+1. The measures' files : in the "data/" folder
+2. The metadata file : in the "data/" folder
+3. The .yml configuration file : in the "analysis--/" folder
 
-For example, let's take [toy3 example](examples/toy3/) , which contains:
+Regarding the measure's files, they consist of 4 tab-delimited .csv files, one by type of measure:
 
- - 'data/' folder, with:
-    * the tracer metabolomics data as one .xlsx file. 
-    * the samples description that we call the "metadata", see below
-    
- - 'analysis001/' folder, with:
-     * your configuration file (extension .yml), see below.
+- metabolites' abundances ("abundance")
+- labelled (carbon) fractional contributions or mean enrichment ("meanE\_or\_fracContrib")
+- isotopologues' proportions ("isotopologue\_prop")
+- isotopologues' absolute values ("isotopologue\_abs")
 
-
+You can also run DIMet if you have all except the last type of measure. For specific scenarii see [Before prepare](#Some-words-before-`prepare`) and FAQ at the end of this document.
 
 Regarding the "metadata", we explain it in detail in the section [Metadata](#the-metadata).
 
-
 Regarding the .yml file, we supply examples that you can use as template, such  [this config.yml template](examples/toy1/analysis001/config-1-001.yml). To double-check your modifications there exist online editors, such as https://yamlchecker.com/, just copy-paste and edit!
-
 
 ### Execute `prepare` 
 
-The examples serve to demonstrate how fast this module can be. Take toy3 example, copy and paste the entire toy3 folder in your 'home/' folder, then from terminal:
+The examples serve to demonstrate how fast this module can be. Take toy1 example, copy and paste the entire toy1 folder in your 'home/' folder, then from terminal:
 ```
-python -m DIMet.src.prepare toy3/analysis01/config-3-01.yml
+python -m DIMet.src.prepare toy1/analysis001/config-1-001.yml
 ```
 
 
 ### Output files
 
-The prepare output consist of 3 or 4 tables inside the folder: 'analysis001/results/prepared/tables/', one for each type of measure, by compartment (for example, if you have 'cellular' and 'supernatant' compartments, there will be 8 tables). Each table contains the metabolites as rows, and the samples as columns. 
+The prepare output consist of the four types of measures (three if the last not provided by you) saved inside the folder: `YOUR_OUTPUT_PATH/results/prepared/tables/`, by compartment. That means, if you have 'cellular' and 'supernatant' compartments, there will be 8 tab-delimited .csv files. 
 
+Each file contains the metabolites as rows, and the samples as columns. 
 
 Be patient, if this is the first time you perform downstream Tracer Metabolomics analysis with our DIMet pipeline, it can take some time to get used to prepare your input files. But once you have done it once, it will be really fast to analyze new datasets, do not give up. Check our section [Detailed guide](#detailed-guide). 
 
@@ -102,11 +95,13 @@ Example:
 ```
 python -m DIMet.src.pca ~/toy1/analysis001/config-1-001.yml 
 ```
-
+It will automatically generate :
+- a global PCA of your experiment
+- separated PCAs for each time-point (when more than one time-point)
 
 ## Get plots
 
-In construction
+readme construction
 
 
 
@@ -116,7 +111,7 @@ Set your options following the toy examples, defining:
 1. grouping  
 2. comparisons : listing of the comparisons to be performed
 3. statistical_test : the statistical test to apply by type of measure
-4. thresholds : padj and absolute_log2FC
+4. thresholds : _padj_ and absolute_log2FC
 
 For complex grouping, check the [Details regarding the Differential Analysis](#details-regarding-the-differential-analysis).
 
@@ -133,10 +128,11 @@ Currently statistical methods that are included in DIMet are:
 These methods rely on the related statistical functions available in the [scipy](https://docs.scipy.org/doc/scipy/reference/stats.html) library. 
 
 The thresholds permit to obtain the results filtered by :
- - adjusted pvalue (padj) and 
+ - adjusted pvalue (_padj_) and 
  -  absolute log2 fold change (log2FC)).
  
 #### Execute Differential Analysis 
+
 example:
 ```
 python -m DIMet.src.differential_analysis ~/toy1/analysis001/config-1-001.yml 
@@ -155,14 +151,14 @@ yield a table where rows are the metabolite/isotopologue, and the main columns a
 * 'distance/span': normalized distance between the two groups. Check the [Details regarding the Differential Analysis](#details-regarding-the-differential-analysis).
 
 
-The table is sorted by padj, pvalue and 'distance/span', and is filtered by the thresholds defined in your configuration file. Best results appear at the top. **Significant DAM are those for whom padj <= 0.05**.
+The table is sorted by _padj_, pvalue and 'distance/span', and is filtered by the thresholds defined in your configuration file. Best results appear at the top. **Significant DAM are those for whom _padj_ <= 0.05**.
 
 For explanations and advanced options, run `python -m DIMet.src.differential_analysis --help` and go to [Details regarding the Differential Analysis](#details-regarding-the-differential-analysis).
 
 
-## Get grams
+## Get Metabolograms
 
-In construction
+readme in construction
 
 
 
@@ -173,82 +169,36 @@ In construction
 
 # Detailed guide
 
-## Prepare in depth
+## Some words before `prepare`
 
-To remind, your data is already the result of the procedure correcting the areas or intensities for the presence of isotopologues in nature. There are several software options (for example, IsoCor, El-Maven, etc) to perform that correction. After correction, you can use our DIMet for the downstream analysis. DIMet `prepare` module is the first step of this downstream analysis. 
+To remind, your data is already the result of the procedure correcting the areas or intensities for the presence of isotopologues in nature. There are several software options (for example, IsoCor, El-Maven, etc) to perform that correction.
 
-In any of the three possible scenari (IsoCor, VIB or generic), you we encourage you to organize your files as shown in the examples that we provide. If will help you to have your results and your configuration files close, for reproductibility.
+After the correction, and before DIMet prepare step, users may be interested in:
 
+- generate all the other tables using the isotopologue Absolute values table,  and/or
+- normalize by the amount of material (number of cells, tissue weight), and/or
+- normalize by an internal standard (present in your data) at choice
 
+We have developed a package you can use for that purpose: https://github.com/johaGL/Tracegroomer. The output of Tracegroomer can be directly copied into your project to be analyzed by DIMet. 
 
-### Advanced prepare options
-
-We provide advanced options for `prepare` module, check the help:
-```
-python -m DIMet.src.prepare --help
-```
-they appear as 'optional arguments' in the help menu.
+Clean, ready to analyze data is necessary for DIMet to perform the downstream analysis. We encourage you to organize your files as shown in the examples that we provide, to have your results and your configuration files easy to find, for reproductibility.
 
 
-You can:
+## Measures' files requirements
 
-- normalize by the amount of material (number of cells, tissue weight): setting the path to the file in your **.yml** configuration. The file must be like [this csv file](examples/toy2/data/nbcells-or-amountOfMaterial.csv), and the first column must contain the same names as in metadata 'former\_name'.
-- normalize by an internal standard (present in your data) at choice: using the advanced option `--use_internal_standard`.
+- xlsx files are not admitted. Check if Tracegroomer may help you with your case. 
 
-However we have some indications that can slightly differ for [users having VIB results as input](#users-having-vib-results), [users having IsoCor results](#users-having-isocor-results) or users having ['generic' type of data](#users-having-generic-data).
+- The Isotopologues' names  must be written with a '**\_m+**' separating the name of the metabolite and the number of labeled carbons, example: 'Citrate\_m+0', 'Citrate\_m+1', and so on. Note: our Tracegroomer can set this automatically in specific scenarii.
 
-### Users having VIB results
-
-As shown in the example 'toy2' [here](examples/toy2/), give the names of the sheets that are present in your excel file coherently. 
- 
-Our pipeline performs, by default:
-- the subtraction of the means of the blanks across all metabolites' abundance for each sample.
-- seting to NaN the values of abundance that are under the limit of detection (LOD).
-- excluding metabolites whose abundance values across all samples are under LOD (excluded then from all tables by default).
-- stomping fractions values to be comprised between 0 and 1 (some negative and some superior to 1 values can occur after )
-
-You can modify all those options depending on your needs, they appear as 'optional arguments' in the help menu. 
-
- 
-### Users having IsoCor results
-
-A typical IsoCor results table is described in: https://isocor.readthedocs.io/en/latest/tutorials.html#output-files
- 
- Our pipeline transforms its columns into tables, so here the 'Isocor column : DIMet table' correspondence:
-    - corrected_area : isotopologuesAbsolute  
-    - isotopologue_fraction : isotopologuesProportions
-    - mean\_enrichment :  meanEnrich\_or_fracContrib
-    - (nothing)   : Abundance 
-
-Abundance table is the sum (per metabolite) of IsotopologuesAbsolute, we also perform it automatically, as this column is not present in the input data.     
-    
-Please stick to the example [toy1](examples/toy1/) for the names of the tables in the **.yml** file for isocorOutput
-    
-        
-Options regarding to detection limit (LOD) and blanks will not have any effect on the analysis. LOD is not provided in the data, and the same is true for blanks. 
-
-All the other options do have effect: those related to internal standard, amount of material, and isotopologues.
- 
- 
-
-### Users having generic data
-
-We have created this option for those formats that are not the other two scenarios, so your data is expectd to be in the form of a .xlsx file with sheets similar as in VIB results:
-- sheets corresponding to isotopologue Proportions (when available) and isotopologue Absolute values must have isotopologues as columns and samples as rows.
-- sheets corresponding to abundance and mean enrichment  must have metabolites as columns and samples as rows.
-
-As in example [toy3](examples/toy3) if you only have isotopologue Absolute values, but not the other tables: put them as a single named sheet in your .xlsx file, and we automatically generate all the other types of tables for you ! 
+- The Isotopologue proportions must be comprised between 0 and 1 (0.1, 0.7, etc). The same is required for mean enrichment or fractional contributions.
 
 
-End of the remarks regarding the advanced options in prepare step.
 
-
- 
 ## The "Metadata"
 
 Here the first lines of the required metadata table, which must be a .csv (comma delimited) file : 
 
-| sample            | timepoint | condition | timenum | short_comp  |  former_name |
+| name_to_plot            | timepoint | condition | timenum | short_comp  |  original_name |
 |-------------------|-----------|-----------|-------|------------|--------------- |
 | Control\_cell\_T0-1 | T0        | Control   | 0     | cell       | MCF001089_TD01 |
 | Control\_cell\_T0-2 | T0        | Control   | 0     | cell       | MCF001089_TD02 |
@@ -257,7 +207,7 @@ Here the first lines of the required metadata table, which must be a .csv (comma
 You can create it with any spreadsheet program such as Excel or Google Sheets or LibreOfice Calc. At the moment of saving your file you specify that the delimiter must be a comma, see https://support.microsoft.com/en-us/office/save-a-workbook-to-text-format-txt-or-csv-3e9a9d6c-70da-4255-aa28-fcacf1f081e6. 
 
 Column names in metadata must be exactly: 
- - former\_name
+ - original\_name
  - sample
  - timepoint
  - timenum
@@ -265,13 +215,13 @@ Column names in metadata must be exactly:
  - short\_comp
 
  
-The column 'former\_name' must have the names of the samples **as given in your data**. 
+The column 'original\_name' must have the names of the samples **as given in your data**. 
   
  
- The column 'sample' must have the names as you want them to be (or set identical to former\_name if you prefer). To set  names that are meaningful is a better choice, as we will take them for all the results.
+ The column 'name\_to\_plot' must have the names as you want them to be (or set identical to original\_name if you prefer). To set  names that are meaningful is a better choice, as we will take them to display the results.
  
  
- The column 'timenum' must contain only the numberic part of the timepoint, for example 2,0, 10, 100  (this means, without letters ("T", "t", "s", "h" etc) nor any other symbol). Make sure these time numbers are in the same units (but do not write  the units here!).
+ The column 'timenum' must contain only the numeric part of the timepoint, for example 2,0, 10, 100  (this means, without letters ("T", "t", "s", "h" etc) nor any other symbol). Make sure these time numbers are in the same units (but do not write  the units here!).
   
 
 The column 'short\_comp' is an abbreviation, coined by you, for the compartments. This will be used for the results' files names: the longer the compartments names are, the longer the output files' names! Please pick short and clear abbreviations to fill this column.
@@ -280,10 +230,10 @@ The column 'short\_comp' is an abbreviation, coined by you, for the compartments
 ## Details regarding the Differential Analysis
 
 
+#### Before start Differential Analysis
+
 It is highly recommended to have 3 or more replicates (n >=3) to keep an acceptable statistical power.
 
-
-#### Before start Differential Analysis
 
 Define **grouping** in your configuration .yml file. This is the category we pick for comparison, example with only one category:
  
@@ -293,7 +243,8 @@ grouping :
 ```
 
 example with two categories to combine:
- ``` 
+
+``` 
  grouping :
   - timepoint
   - condition
@@ -310,10 +261,10 @@ When two categories, DIMet combines these 2 metadata categories,
 
 #### Running Differential Analysis
       
-There are advanced options (Optional arguments)  :  
+There are advanced options (Optional arguments)  : 
 
   - Before reduction and gmean, the way to replace zeros is by default using the min value of entire table.
-  There is a separate option for each type of measure, see `python -m DIMet.src.differential_analysis --help`       
+  There is a separate option for each type of measure, see `python -m DIMet.src.differential_analysis --help` 
       
   - exclude one or more type(s) of measure from the analysis (`--no-isotopologues` will exclude isotopologues).
  
@@ -322,17 +273,21 @@ There are advanced options (Optional arguments)  :
 
 ##### Distance Over Span (d/s)
 
-In general the number of samples can be limited by many extinsic and intrinsic factors. We recommed at least n>=3 in each group to be compared. Even when n=3 the statistical test result can be not enough to be confident about a identified difference. We introduce in DIMet the notion of distance/span, which is expained in the figure below: 
+In general the number of samples can be limited by many extinsic and intrinsic factors (funding, animal welfare, etc). We recommed at least n>=3 in each group to be compared. 
+
+When n is small (n < 10) the result of the statistical test, alone, can still be misleading. We introduce in DIMet the notion of distance/span, which is expained in the figure below: 
 
 ![d_over_s](imgs/d_over_s_readme.png)
 
-The best d/s are closer to 1 (fully separated groups and highly reproducible measure). The smaller the d/s, the poorer the "separation" between the two groups being compared. Negative numbers say that the distance is not positive i.e.  the interval for samples in 'A' group and those of 'B' group are "overlapping".
+The best d/s are closer to 1 (fully separated groups and highly reproducible measure). The smaller the d/s, the poorer the "separation" between the two groups being compared. Negative numbers say that the distance is not positive i.e.  the interval of 'A' group and the interval of 'B' group are overlapping.
    Worst result d/s = -1
 
-Specially when dealing with small sample size (n<=5), this metric "reflect to a certain extent" the replicability of the measure. 
+Specially when dealing with a very small sample size (n<=5), this metric "reflect to a certain extent" the replicability of the measure. 
 
 The option `--qualityDistanceOverSpan` has the following effect:
-For a current comparison,  if a metabolite has d/s  inferior to this value, it is excluded from the statistical analysis (pvalue=NaN). However, must be used with caution if n >= 6 and outliers are present. By default it is fixed to -0.3 (not stringent). To inactivate  this automatic behavior, set to -1.
+For a current comparison,  if a metabolite has d/s  inferior to this value, it is excluded from the multiple test correction and its _padj_ is set to NaN; therefore this metabolite will not be in the "filtered" results (filtered by thresholds _padj_ and log2FC). By default `--qualityDistanceOverSpan` is fixed to -0.3 (not stringent).
+
+However, `--qualityDistanceOverSpan` must be used with caution if n >= 6 and outliers are present. To inactivate its automatic behavior, set to -1.
 
 
 #### Output table Differential Analysis
@@ -343,7 +298,7 @@ For a current comparison,  if a metabolite has d/s  inferior to this value, it i
 
 * 'span_allsamples' : taking both groups mixed, the units between min and max values.
 
-* 'count_nan_samples' : for example (1/2, 0/2) means "one of the two replicates in the Treatment group is NaN, whereas 0 (none) in the Control group are NaN", or in other words:  treated=[0.57, NaN] , control=[0.88, 0.90].
+* 'count\_nan\_samples' : for example (1/2, 0/2) means "one of the two replicates in the Treatment group is NaN, whereas 0 (none) in the Control group are NaN", or in other words:  treated=[0.57, NaN] , control=[0.88, 0.90].
 
 	At least 2 replicates must be available in each group for a metabolite to enter into the statistical analysis. For example '(2/4),(1/4)' is still admitted because that means one group has 2 and the other has 3 replicates.
 
@@ -361,11 +316,25 @@ In results/differential_analysis/[type_of_measure]/extended/ you will find all t
         
         
  #### FAQ : 
- Why do I obtain identical padj values ?
-   the Benjamini-Hochberg formula uses the ranks of the p-values, when there are p-values that are very similar, it can happen that the computed padj yields identical values, see : https://github.com/statsmodels/statsmodels/issues/4408    
-   
- Can I have only n=2 in each group ?
- Some of our "examples" illustrate the worst case scenario were only two biological replicates are present, but having only two replicates is discouraged. 
+ 
+ - I have my tracer metabolome measures in another very different format (a single xlsx, a single tsv, etc). Is there any fast method to generate the separated tables that DIMet requires?
+ Yes, use https://github.com/johaGL/Tracegroomer
+ 
+ 
+ - I have only 1 (or 2, or 3) of the 4 required measures', and I do have isotopologues' absolute values. Is there any fast method to generate the rest?
+ Yes, use https://github.com/johaGL/Tracegroomer
+ 
+ 
+ - I have only 3 measures' (because the software that I used for isotopologues' correction does not provide isotopologues' absolute values.) Can I still use DIMet ?
+ Yes, you can use DIMet on the rest of the measures, check the [examples/toy2/](examples/toy2/)  and organize your job similarly.
+ 
+
+ - Can I have only n=2 in each group ?
+ Some of our "examples" illustrate the worst case scenario were only two biological replicates are present, but having only two replicates is discouraged (low statistical power). 
+
+
+ - After the differential analysis, why do I obtain identical padj values ?
+   The Benjamini-Hochberg formula uses the ranks of the p-values, when there are p-values that are very similar, it can happen that the computed _padj_ yields identical values, see : https://github.com/statsmodels/statsmodels/issues/4408   
 
 
 
@@ -389,4 +358,19 @@ Feel free to contact us so we can help you to make your data a suitable input fo
 
 ## things to do
 - go to settings-> action -> enable repo modification
+
+ 
+ 
+ 
+### References
+
+[1] Bruntz, R. C., Lane, A. N., Higashi, R. M., & Fan, T. W. M. (2017). Exploring cancer metabolism using stable isotope-resolved metabolomics (SIRM). Journal of Biological Chemistry, 292(28), 11601-11609.
+
+[2] Buescher, J. M. et al. A roadmap for interpreting (13)C metabolite labeling patterns from cells. Curr Opin Biotechnol 34, 189–201, https://doi.org/10.1016/j.copbio.2015.02.003 (2015).
+
+[3] Guyon J, Fernandez‐Moncada I, Larrieu C, M, Bouchez C, L, Pagano Zottola AC, Galvis J,...& Daubon T, (2022). Lactate dehydrogenases promote glioblastoma growth and invasion via a metabolic symbiosis, EMBO Molecular Medicine, e15343
+
+### Acknowledgments
+To the VIB traning for the course in Tracer Metabolomics, 2023. 
+To Thomas Daubon team and Joris Guyon for provided data, from we extracted toy examples.
 

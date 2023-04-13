@@ -43,8 +43,8 @@ def isotopol_prop_2df4plot(df_co, metada_co, levelshours_str):
     dfcompartment = df_co.T
 
     metabolites = dfcompartment.columns
-    dfcompartment["sample"] = dfcompartment.index
-    dfcompartment = pd.merge(dfcompartment, metada_co, on="sample")
+    dfcompartment['name_to_plot'] = dfcompartment.index
+    dfcompartment = pd.merge(dfcompartment, metada_co, on='name_to_plot')
     # empty dataframe to fill
     df4plot = pd.DataFrame(
         columns=[

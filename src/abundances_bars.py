@@ -34,8 +34,8 @@ def bars_args():
 def pile_up_abundance(abu_sel, metada_sel): 
     dfcompartment = abu_sel.T
     metabolites = dfcompartment.columns
-    dfcompartment["sample"] = dfcompartment.index
-    dfcompartment = pd.merge(dfcompartment, metada_sel, on="sample")
+    dfcompartment['name_to_plot'] = dfcompartment.index
+    dfcompartment = pd.merge(dfcompartment, metada_sel, on='name_to_plot')
     dafull = pd.DataFrame(columns=["timepoint", "condition", "metabolite", "abundance"])
     for z in range(len(metabolites)):
         subdf = dfcompartment.loc[:, [metabolites[z], "timepoint", "condition"]]
@@ -150,7 +150,7 @@ def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args
 
         # metadata and abundances time of interest
         metada_sel = metada_co.loc[metada_co["timepoint"].isin(time_sel), :]
-        abu_sel = abutab[metada_sel["sample"]]
+        abu_sel = abutab[metada_sel['name_to_plot']]
 
         # total piled-up data:
         piled_sel = pile_up_abundance(abu_sel, metada_sel)

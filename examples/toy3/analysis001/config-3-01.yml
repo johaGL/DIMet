@@ -1,24 +1,23 @@
+# -----------------------------
+# Config file for *DIMet*
 # Note: for indentation use space (never tab!): 2 space indents
 # coments start with #
+# -----------------------------
 
 # -----------------------------
 # necesary to all steps
 # -----------------------------
 
 metadata_path : ~/toy3/data/metadata_toy3.csv 
-targetedMetabo_path: ~/toy3/data/generic_toy3.xlsx 
-amountMaterial_path : null # null or the file path, if available
-typeprep : generic_prep
 
-# when generic,  names of the sheets in xlsx file that exist (null otherwise) !!!!!
-name_abundance : null
-name_meanE_or_fracContrib : null
-name_isotopologue_prop : null
+name_abundance : abundance_computed
+name_meanE_or_fracContrib : meanEnr_or_FracC_computed
+name_isotopologue_prop : isotopologues_props_computed
 name_isotopologue_abs : isotopologuesCorrValues  # isotopologue absolute values
 
 conditions : [sgCont, sgLDHA] # first must be control, when several
-suffix : toy3a01
-out_path : ~/toy3/analysis01/
+suffix : a1
+out_path : ~/toy3/analysis001/
 
 
 # -----------------------------
@@ -30,7 +29,7 @@ metabolites_to_plot:
 
 # Abundances bars configuration
 # -----------------------------
-time_sel : [T0, T2h]
+time_sel : [T0, T24]
 axisx : condition
 barcolor : timepoint
 width_each_subfig : 3

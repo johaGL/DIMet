@@ -1,15 +1,14 @@
-# This is toy2 configuration file example
-# Note: for indentation use space (never tab!), 2-space indents
+# -----------------------------
+# Config file for *DIMet*
+# Note: for indentation use space (never tab!): 2 space indents
 # coments start with #
+# -----------------------------
 
 # -----------------------------
 # necesary to all steps
 # -----------------------------
 
 metadata_path : ~/toy2/data/metadata_toy2.csv
-targetedMetabo_path: ~/toy2/data/metabo_toy2.xlsx
-amountMaterial_path : null # null or the file name, if available, in data/
-typeprep : VIBMEC_output_prep
 
 name_abundance : rawAbundances
 name_meanE_or_fracContrib : FracContribution_C
@@ -19,7 +18,8 @@ name_isotopologue_abs : null  # isotopologue absolute values (for toy2 not avail
 conditions : 
  - Control # first must be control
  - L-Cycloserine 
-suffix : toy2a001
+ 
+suffix : s1
 out_path : ~/toy2/analysis001/
 
 

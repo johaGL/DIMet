@@ -79,7 +79,7 @@ rule pca:
         f'{outdir}results/plots/log/pca.log'
 
     shell:
-         f"python -m DIMet.src.pca {primary_config_path} > {outdir}results/plots/log/pca.log"
+         f"python -m DIMet.src.pca {primary_config_path} --draw_ellipses > {outdir}results/plots/log/pca.log"
 
 
 

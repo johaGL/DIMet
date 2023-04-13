@@ -1,25 +1,24 @@
-# This is toy1 configuration file example
+# -----------------------------
+# Config file for *DIMet*
 # Note: for indentation use space (never tab!): 2 space indents
 # coments start with #
+# -----------------------------
 
 # -----------------------------
 # necesary to all steps
 # -----------------------------
 
 metadata_path : ~/toy1/data/metadata_toy1.csv 
-targetedMetabo_path: ~/toy1/data/toy1_isocor_out_example.xlsx 
-amountMaterial_path : ~/toy1/data/toy1_weightorcells.csv # null or the file path, if available
-typeprep : IsoCor_output_prep
 
-# when IsoCor type of input, just write the desired tables names
 name_abundance : AbundanceCorrected
 name_meanE_or_fracContrib : MeanEnrichment13C
 name_isotopologue_prop : IsotopologuesProp # isotopologue proportions
 name_isotopologue_abs : IsotopologuesAbs  # isotopologue absolute values
 
+conditions : 
+  - sgLDHA # first must be control, when several
 
-conditions : [sgLDHA] # first must be control, when several
-suffix : toy1a001
+suffix : l1
 out_path : ~/toy1/analysis001/
 
 

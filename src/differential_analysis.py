@@ -102,7 +102,7 @@ def flag_has_replicates(ratiosdf: pd.DataFrame):
 
 
 def compute_span_incomparison(df: pd.DataFrame, metadata: pd.DataFrame, contrast: list):
-    expected_samples = metadata.loc[metadata['newcol'].isin(contrast), "sample"]
+    expected_samples = metadata.loc[metadata['newcol'].isin(contrast), 'name_to_plot']
     selcols_df = df[expected_samples].copy()
     for i in df.index.values:
         values_this_comparison = selcols_df.loc[i,:].to_numpy()
@@ -152,11 +152,11 @@ def calc_reduction(df, metad4c):
         return df
 
     ddof = 0  # for compute reduction
-    df4c = df[metad4c['sample']]
+    df4c = df[metad4c['name_to_plot']]
 
     df4c = fg.give_reduced_df(df4c, ddof)
 
-    df_orig_vals = renaming_original_col_sams(df[metad4c['sample']])
+    df_orig_vals = renaming_original_col_sams(df[metad4c['name_to_plot']])
 
     df4c = pd.merge(df_orig_vals, df4c, left_index=True, right_index=True)
 
@@ -177,8 +177,8 @@ def calc_ratios(df4c, metad4c, selected_contrast):
 def divide_groups(df4c, metad4c, selected_contrast):
     """split into two df"""
     sc = selected_contrast
-    sam0 = metad4c.loc[metad4c['newcol'] == sc[0], "sample"]  # interest
-    sam1 = metad4c.loc[metad4c['newcol'] == sc[1], "sample"]  # control
+    sam0 = metad4c.loc[metad4c['newcol'] == sc[0], 'name_to_plot']  # interest
+    sam1 = metad4c.loc[metad4c['newcol'] == sc[1], 'name_to_plot']  # control
     group_interest = df4c[sam0]
     group_control = df4c[sam1]
     group_interest.index = range(group_interest.shape[0])
@@ -358,8 +358,8 @@ def run_statistical_test(redu_df, metas, contrast, whichtest):
         mets.append(i)
         row = redu_df.loc[i, :]  #  row is a series, colnames pass to index
 
-        columnsInterest = metas.loc[metas["newcol"] == contrast[0], "sample"]
-        columnsBaseline = metas.loc[metas["newcol"] == contrast[1], "sample"]
+        columnsInterest = metas.loc[metas["newcol"] == contrast[0], 'name_to_plot']
+        columnsBaseline = metas.loc[metas["newcol"] == contrast[1], 'name_to_plot']
 
         vInterest = np.array(row[columnsInterest], dtype=float)
         vBaseline = np.array(row[columnsBaseline], dtype=float)

@@ -45,8 +45,8 @@ def yieldfraccountrib(df_co, metada_co, co):
     dfcompartment = df_co.T
 
     metabolites = dfcompartment.columns
-    dfcompartment["sample"] = dfcompartment.index
-    dfcompartment = pd.merge(dfcompartment, metada_co, on="sample")
+    dfcompartment['name_to_plot'] = dfcompartment.index
+    dfcompartment = pd.merge(dfcompartment, metada_co, on='name_to_plot')
 
     # empty dataframe to fill
     df4plot = pd.DataFrame(

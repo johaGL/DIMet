@@ -27,6 +27,10 @@ def pca_args():
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
 
+    parser.add_argument('--save_pca_tables',
+                        action=argparse.BooleanOptionalAction, default=False,
+                        help="save pca results to .csv files")
+
     parser.add_argument('--draw_ellipses',
                         action=argparse.BooleanOptionalAction, default=False,
                         help="draw ellipse for each group in the pca plot")
@@ -70,7 +74,7 @@ def eigsorted(cov):
 
 
 def clean_reduce_datadf_4pca(df, metadatasub):
-    df = df[metadatasub['sample']]
+    df = df[metadatasub['name_to_plot']]
     df = df.loc[~(df == 0).all(axis=1)]  # drop 'zero all' rows
     df = df.fillna(df[df > 0].min().min())
     df = df.replace(0, df[df > 0].min().min())
@@ -93,12 +97,11 @@ def compute_pca(mymat, metadata):
 
     pc_df = pd.DataFrame(data=pc,
                          columns=['PC' + str(i) for i in range(1, dims + 1)])
-    pc_df = pc_df.assign(sample=mymat.columns)
+    pc_df = pc_df.assign(name_to_plot=mymat.columns)
 
-    pc_df = pd.merge(pc_df, metadata, on="sample")
+    pc_df = pd.merge(pc_df, metadata, on='name_to_plot')
 
     var_explained_df = pd.DataFrame({
-        # 'var': pca.explained_variance_ratio_,
         'var': pca.explained_variance_ratio_ * 100,
         'PC': ['PC' + str(i) for i in range(1, dims + 1)]})
 
@@ -213,7 +216,7 @@ def run_steps_pca(type_measure: str, table_prefix: str,
             mat = clean_reduce_datadf_4pca(measurements, meta_sub)
             pc_df, dfvare = compute_pca(mat, meta_sub)
             pc_df = pc_df.assign(
-                col_label=pc_df["sample"].str.replace(co, ""))
+                col_label=pc_df['name_to_plot'].str.replace(co, ""))
             title = f'{type_measure} {co} {suffix}'
             if args.draw_ellipses:
                 # with label
@@ -233,6 +236,11 @@ def run_steps_pca(type_measure: str, table_prefix: str,
                 save_pca_plots(title, pc_df, dfvare, "timepoint", "condition",
                                "", out_plot_dir)
 
+            if args.save_pca_tables:
+                pc_df.to_csv(f'{out_plot_dir}{title.replace(" ","-")}_pc.csv',
+                             sep='\t')
+                dfvare.to_csv(f'{out_plot_dir}{title.replace(" ","-")}_var.csv',
+                             sep='\t')
         # end if
 
         # valid for any timepoints length:
@@ -242,9 +250,11 @@ def run_steps_pca(type_measure: str, table_prefix: str,
                         meta_sub['timepoint'] == ti), :]
             mat_ti = clean_reduce_datadf_4pca(measurements, meta_ti)
             pc_df, dfvare = compute_pca(mat_ti, meta_ti)
+
+
             # always with labels
             pc_df = pc_df.assign(
-                col_label=pc_df["sample"].str.replace(co, ""))
+                col_label=pc_df['name_to_plot'].str.replace(co, ""))
             if args.draw_ellipses:
                 save_pca_plots(title_ti, pc_df, dfvare, "condition",
                                "condition", "col_label",
@@ -253,6 +263,12 @@ def run_steps_pca(type_measure: str, table_prefix: str,
                 save_pca_plots(title_ti, pc_df, dfvare, "condition",
                                "condition", "col_label",
                                out_plot_dir)
+
+            if args.save_pca_tables:
+                pc_df.to_csv(f'{out_plot_dir}{title_ti.replace(" ","-")}_pc.csv',
+                             sep='\t')
+                dfvare.to_csv(f'{out_plot_dir}{title_ti.replace(" ","-")}_var.csv',
+                              sep='\t')
     # end for
 
 
@@ -260,9 +276,9 @@ def run_pca_in_iris(outdir) -> None:
     iris = sns.load_dataset("iris")
     sns.relplot(data=iris, x="sepal_width", y="petal_width",
                 hue="species")
-    iris = iris.assign(sample=[str(i) for i in iris.index])
-    fakemeta = iris[["sample", "species"]]
-    iris = iris.drop(columns=["sample", "species"])
+    iris = iris.assign(name_to_plot=[str(i) for i in iris.index])
+    fakemeta = iris[['name_to_plot', "species"]]
+    iris = iris.drop(columns=['name_to_plot', "species"])
     fakedf = iris.T  # variables rows, samples columns
     fakedf = fakedf.div(fakedf.std(axis=1, ddof=0), axis=0)
 
