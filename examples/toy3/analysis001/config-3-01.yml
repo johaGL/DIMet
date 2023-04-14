@@ -8,77 +8,73 @@
 # necesary to all steps
 # -----------------------------
 
-metadata_path : ~/toy2/data/metadata_toy2.csv
+metadata_path : ~/toy3/data/metadata_toy3.csv 
 
-name_abundance : rawAbundances
-name_meanE_or_fracContrib : FracContribution_C
-name_isotopologue_prop : CorrectedIsotopologues # isotopologue proportions
-name_isotopologue_abs : null  # isotopologue absolute values (for toy2 not avail)
+name_abundance : abundance_computed
+name_meanE_or_fracContrib : meanEnr_or_FracC_computed
+name_isotopologue_prop : isotopologues_props_computed
+name_isotopologue_abs : isotopologuesCorrValues  # isotopologue absolute values
 
-conditions : 
- - Control # first must be control
- - L-Cycloserine 
- 
-suffix : s1
-out_path : ~/toy2/analysis001/
+conditions : [sgCont, sgLDHA] # first must be control, when several
+suffix : a1
+out_path : ~/toy3/analysis001/
 
 
 # -----------------------------
 # Plots
 # -----------------------------
-# metabolites to plot:
 metabolites_to_plot:
-  cell: ["Fructose_1,6-bisphosphate", # in "quotes" because has a comma inside
-         L-Lactic_acid, Pyruvic_acid, L-Malic_acid,
-         Fumaric_acid, L-Alanine, L-Glutamic_acid,
-         L-Glutamine, L-Aspartic_acid]
-  med:  [L-Lactic_acid, Pyruvic_acid, 
-           L-Alanine, L-Asparagine]
-
+  endo: [a-KG, 2-OHGLu, 2_3-PG]
+  exo: [2_3-PG, 2-OHGLu]
 
 # Abundances bars configuration
 # -----------------------------
-time_sel :
-  - T0
-  - T2h
-barcolor : timepoint
+time_sel : [T0, T24]
 axisx : condition
-axisx_labeltilt : 20 # 0 is no tilt
+barcolor : timepoint
 width_each_subfig : 3
 wspace_subfigs : 1
+axisx_labeltilt : 90 # 20 or another
+
 
 # Isotopologue Contribution plot configuration
 # -----------------------------
-width_each_stack : !!float 3
+width_each_stack : !!float 2.8
 wspace_stacks : !!float 1.1
 numbers_size : 13
 
-
 # Fractional Contributions lineplot configuration
 # -----------------------------
-# will run with defaults, see --help 
+# if defining groups, try to group them by similarity in values
+# or leave blank as in  the other toy examples
+groups_toplot_frac_contribs:
+  endo:
+    0: [ a-KG, 2-OHGLu]
+    1: [ 6-PG, 2_3-PG]
+  exo:
+    0: [ 6-PG, 2_3-PG] 
+    1: [ a-KG, 2-OHGLu]
 
 
 # -----------------------------
 # differential analysis
 # -----------------------------
-grouping :  # see explanation at the  end
-  - condition
-  - timepoint  
+grouping : [condition, timepoint]  # see explanation at the file end
 
-comparisons :   # for each pair,last must be control
-  - [L-Cycloserine_T0, Control_T0]    
-  - [L-Cycloserine_T2h, Control_T2h]          
+comparisons : 
+  - [sgLDHA_T0, sgCont_T0]  # for each pair,last must be control
+  - [sgLDHA_T24, sgLDHA_T0]             
+  - [sgLDHA_T24, sgCont_T24]            
               
 statistical_test:
-  abundances: prm-scipy  
+  abundances: Tt   
   meanE_or_fracContrib: KW
-  isotopologue_abs: null
-  isotopologue_prop: KW
+  isotopologue_abs: KW 
+  isotopologue_prop: null
      
 thresholds:
-  padj: 0.2
-  absolute_log2FC: 0
+  padj: 0.5
+  absolute_log2FC: 0.7
 
 
 # grouping: column that is a combination of 2 metadata categories,

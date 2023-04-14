@@ -56,7 +56,7 @@ complete readme:
     
     - metadata related:
     
-    # systematically README says that metadata has 'former_name','sample' and the other columns, and it is 'sample' what will replace former_name in the tables !
+    # systematically README says that metadata has 'original_name','name_to_plot' and the other columns, and it is 'name_to_plot' what will replace original_name in the tables !
     # and it can be the same if you want to keep the spirit.
     # other_prep NO, better 'universal_prep' :  and set a toyUni1/ with which I call universal data
 

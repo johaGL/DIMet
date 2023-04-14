@@ -5,6 +5,7 @@ Metabologram module
 johagl 2023
 """
 import os
+import argparse
 import yaml
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -13,6 +14,28 @@ import pandas as pd
 from matplotlib.colors import Normalize
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib as mpolib
+import functions_general as fg
+
+
+def metabologram_args():
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('config', type=str,
+                        help="configuration file in absolute path")
+
+    return parser
+
+
+def bars_args():
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('config', type=str,
+                        help="configuration file in absolute path")
+
+    parser.add_argument('--palette', action=argparse.BooleanOptionalAction, default="pastel",
+                        help="qualitative or categorical palette name as in Seaborn library (Python)")
+
+    return parser
 
 
 def read_config(metabologram_config):
@@ -23,6 +46,7 @@ def read_config(metabologram_config):
         print("Error when opening metabologram configuration file in {metabologram_dir}")
         print(err)
     return confgramD
+
 
 def give_path_dico(pathways_files):
     #def openfile(filename):
@@ -53,7 +77,9 @@ def deg_dam_corresp( DEG_tables,  DAM_tables, titles):
     (set(titles.keys()) == set(DEG_tables.keys())),  "error with the numbering of DEG_tables DAM_tables and titles"
     comparisondico = dict()
     for k in titles.keys():
-        comparisondico[k] = { 'gene' : DEG_tables[k], 'metabolite' : DAM_tables[k] }
+        comparisondico[k] = { 'gene' : DEG_tables[k],
+                              'metabolite' : DAM_tables[k],
+                              'title': titles[k] }
     return comparisondico
 
 
@@ -76,8 +102,6 @@ def filter_by_path_dico(df, dico):
         created_elems_list = created_elems_list.union(set(dico[k]))
     df = df.loc[df.name.isin(list(created_elems_list)),:]
     return df
-
-
 
 def get_custom_color_palette_hash(lowcol, midcol, highcol):
     """
@@ -115,10 +139,9 @@ def inner_pie_colors(inner_dico, mycmap,  gabs, mabs):
     return {'metab_color' : metabocolors_[0], 'gene_color': genecolors_[0]}
 
 
-def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
-    confD = read_config(metabologram_config)
-    os.chdir(metabologram_dir)
+def metabologram_run(confidic, dimensions_pdf):
 
+    confD = confidic
     genes_dico, metabo_dico, pathdico = give_path_dico(confD['pathways_files'])
 
     comparisondico = deg_dam_corresp(confD['DEG_tables'],
@@ -141,9 +164,7 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
     DEG_full['mycolors'] = rgbas2hex(values2rgbas(DEG_full['log2FC'].to_numpy(), mycmap, -gabs, gabs, center=0))
     DAM_full['mycolors'] = rgbas2hex(values2rgbas(DAM_full['log2FC'].to_numpy(), mycmap, -mabs, mabs, center=0))
 
-
     gathered = pd.concat([DEG_full, DAM_full], axis=0)
-
 
     gathered['typemol'] = pd.Categorical(gathered['typemol'], categories=['metabolite', 'gene'])
     gathered = gathered.sort_values(by=['typemol', 'name'], ascending=[True, False])
@@ -153,7 +174,7 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
     if add_complex_tags:
         log2FCstrli = [str(i) for i in gathered["log2FC"]]
         gathered["elem_tag"] = gathered["name"].str.cat(log2FCstrli, sep=": ")
-    print("prep metabologram ok")
+    print("shaped data for metabologram")
 
     # also see :https://proplot.readthedocs.io/en/latest/why.html
     ###################################### complicated grid
@@ -185,7 +206,7 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
     indexer = 0
     for i in pathdico.keys():
         for j in comparisondico.keys():
-            indexesdico[indexer] = {'path': i, 'comparison': j}
+            indexesdico[indexer] = {'path': i, 'comparison': j, 'title': comparisondico[j]['title'] }
             indexer += 1
     indexer = 0
     for ax in axes.flat[:len(indexesdico)]:
@@ -194,8 +215,9 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
         path_elems_here = pathdico[indexesdico[indexer]['path']]
         gatheredsub = gathered.loc[gathered['name'].isin(path_elems_here), :]  # this will mess up the order
         compari_here = indexesdico[indexer]['comparison']
-
-        ax.set_title(f"{indexesdico[indexer]['path']}\n {compari_here}\n")
+        title_here = indexesdico[indexer]['title']
+        #ax.set_title(f"{indexesdico[indexer]['path']}\n {compari_here}\n")
+        ax.set_title(f"{indexesdico[indexer]['path']}\n {title_here}\n")
         gatheredsub = gatheredsub.loc[gatheredsub['comparison'] == compari_here, :]
 
         ##################
@@ -209,17 +231,17 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
 
         sizes_list = gatheredsub["circportion"]
         annots = gatheredsub["elem_tag"]
-        mappedcolorshaha = gatheredsub["mycolors"]
+        mappedcolors_list = gatheredsub["mycolors"]
 
         if tf == False:
             ax.pie(sizes_list,
-                   colors=mappedcolorshaha,
+                   colors=mappedcolors_list,
                    wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
                    radius=1,
                    startangle=90)
         else:  # add metabolites to the plot
             ax.pie(sizes_list,
-                   colors=mappedcolorshaha,
+                   colors=mappedcolors_list,
                    wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
                    radius=1,
                    startangle=90,
@@ -259,7 +281,7 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
                 annot=False,
                 square=True,
                 vmin=-mabs, vmax=mabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
-                                                 'label': 'metabolite',
+                                                 'label': 'Metabolite',
                                                  'drawedges': False})
     # axes.flat[-2].text(-0.3, 0.7, "metabolite", rotation=90)
 
@@ -267,16 +289,21 @@ def metabologram_run(metabologram_dir, metabologram_config, dimensions_pdf):
                 annot=False,
                 square=True,
                 vmin=-gabs, vmax=gabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
-                                                 'label': 'gene',
+                                                 'label': 'Transcript',
                                                  'drawedges': False})
     # axes.flat[-1].text(-0.3, 0.7, "gene", rotation=90)
-
-    plt.savefig("metabologram_plot.pdf")
-
-
+    out_file = os.path.expanduser(confD['metabologram_out_dir'])
+    plt.savefig( out_file + "metabologram_plot.pdf")
 
 
+if __name__ == "__main__":
+    print("\nMetabologram\n")
 
-
+    parser = metabologram_args()
+    args = parser.parse_args()
+    configfile = os.path.expanduser(args.config)
+    confidic = fg.open_config_file(configfile)
+    dimensions_pdf = (15, 20) # TODO transform into option from metabologram_config
+    metabologram_run( confidic, dimensions_pdf)
 
 

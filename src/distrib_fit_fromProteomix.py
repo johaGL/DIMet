@@ -8,43 +8,13 @@ Remove proteins with number of NA above specified threshold
 #TODO: nombre de chiffre significatifs pour les paramètres
 """
 
-import argparse
+
 import pandas as pd
 import numpy as np
-#import paths
 import scipy.stats as stats
 import warnings
 import matplotlib
 import matplotlib.pyplot as plt
-
-#
-# def get_args():
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument("--input_file", "-i", help='Input file (csv)')
-#     parser.add_argument("--output_file", "-o", help='Path to csv result')
-#     parser.add_argument("--histogramm_distribution", "-hd", help='Path to distribution histogramm')
-#     parser.add_argument("--file_id", "-f", help='Unique ID')
-#
-#     args = parser.parse_args()
-#     return args
-#
-#
-# def extract_specific_proteins(df: pd.DataFrame) -> tuple:
-#     """
-#     Proteins specific to one condition (that is, only nan in the other condition values) are not included in the
-#     distribution analysis.
-#     Input: df with all values, metrics and metadata
-#     Returns: input df split in two sub-df: one without specific proteins ('res') and the other only with specific
-#     proteins ('specific_proteins')
-#     """
-#     specific_proteins = df[df['specific'] != "both"]
-#
-#     df["analyse_in_distr"] = "OK"
-#     df["analyse_in_distr"] = np.where(df["specific"] != "both", np.nan, df["analyse_in_distr"])
-#
-#     res = df.dropna(subset=["analyse_in_distr"], axis=0)
-#
-#     return res, specific_proteins
 
 
 def compute_z_score(df: pd.DataFrame) -> pd.DataFrame:

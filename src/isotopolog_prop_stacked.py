@@ -7,33 +7,44 @@ Created on Wed May 18 11:14:34 2022
 """
 
 import os
-
+import argparse
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.ticker as mticker
+import functions_general as fg
 
-def icontrib_2df4plot(dicos, tablePicked, co, levelshours_str):
+
+
+def stacked_args():
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('config', type=str,
+                        help="configuration file in absolute path")
+
+    return parser
+
+
+def isotopol_prop_2df4plot(df_co, metada_co, levelshours_str):
     """
     Imitates de behaviour of a 'melt', but this function is more secure
     example:
       pd.merge output, where 1st column has the values we want:
 
-        L-Phenylalanine_C13-label-2    timenum   condition ...  sample descr...
+        L-Phenylalanine_m+2    timenum   condition ...  sample descr...
         0.01                           0          Control        xxxxxx
 
       is transformed into:
-          timenum    condition    isotopolgFull        Isotopologue Contrib
+          timenum    condition    isotopolgFull        Isotopologue 
           0           control      L-Phenylala...    0.01
 
     """
-    dfcompartment = dicos[co][tablePicked].T
+    dfcompartment = df_co.T
 
     metabolites = dfcompartment.columns
-    dfcompartment["sample"] = dfcompartment.index
-    dfcompartment = pd.merge(dfcompartment, dicos[co]["metadata"], on="sample")
+    dfcompartment['name_to_plot'] = dfcompartment.index
+    dfcompartment = pd.merge(dfcompartment, metada_co, on='name_to_plot')
     # empty dataframe to fill
     df4plot = pd.DataFrame(
         columns=[
@@ -86,7 +97,7 @@ def preparemeansreplicates(df4plot, selectedmets):
     returns a dictionary of dataframes, keys are metabolites
     """
     dfcopy = df4plot.copy()
-    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "timenum"]).mean()
+    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "timenum"]).mean("Isotopologue Contribution %")
     dfcopy = dfcopy.reset_index()
 
     dfs_Dico = dict()
@@ -96,14 +107,8 @@ def preparemeansreplicates(df4plot, selectedmets):
         tmp["m+x"] = tmp["m+x"].str.split("m+", regex=False).str[1]
         tmp["m+x"] = tmp["m+x"].astype(int)
 
-        #tmp = tmp.sort_values(by="m+x", axis=0, ascending=True, inplace=False)
-        # spnumbers = [k.split("m+")[1] for k in tmp["m+x"].unique()]
-        # maxmx = max([ int(i) for i in spnumbers ])
-        # levelsspecies = ["m+"+str(k) for k in range(maxmx)]
-        # tmp["m+x"] = pd.Categorical(tmp["m+x"], levelsspecies)
         dfs_Dico[i] = tmp
     return dfs_Dico
-
 
 def addcombinedconditime(dfs_Dico, combined_tc_levels ):
     """
@@ -144,18 +149,17 @@ def yieldpalsauto():
     return palsautoD
 
 
-def complexstacked(co, selectedmets, dfs_Dico,
-        outfilename, figu_width, xlabyesno,  wspace_stacks, numbers_size ):
+def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
+                   xlabyesno,  wspace_stacks, numbers_size ):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
     palsautoD = yieldpalsauto()
-    ### set font style
+
     sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
     f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 4.8))
     plt.rcParams.update({"font.size": 20})
 
     for z in range(len(selectedmets)):
-        # sns.set_style({ 'font.family': 'sans-serif',
-        #                'font.sans-serif' : 'Liberation Sans'   })
+
         axs[z].set_title(selectedmets[z])
         sns.histplot(
             ax=axs[z],
@@ -181,7 +185,6 @@ def complexstacked(co, selectedmets, dfs_Dico,
 
         for bar in axs[z].patches:
             # assign stacked bars text color
-
             thebarvalue = round(bar.get_height(), 1)
             if thebarvalue >= 100:
                 thebarvalue = 100  # no decimals if 100
@@ -197,12 +200,11 @@ def complexstacked(co, selectedmets, dfs_Dico,
                     thebarvalue,
                     # Center the labels and style them a bit.
                     ha="center",
-                    # size= int((figu_width / len(selectedmets)) * 2) # automatic can be too small
                     size=numbers_size,
                 )  # end axs[z].text
             else:
                 continue
-            # end if round(...)
+            # end if round
         # end for bar
 
         axs[z].set_ylabel("", size=20)
@@ -257,64 +259,51 @@ def givelabelstopalsD(palsautoD):
     return tmp
 
 
-def saveisotopologcontriplot(datadi, tablePicked, names_compartments,
-    namesuffix, metadata,
-    selbycompD, condilevels, width_each_stack, wspace_stacks, numbers_size ):
+def save_isotopol_stacked_plot(table_prefix, metadatadf,
+                               out_plot_dir, confidic, args) :
+    out_path = os.path.expanduser(confidic['out_path'])
+    suffix = confidic['suffix']
+    compartments = metadatadf['short_comp'].unique().tolist()
 
-    levelshours_str = [str(i) for i in sorted(metadata['timenum'].unique())]
+    condilevels = confidic["conditions"]  # <= locate where it is used
+    width_each_stack = float(confidic["width_each_stack"])
+    wspace_stacks = float(confidic["wspace_stacks"])
+    numbers_size = int(confidic["numbers_size"])
+
+    levelshours_str = [str(i) for i in sorted(metadatadf['timenum'].unique())]
 
     # condilevels, combined_tc_levels = add_joker_tolabs(condilevels, levelshours_str)
     condilevels, combined_tc_levels = simplelabs(condilevels, levelshours_str)
+    # dynamically open the file based on prefix, compartment and suffix:
+    for co in compartments:
+        metada_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
+        fn = f'{out_path}results/prepared_tables/{table_prefix}--{co}--{suffix}.tsv'
+        adf = pd.read_csv(fn, sep='\t', header=0, index_col=0)
 
-    for co in names_compartments.values():  #
-        print(co)
-
-        adf = pd.read_csv(
-            datadi + tablePicked + "_" + namesuffix + "_" + co + ".tsv",
-            sep="\t",
-            index_col=0,
-        )
         # note that pandas automatically transform any 99.9% in decimal 0.999
+        df4plot = isotopol_prop_2df4plot(adf, metada_co,   levelshours_str)
 
-        dicos = dict()
-        dicos[co] = {}
-        dicos[co]["metadata"] = metadata.loc[metadata.short_comp == co]
-        dicos[co][tablePicked] = adf[dicos[co]["metadata"]["sample"]]
-
-        # call complicated functions
-
-        df4plot = icontrib_2df4plot(dicos, tablePicked, co, levelshours_str)
         df4plot = massageisotopologues(df4plot)
-        ####
-        # conditions to plot in desired order :
-        ####
-        odiric = "results/plots/ic/"
-        if not os.path.exists(odiric):
-            os.makedirs(odiric)
-        metscustomgroups = selbycompD[co]
 
+        selectedmets = confidic['metabolites_to_plot'][co]
+        outfname = "{}isotopologues_stacked{}.pdf".format(out_plot_dir, co)
 
-        for j in range(len(metscustomgroups)):
-            selectedmets = metscustomgroups[j]
-            print(selectedmets)
-            outfname = "{}ic_{}_group{}.pdf".format(odiric, co,  j)
-            print(outfname)
-            dfs_Dico = preparemeansreplicates( df4plot,  selectedmets )
+        dfs_Dico = preparemeansreplicates( df4plot,  selectedmets )
 
-            dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
-            dfs_Dico.keys()  # just the metabolites subframes, one co
-            figu_width = width_each_stack * len(selectedmets)  # note, change width
-            complexstacked(
-                co, selectedmets, dfs_Dico, outfname,
-                figu_width, xlabyesno="yes",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
-            )
-            plt.close()
-            # new :
-            outfnameNoXlab = "{}ic_{}_group{}_noxlab.pdf".format(odiric, co,  j)
-            complexstacked(
-                co, selectedmets, dfs_Dico,  outfnameNoXlab,
-                figu_width, xlabyesno="no",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
-            )
+        dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
+        dfs_Dico.keys()  # just the metabolites subframes, one co
+        figu_width = width_each_stack * len(selectedmets)  # note, change width
+        complexstacked(
+            co, selectedmets, dfs_Dico, outfname,
+            figu_width, xlabyesno="yes",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
+        )
+        plt.close()
+        # new :
+        outfnameNoXlab = "{}isotopologues_stacked{}_noxlab.pdf".format(out_plot_dir, co)
+        complexstacked(
+            co, selectedmets, dfs_Dico,  outfnameNoXlab,
+            figu_width, xlabyesno="no",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
+        )
 
         # legend alone
         plt.figure()
@@ -326,7 +315,31 @@ def saveisotopologcontriplot(datadi, tablePicked, names_compartments,
             myhandless.append(paobj)
         plt.legend(handles=myhandless, labelspacing=0.01)
         plt.axis("off")
-        plt.savefig(f"{odiric}ic_legend.pdf", format="pdf")
+        plt.savefig(f"{out_plot_dir}isotopologues_stackedlegend.pdf", format="pdf")
 
     return 0
 
+
+if __name__ == "__main__":
+    parser = stacked_args()
+    args = parser.parse_args()
+    configfile = os.path.expanduser(args.config)
+    confidic = fg.open_config_file(configfile)
+    fg.auto_check_validity_configuration_file(confidic)
+    confidic = fg.remove_extensions_names_measures(confidic)
+
+    out_path = os.path.expanduser(confidic['out_path'])
+    meta_path = os.path.expanduser(confidic['metadata_path'])
+    clean_tables_path = out_path + "results/prepared_tables/"
+
+    metadatadf = fg.open_metadata(meta_path)
+
+    # isotopologues proportions
+    isotopol_prop_tab_prefix = confidic['name_isotopologue_prop']
+
+    out_plot_dir = out_path + "results/plots/stacked_Isotopologue_prop/"
+    fg.detect_and_create_dir(out_plot_dir)
+    save_isotopol_stacked_plot(isotopol_prop_tab_prefix, metadatadf,
+                               out_plot_dir, confidic, args)
+    
+    
