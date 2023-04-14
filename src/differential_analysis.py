@@ -514,7 +514,7 @@ def run_differential_steps(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
     out_dir = out_file_elements['odir']
     prefix = out_file_elements['prefix']
     co = out_file_elements['co']
-    suffix = out_file_elements["suffix"]
+    suffix = out_file_elements['suffix']
 
     fg.detect_and_create_dir(f"{out_dir}/extended/")
     fg.detect_and_create_dir(f"{out_dir}/filtered/")
@@ -573,9 +573,11 @@ def wrapper_for_abund(clean_tables_path, table_prefix, metadatadf,  confidic, ar
         meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
         measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)  # compartment specific
-        val_instead_zero = arg_repl_zero2value(args.abundance_replace_zero_with, measurements)
+        val_instead_zero = arg_repl_zero2value(
+            args.abundance_replace_zero_with, measurements)
         measurements = measurements.replace(to_replace=0, value=val_instead_zero)
-        out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix, 'co': co, "suffix":suffix}
+        out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix, 
+                          'co': co, 'suffix': suffix}
         run_differential_steps(measurements, meta_co,
                                      out_file_elems,
                                      confidic, whichtest, args)
@@ -591,17 +593,20 @@ def wrapper_for_mefc(clean_tables_path, table_prefix, metadatadf,  confidic, arg
     for co in compartments:
         meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0) # compartment specific
-        val_instead_zero = arg_repl_zero2value(args.meanEnrichOrFracContrib_replace_zero_with,
-                                               measurements)
+        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0) 
+        val_instead_zero = arg_repl_zero2value(
+            args.meanEnrichOrFracContrib_replace_zero_with,
+            measurements)
         measurements = measurements.replace(to_replace=0, value=val_instead_zero)
-        out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 'co': co, "suffix":suffix}
+        out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 
+                          'co': co, 'suffix':suffix}
         run_differential_steps(measurements, meta_co,
                                      out_file_elems,
                                      confidic, whichtest, args)
 
 
-def wrapper_for_isoAbsol(clean_tables_path, table_prefix, metadatadf, confidic, args) -> None:
+def wrapper_for_isoAbsol(clean_tables_path, table_prefix,
+                         metadatadf, confidic, args) -> None:
     out_diff = out_path + "results/differential_analysis/isotopol_abs/"
     fg.detect_and_create_dir(out_diff)
     whichtest = confidic['statistical_test']['isotopologue_abs']
@@ -611,17 +616,20 @@ def wrapper_for_isoAbsol(clean_tables_path, table_prefix, metadatadf, confidic, 
     for co in compartments:
         meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)  # compartment specific
-        val_instead_zero = arg_repl_zero2value(args.isotopologueAbs_replace_zero_with,
-                                               measurements)
+        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
+        val_instead_zero = arg_repl_zero2value(
+            args.isotopologueAbs_replace_zero_with,
+            measurements)
         measurements = measurements.replace(to_replace=0, value=val_instead_zero)
-        out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 'co': co, "suffix": suffix}
+        out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 
+                          'co': co, 'suffix': suffix}
         run_differential_steps(measurements, meta_co,
                            out_file_elems,
                            confidic, whichtest, args)
 
 
-def wrapper_for_isoProp(clean_tables_path, table_prefix, metadatadf, confidic, args) -> None:
+def wrapper_for_isoProp(clean_tables_path, table_prefix,
+                        metadatadf, confidic, args) -> None:
     out_diff = out_path + "results/differential_analysis/isotopol_prop/"
     fg.detect_and_create_dir(out_diff)
     whichtest = confidic['statistical_test']['isotopologue_prop']
@@ -631,49 +639,58 @@ def wrapper_for_isoProp(clean_tables_path, table_prefix, metadatadf, confidic, a
     for co in compartments:
         meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)  # compartment specific
-        val_instead_zero = arg_repl_zero2value(args.isotopologueProp_replace_zero_with,
-                                               measurements)
+        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
+
+        val_instead_zero = arg_repl_zero2value(
+            args.isotopologueProp_replace_zero_with,
+            measurements)
     
-        measurements = measurements.replace(to_replace=0, value=val_instead_zero)
-        out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 'co': co, "suffix": suffix}
+        measurements = measurements.replace(to_replace=0,
+                                            value=val_instead_zero)
+        out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
+                          'co': co, 'suffix': suffix}
+
         run_differential_steps(measurements, meta_co,
                                out_file_elems,
                                confidic, whichtest, args)
 
 
 if __name__ == "__main__":
-    print("\n  -*- searching for Differentially Abundant-or-Marked Metabolites (DAM) -*-\n")
+    print("\n  -*- searching for Differentially Abundant-or-Marked \
+           Metabolites (DAM) -*-\n")
     parser = diff_args()
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
+    confidic = fg.remove_extensions_names_measures(confidic)
+
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
-    tables_prefixes_dico = fg.clean_tables_names2dict(f'{clean_tables_path}TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
     # 1- abund
     if args.abundances:
         print("processing abundances")
         validate_zero_repl_arg(args.abundance_replace_zero_with)
-        abund_tab_prefix = tables_prefixes_dico['name_abundance']
-        wrapper_for_abund(clean_tables_path, abund_tab_prefix, metadatadf,  confidic, args)
+        abund_tab_prefix = confidic['name_abundance']
+        wrapper_for_abund(clean_tables_path, abund_tab_prefix,
+                          metadatadf, confidic, args)
 
     # 2- ME or FC
     if args.meanEnrich_or_fracContrib:
         print("processing mean enrichment or fractional contributions")
         validate_zero_repl_arg(args.meanEnrichOrFracContrib_replace_zero_with)
-        fraccon_tab_prefix = tables_prefixes_dico['name_meanE_or_fracContrib']
-        wrapper_for_mefc(clean_tables_path, fraccon_tab_prefix, metadatadf,  confidic, args)
+        fraccon_tab_prefix = confidic['name_meanE_or_fracContrib']
+        wrapper_for_mefc(clean_tables_path, fraccon_tab_prefix,
+                         metadatadf, confidic, args)
 
     # 3- isotopologues
     if args.isotopologues:
-        isos_abs_tab_prefix = tables_prefixes_dico['name_isotopologue_abs']
-        isos_prop_tab_prefix = tables_prefixes_dico['name_isotopologue_prop']
+        isos_abs_tab_prefix = confidic['name_isotopologue_abs']
+        isos_prop_tab_prefix = confidic['name_isotopologue_prop']
         if (isos_abs_tab_prefix is not np.nan) and \
             (isos_abs_tab_prefix != "None") and \
             (isos_abs_tab_prefix is not None):
@@ -684,7 +701,8 @@ if __name__ == "__main__":
         else:
             print("processing isotopologues (values given as proportions)")
             validate_zero_repl_arg(args.isotopologueProp_replace_zero_with)
-            wrapper_for_isoProp(clean_tables_path, isos_prop_tab_prefix, metadatadf,  confidic, args)
+            wrapper_for_isoProp(clean_tables_path, isos_prop_tab_prefix,
+                                metadatadf, confidic, args)
 
     print("end")
 

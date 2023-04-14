@@ -287,15 +287,15 @@ if __name__ == "__main__":
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
+    confidic = fg.remove_extensions_names_measures(confidic)
+
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
-    # tpd : tables prefixes dictionary
-    tpd = fg.clean_tables_names2dict(f'{out_path}results/prepared_tables/TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
-    table_prefix = tpd['name_meanE_or_fracContrib']
+    table_prefix = confidic['name_meanE_or_fracContrib']
     out_plot_dir = out_path + "results/plots/lineplots_MEorFC/"
     fg.detect_and_create_dir(out_plot_dir)
 

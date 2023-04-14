@@ -170,16 +170,15 @@ if __name__ == "__main__":
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
+    confidic = fg.remove_extensions_names_measures(confidic)
+
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
-    # tpd : tables prefixes dictionary
-    tpd = fg.clean_tables_names2dict(f'{out_path}results/prepared_tables/TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
-
-    abund_tab_prefix = tpd['name_abundance']
+    abund_tab_prefix = confidic['name_abundance']
     out_plot_dir= out_path + "results/plots/bars_Abundance/"
     fg.detect_and_create_dir(out_plot_dir)
     run_steps_abund_bars( abund_tab_prefix,  metadatadf, out_plot_dir, confidic, args)

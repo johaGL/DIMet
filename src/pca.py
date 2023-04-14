@@ -291,6 +291,7 @@ if __name__ == "__main__":
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
+    confidic = fg.remove_extensions_names_measures(confidic)
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
@@ -298,16 +299,13 @@ if __name__ == "__main__":
     if args.run_iris_demo:
         run_pca_in_iris(out_path + "results/plots/")
 
-    # tpd : tables prefixes dictionary
-    tpd = fg.clean_tables_names2dict(
-        f'{out_path}results/prepared_tables/TABLESNAMES.csv')
     metadatadf = fg.open_metadata(meta_path)
 
     # separately using fracContrib and abundance for the pca plots
 
     # pca's for abund
 
-    abund_tab_prefix = tpd['name_abundance']
+    abund_tab_prefix = confidic['name_abundance']
     out_plot_dir_pca_abun = out_path + "results/plots/pca_Abundance/"
     fg.detect_and_create_dir(out_plot_dir_pca_abun)
     run_steps_pca("Abundance", abund_tab_prefix, metadatadf,
@@ -315,7 +313,7 @@ if __name__ == "__main__":
 
     # pca's for fraccon
 
-    fraccon_tab_prefix = tpd['name_meanE_or_fracContrib']
+    fraccon_tab_prefix = confidic['name_meanE_or_fracContrib']
     out_plot_dirpca_fc = out_path + "results/plots/pca_fracCorME/"
     fg.detect_and_create_dir(out_plot_dirpca_fc)
     run_steps_pca("fracContrib", fraccon_tab_prefix, metadatadf,

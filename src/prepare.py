@@ -40,12 +40,18 @@ def tabs_2_frames_dic(confidic, data_dir) -> dict:
                         confidic['name_isotopologue_abs']]
     list_config_tabs = [i for i in list_config_tabs if i is not None]
 
-    for i in list_config_tabs:
+    for fi_name in list_config_tabs:
         try:
-            measu_file = f'{data_dir}{i}.csv'
+            measu_file = f'{data_dir}{fi_name}.csv'
             tmp = pd.read_csv(measu_file, sep='\t', header=0, index_col=0)
         except FileNotFoundError:
-            measu_file = f'{data_dir}{i}.tsv'
+            measu_file = f'{data_dir}{fi_name}.tsv'
+            tmp = pd.read_csv(measu_file, sep='\t', header=0, index_col=0)
+        except FileNotFoundError:
+            measu_file = f'{data_dir}{fi_name}.TSV'
+            tmp = pd.read_csv(measu_file, sep='\t', header=0, index_col=0)
+        except FileNotFoundError:
+            measu_file = f'{data_dir}{fi_name}.CSV'
             tmp = pd.read_csv(measu_file, sep='\t', header=0, index_col=0)
         except Exception as e:
             print("Error in tabs_2_frames_dic : ", e)
@@ -56,7 +62,7 @@ def tabs_2_frames_dic(confidic, data_dir) -> dict:
         tmp.index = tmp.index.str.replace(" ", "_")
         tmp = tmp.replace(" ", "_", regex=False)
         tmp = tmp.dropna(axis=0, how="all")
-        frames_dic[i] = tmp
+        frames_dic[fi_name] = tmp
     return frames_dic
 
 
@@ -138,13 +144,6 @@ def perform_prep(args, confidic, meta_path, out_path) -> None:
                 f"{output_tabs_dir}{k}--{compartment}--{suffix_str}.tsv",
                 sep='\t', header=True, index=False)
 
-    txt = ""
-    for s in ['name_abundance', 'name_meanE_or_fracContrib',
-              'name_isotopologue_prop', 'name_isotopologue_abs']:
-        txt += f"{s},{confidic[s]}\n"
-    with open(f"{output_tabs_dir}TABLESNAMES.csv", "w") as f:
-        f.write(txt)
-
 
 if __name__ == "__main__":
     parser = prep_args()
@@ -152,6 +151,8 @@ if __name__ == "__main__":
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
+    fg.verify_good_extensions_measures(confidic)
+    confidic = fg.remove_extensions_names_measures(confidic)
     meta_path = os.path.expanduser(confidic['metadata_path'])
     out_path = os.path.expanduser(confidic['out_path'])
     perform_prep(args, confidic, meta_path, out_path)

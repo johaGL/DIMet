@@ -14,6 +14,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
 import locale
+import re
 
 
 def open_config_file(confifile):
@@ -46,20 +47,45 @@ def auto_check_validity_configuration_file(confidic) -> None:
         assert k in confidic.keys(), f"{k} : missing in configuration file! "
 
 
+def verify_good_extensions_measures(confidic) -> None:
+    """
+    All DIMet modules use measures names without extension,
+    if user put them by mistake, verify the format is ok.
+    See also 'remove_extensions_names_measures()'
+    """
+    list_config_tabs = [confidic['name_abundance'],
+                        confidic['name_meanE_or_fracContrib'],
+                        confidic['name_isotopologue_prop'],
+                        confidic['name_isotopologue_abs']]
+
+    list_config_tabs = [i for i in list_config_tabs if i is not None]
+    for lc in list_config_tabs:
+        if lc.endswith(".txt") or lc.endswith(".TXT"):
+            raise ValueError("Error : your files must be .csv, not .txt/TXT")
+        elif lc.endswith(".xlsx"):
+            raise ValueError("Error : your files must be .csv",
+                  "Moreover : .xlsx files are not admitted !")
+
+
+def remove_extensions_names_measures(confidic) -> dict:
+    """
+    All DIMet modules use measures names without extension,
+    if user put them by mistake, this function internally removes them.
+    Call it in all modules before using config keys
+    """
+    keys_names = ['name_abundance', 'name_meanE_or_fracContrib',
+                  'name_isotopologue_prop', 'name_isotopologue_abs']
+    for k in keys_names:
+        tmp = confidic[k]
+        if tmp is not None:
+            tmp = re.sub(".csv|.tsv|.CSV|.TSV|\s", "", tmp)
+            confidic[k] = tmp
+    return confidic
+
+
 def detect_and_create_dir(namenesteddir):
     if not os.path.exists(namenesteddir):
         os.makedirs(namenesteddir)
-
-
-def fullynumeric(mystring):
-    try:
-        float(mystring)
-        return True
-    except ValueError:
-        return False
-    except Exception as e:
-        print(e)
-        return False
 
 
 def open_metadata(file_path):
@@ -100,22 +126,6 @@ def isotopologues_meaning_df(isotopologues_full_list):
         xu["isotopologue_name"].append(ch)
     df = pd.DataFrame.from_dict(xu)
     return df
-
-
-def clean_tables_names2dict(filename) -> dict:
-    """
-    filename : table created by the module prepare.py:
-       {out_path}/results/prepared_tables/TABLESNAMES.csv
-       comma delimited, no headers
-    """
-    df = pd.read_csv(filename, header=None, index_col=None)
-    clean_tables_d = dict()
-    for i, row in df.iterrows():
-        name_topic = df.iloc[i, 0]
-        suffix_name = df.iloc[i, 1]
-        clean_tables_d[name_topic] = suffix_name
-
-    return clean_tables_d
 
 
 def prepare4contrast(idf, ametadata, grouping, contrast):

@@ -330,7 +330,7 @@ In results/differential_analysis/[type_of_measure]/extended/ you will find all t
  
 
  - Can I have only n=2 in each group ?
- Some of our "examples" illustrate the worst case scenario were only two biological replicates are present, but having only two replicates is discouraged (low statistical power). 
+ Some of our "examples" contain only two biological replicates by timepoint and condition, for practical illustration purposes. Having only two replicates is discouraged (low statistical power). 
 
 
  - After the differential analysis, why do I obtain identical padj values ?

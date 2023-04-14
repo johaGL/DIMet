@@ -103,8 +103,6 @@ def filter_by_path_dico(df, dico):
     df = df.loc[df.name.isin(list(created_elems_list)),:]
     return df
 
-
-
 def get_custom_color_palette_hash(lowcol, midcol, highcol):
     """
     courtesy from :

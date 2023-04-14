@@ -50,7 +50,7 @@ except:
 rule all:
     input:
         f'{primary_config_path}',
-        f'{outdir}results/prepared_tables/TABLESNAMES.csv' ,
+        f'{outdir}results/prepared_tables/prep.log' ,
         f'{outdir}results/plots/log/pca.log',
         f'{outdir}results/differential_analysis/diff.log',
         f'{outdir}results/plots/log/bars.log',
@@ -65,16 +65,16 @@ rule prepare:
     input:
         f'{primary_config_path}'
     output :
-        f'{outdir}results/prepared_tables/TABLESNAMES.csv'
+        f'{outdir}results/prepared_tables/prep.log'
     shell:
-        f"python -m DIMet.src.prepare {primary_config_path}"
+        f"python -m DIMet.src.prepare {primary_config_path} > {outdir}results/prepared_tables/prep.log" 
 
 
 
 rule pca:
     input:
          f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/TABLESNAMES.csv'
+         f'{outdir}results/prepared_tables/prep.log'
     log:
         f'{outdir}results/plots/log/pca.log'
 
@@ -86,7 +86,7 @@ rule pca:
 rule differential:
     input:
          f'{primary_config_path}',
-          f'{outdir}results/prepared_tables/TABLESNAMES.csv'
+          f'{outdir}results/prepared_tables/prep.log'
     log:
          f'{outdir}results/differential_analysis/diff.log'
 
@@ -98,7 +98,7 @@ rule differential:
 rule bars:
     input:
          f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/TABLESNAMES.csv'
+         f'{outdir}results/prepared_tables/prep.log'
     log :  
           f'{outdir}results/plots/log/bars.log'
     
@@ -110,7 +110,7 @@ rule bars:
 rule stacked:
     input: 
       f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/TABLESNAMES.csv'
+         f'{outdir}results/prepared_tables/prep.log'
     log :  
           f'{outdir}results/plots/log/isotopol_prop_stacked.log'
     
@@ -121,7 +121,7 @@ rule stacked:
 rule lineplot:
     input:
       f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/TABLESNAMES.csv'
+         f'{outdir}results/prepared_tables/prep.log'
     log :  
           f'{outdir}results/plots/log/lineplot.log'
     
@@ -134,7 +134,7 @@ if metabologram_config is not None:
     rule metabologram:
         input:
             f'{metabolog_config_path}',
-            f'{outdir}results/prepared_tables/TABLESNAMES.csv',
+            f'{outdir}results/prepared_tables/prep.log',
             f'{outdir}results/differential_analysis/diff.log'
         log:
              f'{outdir}results/plots/log/metabologram.log'
@@ -147,7 +147,7 @@ if metabologram_config is not None:
 rule end:
     input:
          f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/TABLESNAMES.csv',
+         f'{outdir}results/prepared_tables/prep.log',
          f'{outdir}results/differential_analysis/diff.log',
             f'{outdir}results/plots/log/bars.log'
     output:
