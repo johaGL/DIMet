@@ -34,7 +34,7 @@ axisx : condition
 barcolor : timepoint
 width_each_subfig : 3
 wspace_subfigs : 1
-axisx_labeltilt : 90 # 20 or another
+axisx_labeltilt : 90 
 
 
 # Isotopologue Contribution plot configuration
