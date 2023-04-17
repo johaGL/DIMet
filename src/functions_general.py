@@ -234,7 +234,8 @@ def give_coefvar_new(df_red, red_meta, newcol: str):
     groups_ = red_meta[newcol].unique()
     tmpdico = dict()
     for group in groups_:
-        samplesthisgroup = red_meta.loc[red_meta[newcol] == group, 'name_to_plot']
+        samplesthisgroup = red_meta.loc[
+            red_meta[newcol] == group, 'name_to_plot']
         subdf = df_red[samplesthisgroup]
         subdf = subdf.assign(CV=subdf.apply(compute_cv, axis=1))
         tmpdico[f"CV_{group}"] = subdf.CV.tolist()
@@ -282,15 +283,19 @@ def give_geommeans_new(df_red, metad4c, newcol: str, c_interest, c_control):
 
 
 def give_ratios_df(df1, geomInterest, geomControl):
+    """ratio of geometric means is Fold Change: FC
+       Note : if zero replacement by min, which is
+       defined by default, will never enter in 'if contr == 0'
+    """
     df = df1.copy()
-    df = df.assign(geommean_ratio=[np.nan for i in range(df.shape[0])])
+    df = df.assign(FC=[np.nan for i in range(df.shape[0])])
     for i, row in df1.iterrows():
         intere = row[geomInterest]
         contr = row[geomControl]
         if contr == 0:
-            df.loc[i, "geommean_ratio"] = intere / 1e-10
+            df.loc[i, "FC"] = intere / 1e-10
         else:
-            df.loc[i, "geommean_ratio"] = intere / contr
+            df.loc[i, "FC"] = intere / contr
 
     return df
 
