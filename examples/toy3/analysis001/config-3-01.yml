@@ -16,7 +16,7 @@ name_isotopologue_prop : isotopologues_props_computed
 name_isotopologue_abs : isotopologuesCorrValues  # isotopologue absolute values
 
 conditions : [sgCont, sgLDHA] # first must be control, when several
-suffix : a1
+suffix : cnt1
 out_path : ~/toy3/analysis001/
 
 
