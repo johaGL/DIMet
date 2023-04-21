@@ -27,9 +27,9 @@ DIMet is intended for downstream analysis in corrected tracer data (corrected fo
 - [Run Differential analysis](#differential-analysis)
 - [Get plots](#get-plots)
 - [Get Metabolograms](#get-Metabolograms)
-- 
+
 [Detailed guide](#detailed-guide)
-- [Prepare in depth](#prepare-in-depth)
+- [Some words before `prepare`](#some-words-before-prepare)
 - [Details regarding the
 Differential Analysis](#details-regarding-the-differential-analysis)
 
@@ -67,15 +67,15 @@ Regarding the measure's files, they consist of 4 tab-delimited .csv files, one b
 - isotopologues' proportions ("isotopologue\_prop")
 - isotopologues' absolute values ("isotopologue\_abs")
 
-You can also run DIMet if you have all except the last type of measure. For specific scenarii see [Before prepare](#Some-words-before-`prepare`) and FAQ at the end of this document.
+You can also run DIMet if you have all except the last type of measure. For specific scenarii see [Before prepare](#some-words-before-prepare) and FAQ at the end of this document.
 
 Regarding the "metadata", we explain it in detail in the section [Metadata](#the-metadata).
 
-Regarding the .yml file, we supply examples that you can use as template, such  [this config.yml template](examples/toy1/analysis001/config-1-001.yml). To double-check your modifications there exist online editors, such as https://yamlchecker.com/, just copy-paste and edit!
+Regarding the .yml file, we supply examples that you can use as template, such  [this config.yml template](examples/toy1/analysis001/config-1-001.yml). To double-check your modifications there exist online editors, such as https://yamlchecker.com/, just copy-paste the .yml file content, and easily edit!
 
 ### Execute `prepare` 
 
-The examples serve to demonstrate how fast this module can be. Take toy1 example, copy and paste the entire toy1 folder in your 'home/' folder, then from terminal:
+The examples serve you both as illustrations of different possible data (time-series and/or multiple conditions at one time point) to demonstrate how fast this module can be. Take toy1 example, copy and paste the entire toy1 folder in your 'home/' folder, then from terminal:
 ```
 python -m DIMet.src.prepare toy1/analysis001/config-1-001.yml
 ```
@@ -83,7 +83,7 @@ python -m DIMet.src.prepare toy1/analysis001/config-1-001.yml
 
 ### Output files
 
-The prepare output consist of the four types of measures (three if the last not provided by you) saved inside the folder: `YOUR_OUTPUT_PATH/results/prepared/tables/`, by compartment. That means, if you have 'cellular' and 'supernatant' compartments, there will be 8 tab-delimited .csv files. 
+The prepare output consist of the four types of measures (three if the last not provided by you) saved inside the folder: `YOUR_ANALYSIS_FOLDER/results/prepared/tables/`, by compartment. That means, if you have 'cellular' and 'supernatant' compartments, there will be 8 tab-delimited .csv files. 
 
 Each file contains the metabolites as rows, and the samples as columns. 
 
@@ -149,7 +149,7 @@ yield a table where rows are the metabolite/isotopologue, and the main columns a
 * 'pvalue': level of significancy. The closer to zero, the more significant.
 * 'padj': false discovery rate resulting from correction for multiple testing (by default via Benjamini-Hochberg method). 
 * 'distance/span': normalized distance between the two groups. Check the [Details regarding the Differential Analysis](#details-regarding-the-differential-analysis).
-
+* 'FC' : fold change
 
 The table is sorted by _padj_, pvalue and 'distance/span', and is filtered by the thresholds defined in your configuration file. Best results appear at the top. **Significant DAM are those for whom _padj_ <= 0.05**.
 
@@ -179,16 +179,16 @@ After the correction, and before DIMet prepare step, users may be interested in:
 - normalize by the amount of material (number of cells, tissue weight), and/or
 - normalize by an internal standard (present in your data) at choice
 
-We have developed a package you can use for that purpose: https://github.com/johaGL/Tracegroomer. The output of Tracegroomer can be directly copied into your project to be analyzed by DIMet. 
+We have developed a script that you can use for that purpose: https://github.com/johaGL/Tracegroomer. The output of Tracegroomer can be directly copied into your project to be analyzed by DIMet. 
 
-Clean, ready to analyze data is necessary for DIMet to perform the downstream analysis. We encourage you to organize your files as shown in the examples that we provide, to have your results and your configuration files easy to find, for reproductibility.
+Clean, ready to analyze data is necessary for DIMet to perform the downstream analysis. We encourage you to organize your files as shown in the examples that we provide, to have your results and your configuration files easy to find, and for reproductibility.
 
 
 ## Measures' files requirements
 
 - xlsx files are not admitted. Check if Tracegroomer may help you with your case. 
 
-- The Isotopologues' names  must be written with a '**\_m+**' separating the name of the metabolite and the number of labeled carbons, example: 'Citrate\_m+0', 'Citrate\_m+1', and so on. Note: our Tracegroomer can set this automatically in specific scenarii.
+- The Isotopologues' names  must be written with a '**\_m+**' separating the name of the metabolite and the number of labeled carbons, example: 'Citrate\_m+0', 'Citrate\_m+1', and so on. Note: if you used our Tracegroomer,  this nomenclature is set automatically.
 
 - The Isotopologue proportions must be comprised between 0 and 1 (0.1, 0.7, etc). The same is required for mean enrichment or fractional contributions.
 

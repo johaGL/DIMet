@@ -201,20 +201,34 @@ def distance_or_overlap(df4c, metad4c, selected_contrast):
     return df4c
 
 
-def separate_before_stats(ratiosdf, quality_dist_span):
+def separate_before_stats(ratiosdf):
     ratiosdf['has_replicates'] = flag_has_replicates(ratiosdf)
     try:
-        quality_dist_span = float(quality_dist_span)
-        good_df = ratiosdf.loc[(ratiosdf['distance/span'] >= quality_dist_span) &
-                        (ratiosdf['has_replicates'] == 1) ] # has_replicates: 1 true
-
+        # has_replicates: 1 true
+        good_df = ratiosdf.loc[ratiosdf['has_replicates'] == 1, :]
         undesired_mets = set(ratiosdf.index) - set(good_df.index)
         bad_df = ratiosdf.loc[list(undesired_mets)]
         good_df = good_df.drop(columns=['has_replicates'])
         bad_df = bad_df.drop(columns=['has_replicates'])
     except Exception as e:
         print(e)
-        print("Error in separate_before_stats, check qualityDistanceOverSpan arg")
+        print("Error in separate_before_stats (enough replicates ?)")
+
+    return good_df, bad_df
+
+
+def separate_before_compute_padj(ratiosdf, quality_dist_span):
+    try:
+        quality_dist_span = float(quality_dist_span)
+        good_df = ratiosdf.loc[
+            ratiosdf['distance/span'] >= quality_dist_span, :]
+
+        undesired_mets = set(ratiosdf.index) - set(good_df.index)
+        bad_df = ratiosdf.loc[list(undesired_mets)]
+    except Exception as e:
+        print(e)
+        print("Error in separate_before_comp_padj",
+              " check qualityDistanceOverSpan arg")
 
     return good_df, bad_df
 
@@ -486,7 +500,8 @@ def reorder_columns_diff_end(df):
         'pvalue',
         'padj',
         'log2FC',
-        'compartment']  # geommean_ratio not to be reordered, so not here
+        'FC',
+        'compartment']
 
     desired_order = [
         'log2FC',
@@ -494,10 +509,11 @@ def reorder_columns_diff_end(df):
         'pvalue',
         'padj',
         'distance/span',
+        'FC',
+        'count_nan_samples',
         'distance',
         'span_allsamples',
-        'count_nan_samples',
-        'compartment' ]
+        'compartment']
 
     standard_df = df[standard_cols]
     df = df.drop(columns=standard_cols)
@@ -508,8 +524,9 @@ def reorder_columns_diff_end(df):
     return df
 
 
-def run_differential_steps(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
-                       out_file_elements: dict, confidic: dict, whichtest:str,  args) -> None:
+def run_differential_steps(measurements: pd.DataFrame,
+                           metadatadf: pd.DataFrame, out_file_elements: dict,
+                           confidic: dict, whichtest:str,  args) -> None:
 
     out_dir = out_file_elements['odir']
     prefix = out_file_elements['prefix']
@@ -532,28 +549,41 @@ def run_differential_steps(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
         df4c = compute_span_incomparison(df4c, metad4c, contrast)
         df4c['distance/span'] = df4c.distance.div(df4c.span_allsamples)
         ratiosdf = calc_ratios(df4c, metad4c, contrast)
-        ratiosdf, df_bad = separate_before_stats(ratiosdf, args.qualityDistanceOverSpan)
+        ratiosdf, df_bad = separate_before_stats(ratiosdf)
         if whichtest == "disfit":
             out_histo_file = f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}_fitdist_plot.pdf"
             ratiosdf = steps_fitting_method(ratiosdf, out_histo_file)
-            ratiosdf = compute_padj_version2(ratiosdf, 0.05, args.multitest_correction)
 
         else:
-            extract_test_df = run_statistical_test(ratiosdf, metad4c, contrast, whichtest)
-            extract_test_df = compute_padj_version2(extract_test_df, 0.05, args.multitest_correction)
-            extract_test_df.set_index("metabolite", inplace=True)
-            ratiosdf = pd.merge(ratiosdf, extract_test_df, left_index=True, right_index=True)
+            result_test_df = run_statistical_test(ratiosdf, metad4c,
+                                                  contrast, whichtest)
+            result_test_df.set_index("metabolite", inplace=True)
+            ratiosdf = pd.merge(ratiosdf, result_test_df,
+                                left_index=True, right_index=True)
 
-        ratiosdf["log2FC"] = np.log2(ratiosdf['geommean_ratio'])
+        ratiosdf["log2FC"] = np.log2(ratiosdf['FC'])
+
+        ratiosdf, df_no_padj = separate_before_compute_padj(
+            ratiosdf,
+            args.qualityDistanceOverSpan)
+        ratiosdf = compute_padj_version2(ratiosdf, 0.05,
+                                         args.multitest_correction)
+
+
+        # re-integrate the "bad" sub-dataframes to the full dataframe
         df_bad = complete_columns_for_bad(df_bad, ratiosdf)
+        df_no_padj = complete_columns_for_bad(df_no_padj, ratiosdf)
+        ratiosdf = pd.concat([ratiosdf, df_no_padj])
         if df_bad.shape[0] >= 1:
             ratiosdf = pd.concat([ratiosdf, df_bad])
 
         ratiosdf["compartment"] = co
         ratiosdf = reorder_columns_diff_end(ratiosdf)
-        ratiosdf = ratiosdf.sort_values(['padj', 'distance/span'], ascending=[True, False])
-        ratiosdf.to_csv(f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}-{whichtest}.tsv",
-                        index_label="metabolite", header=True, sep='\t')
+        ratiosdf = ratiosdf.sort_values(['padj', 'distance/span'],
+                                        ascending=[True, False])
+        ratiosdf.to_csv(
+            f"{out_dir}/extended/{prefix}--{co}--{suffix}-{strcontrast}-{whichtest}.tsv",
+            index_label="metabolite", header=True, sep='\t')
         #filtered by thresholds :
         filtered_df = filter_diff_results(ratiosdf,
                                           confidic['thresholds']['padj'],
@@ -562,7 +592,8 @@ def run_differential_steps(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
         filtered_df.to_csv(filfi, index_label="metabolite", header=True, sep='\t')
 
 
-def wrapper_for_abund(clean_tables_path, table_prefix, metadatadf,  confidic, args) -> None:
+def wrapper_for_abund(clean_tables_path, table_prefix,
+                      metadatadf,  confidic, args) -> None:
     out_diff_abun = out_path + "results/differential_analysis/abundance/"
     fg.detect_and_create_dir(out_diff_abun)
     whichtest = confidic['statistical_test']['abundances']
@@ -572,10 +603,11 @@ def wrapper_for_abund(clean_tables_path, table_prefix, metadatadf,  confidic, ar
     for co in compartments:
         meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
         fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)  # compartment specific
+        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
         val_instead_zero = arg_repl_zero2value(
             args.abundance_replace_zero_with, measurements)
-        measurements = measurements.replace(to_replace=0, value=val_instead_zero)
+        measurements = measurements.replace(to_replace=0,
+                                            value=val_instead_zero)
         out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix, 
                           'co': co, 'suffix': suffix}
         run_differential_steps(measurements, meta_co,
@@ -583,7 +615,8 @@ def wrapper_for_abund(clean_tables_path, table_prefix, metadatadf,  confidic, ar
                                      confidic, whichtest, args)
 
 
-def wrapper_for_mefc(clean_tables_path, table_prefix, metadatadf,  confidic, args) -> None:
+def wrapper_for_mefc(clean_tables_path, table_prefix,
+                     metadatadf,  confidic, args) -> None:
     out_diff = out_path + "results/differential_analysis/meanE_fracContr/"
     fg.detect_and_create_dir(out_diff)
     whichtest = confidic['statistical_test']['meanE_or_fracContrib']
@@ -597,7 +630,8 @@ def wrapper_for_mefc(clean_tables_path, table_prefix, metadatadf,  confidic, arg
         val_instead_zero = arg_repl_zero2value(
             args.meanEnrichOrFracContrib_replace_zero_with,
             measurements)
-        measurements = measurements.replace(to_replace=0, value=val_instead_zero)
+        measurements = measurements.replace(to_replace=0,
+                                            value=val_instead_zero)
         out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 
                           'co': co, 'suffix':suffix}
         run_differential_steps(measurements, meta_co,
@@ -620,7 +654,8 @@ def wrapper_for_isoAbsol(clean_tables_path, table_prefix,
         val_instead_zero = arg_repl_zero2value(
             args.isotopologueAbs_replace_zero_with,
             measurements)
-        measurements = measurements.replace(to_replace=0, value=val_instead_zero)
+        measurements = measurements.replace(to_replace=0,
+                                            value=val_instead_zero)
         out_file_elems = {'odir': out_diff, 'prefix': table_prefix, 
                           'co': co, 'suffix': suffix}
         run_differential_steps(measurements, meta_co,
