@@ -19,7 +19,7 @@ conditions :
  - Control # first must be control
  - L-Cycloserine 
  
-suffix : s1
+suffix : cyc1
 out_path : ~/toy2/analysis001/
 
 
@@ -77,8 +77,8 @@ statistical_test:
   isotopologue_prop: KW
      
 thresholds:
-  padj: 0.2
-  absolute_log2FC: 0
+  padj: 1
+  absolute_log2FC: 0.3
 
 
 # grouping: column that is a combination of 2 metadata categories,

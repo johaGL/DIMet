@@ -18,7 +18,7 @@ name_isotopologue_abs : IsotopologuesAbs  # isotopologue absolute values
 conditions : 
   - sgLDHA # first must be control, when several
 
-suffix : l1
+suffix : ldh1
 out_path : ~/toy1/analysis001/
 
 
