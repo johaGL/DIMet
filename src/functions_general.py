@@ -13,7 +13,8 @@ import pandas as pd
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
-import warnings
+import locale
+import re
 
 
 def open_config_file(confifile):
@@ -34,12 +35,52 @@ def open_config_file(confifile):
 
 
 def auto_check_validity_configuration_file(confidic) -> None:
-    expected_keys = ['metadata_path', 'targetedMetabo_path', 'amountMaterial_path',
-                     'typeprep','name_abundance', 'name_meanE_or_fracContrib',
-                     'name_isotopologue_prop', 'name_isotopologue_abs', 'conditions',
-                     'suffix', 'out_path']
+    expected_keys = ['metadata_path',
+                     'name_abundance',
+                     'name_meanE_or_fracContrib',
+                     'name_isotopologue_prop',
+                     'name_isotopologue_abs',
+                     'conditions',
+                     'suffix',
+                     'out_path']
     for k in expected_keys:
         assert k in confidic.keys(), f"{k} : missing in configuration file! "
+
+
+def verify_good_extensions_measures(confidic) -> None:
+    """
+    All DIMet modules use measures names without extension,
+    if user put them by mistake, verify the format is ok.
+    See also 'remove_extensions_names_measures()'
+    """
+    list_config_tabs = [confidic['name_abundance'],
+                        confidic['name_meanE_or_fracContrib'],
+                        confidic['name_isotopologue_prop'],
+                        confidic['name_isotopologue_abs']]
+
+    list_config_tabs = [i for i in list_config_tabs if i is not None]
+    for lc in list_config_tabs:
+        if lc.endswith(".txt") or lc.endswith(".TXT"):
+            raise ValueError("Error : your files must be .csv, not .txt/TXT")
+        elif lc.endswith(".xlsx"):
+            raise ValueError("Error : your files must be .csv",
+                  "Moreover : .xlsx files are not admitted !")
+
+
+def remove_extensions_names_measures(confidic) -> dict:
+    """
+    All DIMet modules use measures names without extension,
+    if user put them by mistake, this function internally removes them.
+    Call it in all modules before using config keys
+    """
+    keys_names = ['name_abundance', 'name_meanE_or_fracContrib',
+                  'name_isotopologue_prop', 'name_isotopologue_abs']
+    for k in keys_names:
+        tmp = confidic[k]
+        if tmp is not None:
+            tmp = re.sub(".csv|.tsv|.CSV|.TSV|\s", "", tmp)
+            confidic[k] = tmp
+    return confidic
 
 
 def detect_and_create_dir(namenesteddir):
@@ -47,17 +88,9 @@ def detect_and_create_dir(namenesteddir):
         os.makedirs(namenesteddir)
 
 
-def fullynumeric(mystring):
-    try:
-        float(mystring)
-        return True
-    except Exception as e:
-        return False
-
-
 def open_metadata(file_path):
     try:
-        metadata = pd.read_csv(file_path)
+        metadata = pd.read_csv(file_path, sep='\t')
         return metadata
     except Exception as e:
         print(e)
@@ -69,17 +102,19 @@ def open_metadata(file_path):
 
 def verify_metadata_sample_not_duplicated(metadata_df) -> None:
     def yield_repeated_elems(mylist):
-        occur_dic = dict(map(lambda x: (x, list(mylist).count(x)), mylist)) # credits: w3resource.com
+        occur_dic = dict(map(lambda x: (x, list(mylist).count(x)),
+                             mylist))  # credits: w3resource.com
         repeated_elems = list()
         for k in occur_dic.keys():
             if occur_dic[k] > 1:
                 repeated_elems.append(k)
         return repeated_elems
 
-    sample_duplicated = yield_repeated_elems(list(metadata_df['sample']))
+    sample_duplicated = yield_repeated_elems(list(metadata_df['name_to_plot']))
     if len(sample_duplicated) > 0:
         txt_errors = f"-> duplicated sample names: {sample_duplicated}\n"
-        raise ValueError(f"Error, found these conflicts in your metadata:\n{txt_errors}")
+        raise ValueError(
+            f"Error, found these conflicts in your metadata:\n{txt_errors}")
 
 
 def isotopologues_meaning_df(isotopologues_full_list):
@@ -93,25 +128,9 @@ def isotopologues_meaning_df(isotopologues_full_list):
     return df
 
 
-def clean_tables_names2dict(filename) -> dict:
-    """
-    filename : table created by the module prepare.py:
-       {out_path}/results/prepared_tables/TABLESNAMES.csv
-       comma delimited, no headers
-    """
-    df = pd.read_csv(filename, header=None, index_col=None)
-    clean_tables_d = dict()
-    for i, row in df.iterrows():
-        name_topic = df.iloc[i, 0]
-        suffix_name = df.iloc[i, 1]
-        clean_tables_d[name_topic] = suffix_name
-
-    return clean_tables_d
-
-
 def prepare4contrast(idf, ametadata, grouping, contrast):
     """
-    grouping : example :  ['condition', 'timepoint' ]
+    grouping,  example :  ['condition', 'timepoint' ]
           if (for a sample)  condition = "treatment" and  timepoint = "t12h",
           then newcol = "treatment_t12h"
     contrast : example : ["treatment_t12h", "control_t12h" ]
@@ -125,24 +144,23 @@ def prepare4contrast(idf, ametadata, grouping, contrast):
     else:
         cc = cc.assign(newcol=cc[grouping])
     metas = cc.loc[cc["newcol"].isin(contrast), :]
-    newdf = idf[metas["sample"]]
+    newdf = idf[metas['name_to_plot']]
     return newdf, metas
 
 
 def splitrowbynewcol(row, metas):
     """
     Returns : miniD
-    example : Control_T24h : [0.0, 0.0, 0.0] , L-Cycloserine_T24h : [0.0, 0.0, 0.0]
+    example : Control_T24h : [0.0, 0.0, 0.0] , Treated_T24h : [0.0, 0.0, 0.0]
     """
     newcoluniq = list(set(metas["newcol"]))
     miniD = dict()
     for t in newcoluniq:
         # print(metas.loc[metas["newcol"] == t,:])
         koo = metas.loc[metas["newcol"] == t, :]
-        selsams = koo["sample"]
+        selsams = koo['name_to_plot']
         miniD[t] = row[selsams].tolist()
     return miniD
-
 
 
 def a12(lst1, lst2, rev=True):
@@ -164,31 +182,37 @@ def a12(lst1, lst2, rev=True):
     return (more + 0.5 * same) / (len(lst1) * len(lst2))
 
 
-
 def compute_reduction(df, ddof):
     """
     modified, original from ProteomiX
-    johaGL 2022: if all row is zeroes, set same protein_values
+    johaGL 2023:
+    - if all row is zeroes, set same protein_values
+    - if nanstd(array, ddof) equals 0, set same protein_values
+    (example: nanstd([0.1,nan,0.1,0.1,0.1,nan])
     """
     res = df.copy()
     for protein in df.index.values:
         # get array with abundances values
         protein_values = np.array(
-            df.iloc[protein].map(lambda x: locale.atof(x) if type(x) == str else x) )
+            df.iloc[protein].map(
+                lambda x: locale.atof(x) if type(x) == str else x))
         # return array with each value divided by standard deviation, row-wise
-        if sum(protein_values) == 0:
-            reduced_abundances = protein_values  # because all row is zeroes
+        if (np.nanstd(protein_values, ddof=ddof) == 0) or (
+                sum(protein_values) == 0):
+            reduced_abundances = protein_values
         else:
-            reduced_abundances = protein_values / np.nanstd(protein_values, ddof=ddof)
+            reduced_abundances = protein_values / np.nanstd(protein_values,
+                                                            ddof=ddof)
 
         # replace values in result df
         res.loc[protein] = reduced_abundances
     return res
 
 
-def give_reduced_df( df, ddof ):
+def give_reduced_df(df, ddof):
     rownames = df.index
-    df.index = range(len(rownames))  # index must be numeric because compute reduction accepted
+    df.index = range(len(rownames))
+    # index must be numeric because compute reduction accepted
     df_red = compute_reduction(df, ddof)  # reduce
     df_red.index = rownames
     return df_red
@@ -204,13 +228,14 @@ def compute_cv(reduced_abund):
         return np.nan
 
 
-def give_coefvar_new(df_red, red_meta, newcol : str):
+def give_coefvar_new(df_red, red_meta, newcol: str):
     print("give cv")
 
     groups_ = red_meta[newcol].unique()
     tmpdico = dict()
     for group in groups_:
-        samplesthisgroup = red_meta.loc[red_meta[newcol] == group, "sample"]
+        samplesthisgroup = red_meta.loc[
+            red_meta[newcol] == group, 'name_to_plot']
         subdf = df_red[samplesthisgroup]
         subdf = subdf.assign(CV=subdf.apply(compute_cv, axis=1))
         tmpdico[f"CV_{group}"] = subdf.CV.tolist()
@@ -230,22 +255,22 @@ def compute_gmean_nonan(anarray):
     return outval
 
 
-def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
+def give_geommeans_new(df_red, metad4c, newcol: str, c_interest, c_control):
     """
     output: df, str, str
     """
 
-    sams_interest = metad4c.loc[metad4c[newcol] == c_interest, "sample"]
-    sams_control = metad4c.loc[metad4c[newcol] == c_control, "sample"]
+    sams_interest = metad4c.loc[metad4c[newcol] == c_interest, 'name_to_plot']
+    sams_control = metad4c.loc[metad4c[newcol] == c_control, 'name_to_plot']
     dfout = df_red.copy()
-    geomcol_interest = "gm_" + c_interest
-    geomcol_control = "gm_" + c_control
+    geomcol_interest = "geommean_" + c_interest
+    geomcol_control = "geommean_" + c_control
     dfout[geomcol_interest] = [np.nan for i in range(dfout.shape[0])]
     dfout[geomcol_control] = [np.nan for i in range(dfout.shape[0])]
 
     for i, row in df_red.iterrows():
-        metabolite = i
-        vec_interest = np.array(row[sams_interest])  #[ sams_interest]
+        # i : the metabolite name in current row
+        vec_interest = np.array(row[sams_interest])  # [ sams_interest]
         vec_control = np.array(row[sams_control])
 
         val_interest = compute_gmean_nonan(vec_interest)
@@ -258,15 +283,19 @@ def give_geommeans_new(df_red, metad4c, newcol : str , c_interest, c_control):
 
 
 def give_ratios_df(df1, geomInterest, geomControl):
+    """ratio of geometric means is Fold Change: FC
+       Note : if zero replacement by min, which is
+       defined by default, will never enter in 'if contr == 0'
+    """
     df = df1.copy()
-    df = df.assign(ratio=[np.nan for i in range(df.shape[0])])
+    df = df.assign(FC=[np.nan for i in range(df.shape[0])])
     for i, row in df1.iterrows():
         intere = row[geomInterest]
         contr = row[geomControl]
-        if contr == 0 :
-            df.loc[i, "ratio"] = intere / 1e-10
+        if contr == 0:
+            df.loc[i, "FC"] = intere / 1e-10
         else:
-            df.loc[i, "ratio"] = intere / contr
+            df.loc[i, "FC"] = intere / contr
 
     return df
 
@@ -274,66 +303,22 @@ def give_ratios_df(df1, geomInterest, geomControl):
 def countnan_samples(df, metad4c):
     vecout = []
     grs = metad4c['newcol'].unique()
-    gr1 = metad4c.loc[metad4c['newcol']  == grs[0], "sample"]
-    gr2 = metad4c.loc[metad4c['newcol']  == grs[1], "sample"]
+    gr1 = metad4c.loc[metad4c['newcol'] == grs[0], 'name_to_plot']
+    gr2 = metad4c.loc[metad4c['newcol'] == grs[1], 'name_to_plot']
 
     for i, row in df.iterrows():
         vec1 = row[gr1].tolist()
         vec2 = row[gr2].tolist()
         val1 = np.sum(np.isnan(vec1))
         val2 = np.sum(np.isnan(vec2))
-        vecout.append(tuple([str(val1)+'/'+str(len(vec1)),
-                             str(val2)+'/'+str(len(vec2))]))
+        vecout.append(tuple([str(val1) + '/' + str(len(vec1)),
+                             str(val2) + '/' + str(len(vec2))]))
 
-    df['count_nan_samples'] = vecout#[str(tup) for tup in vecout]
+    df['count_nan_samples'] = vecout
     return df
 
 
-def add_alerts(df, metad4c):
-    # deprecated
-    df['alert'] = ''
-    df.loc[df["distance"] < 0, "alert"] = "overlap"
-    alert_reps = list()
-    for i in df['count_nan_samples'].tolist():
-        if i[0] >= 2 or i[1] >= 2:
-            alert_reps.append("no replicates")
-        else:
-            alert_reps.append('')
-
-    df['foo'] = alert_reps
-    df.loc[df['foo'] != '', "alert"] = "no replicates"
-    df = df.drop(columns = ['foo'])
-    return df
-
-
-# def calcgeommean(avector, eps):
-#     # TODO: old, used in differential_univariate, work pending
-#     vech = np.array(avector)
-#     vech[vech == 0] = eps  # replace any zeroes
-#     return np.exp(np.mean(np.log(vech)))
-
-
-def plot_overlap_hist(df_overls, colname_symetric, colname_assymetric, fileout):
-    import seaborn as sns
-    import matplotlib as plt
-    """just for debugging or other tests"""
-    values_sym = df_overls[colname_symetric]
-    a = pd.DataFrame({'value' : values_sym,
-                      'type_overlap': ["symm" for i in range(len(values_sym))] })
-    vasym = df_overls[colname_assymetric]
-    b = pd.DataFrame({'value': vasym,
-                      'type_overlap': ["assym" for i in range(len(vasym))]})
-    dfplotov = pd.concat([a,b], ignore_index=True, axis=0)
-
-    with sns.axes_style("darkgrid"):
-        sns.displot(data=dfplotov, x = 'value', hue='type_overlap',
-                       kde=False)
-        plt.savefig(fileout)
-    plt.close()
-    return 0
-
-
-# from here, functions for isotopologue preview (mode None)
+# from here, functions for isotopologue preview
 
 def add_metabolite_column(df):
     theindex = df.index
@@ -352,21 +337,19 @@ def add_isotopologue_type_column(df):
     return df
 
 
-def save_heatmap_sums_isos(thesums, figuretitle, outputfigure):
-    fig, ax = plt.subplots( figsize=(9,10))
+def save_heatmap_sums_isos(thesums, figuretitle, outputfigure) -> None:
+    fig, ax = plt.subplots(figsize=(9, 10))
     sns.heatmap(thesums,
                 annot=True, fmt=".1f", cmap="crest",
-                square = True,
-                annot_kws = {
-                    'fontsize' : 6
+                square=True,
+                annot_kws={
+                    'fontsize': 6
                 },
-                ax= ax)
+                ax=ax)
     plt.xticks(rotation=90)
     plt.title(figuretitle)
     plt.savefig(outputfigure)
     plt.close()
-
-    return 0
 
 
 def givelevels(melted):
@@ -380,14 +363,14 @@ def givelevels(melted):
     return melted
 
 
-def table_minimalbymet(melted, fileout):
+def table_minimalbymet(melted, fileout) -> None:
     another = melted.copy()
     another = another.groupby('metabolite').min()
     another = another.sort_values(by='value', ascending=False)
     another.to_csv(fileout, sep='\t', header=True)
 
 
-def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
+def save_rawisos_plot(dfmelt, figuretitle, outputfigure) -> None:
     fig, ax = plt.subplots(1, 1, figsize=(16, 10))
     sns.stripplot(ax=ax, data=dfmelt, x="value", y="metabolite", jitter=False,
                   hue="isotopologue_type", size=4, palette="tab20")
@@ -404,13 +387,11 @@ def save_rawisos_plot(dfmelt, figuretitle, outputfigure):
     plt.xlabel("fraction")
     plt.savefig(outputfigure)
     plt.close()
-    return 0
 
 # end functions for isotopologue preview
 
 # END
 
 # useful resources:
-# count nb of occurrences: https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
-
-
+# count nb of occurrences:
+# https://www.w3resource.com/python-exercises/lambda/python-lambda-exercise-49.php
