@@ -150,8 +150,12 @@ def write_metabologram_plot(fig, dir, fname):
 
 
 
-def metabologram_run(confidic, dimensions_pdf):
-
+def metabologram_run(confidic, dimensions_pdf,
+                     edgecolors='black', linewidths=(1.6,1.3)):
+    if type(edgecolors) is str:
+        edgecolors = (edgecolors,)*2 
+    if type(linewidths) is float or type(linewidths) is int:
+        linewidths = (linewidths,)*2 
     confD = confidic
     genes_dico, metabo_dico, pathdico = give_path_dico(confD['pathways_files'])
 
@@ -239,7 +243,7 @@ def metabologram_run(confidic, dimensions_pdf):
 
         plt.pie(sizes_list,
                 colors=mappedcolors_list,
-                wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
+                wedgeprops={'width': 1, 'edgecolor': edgecolors[0], 'linewidth': linewidths[0]},
                 radius=1,
                 startangle=90,
                 labels=annots if tf else None,  ## this one yiels the  labels annotated in the plot
@@ -256,7 +260,7 @@ def metabologram_run(confidic, dimensions_pdf):
         # internal pie
         plt.pie([50, 50],
                 colors=[inner_colorsD['metab_color'], inner_colorsD['gene_color']],
-                wedgeprops={'width': 0.41, 'edgecolor': 'black', 'linewidth': 0.7},
+                wedgeprops={'width': 0.41, 'edgecolor': edgecolors[1], 'linewidth': linewidths[1]},
                 radius=0.41,
                 startangle=90,
                 labels=np.array([inner_dico['metabo_mean_val'], inner_dico['gene_mean_val']]).round(1),
