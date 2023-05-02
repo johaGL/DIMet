@@ -144,6 +144,10 @@ def path_to_metabologram_plots(out_plot_dir):
     fg.detect_and_create_dir(out_plot_dir)
     return(out_plot_dir)
 
+def write_metabologram_plot(fig, dir, fname):
+    fname = os.path.join(dir, fname)
+    fig.savefig(fname=fname)
+
 
 
 def metabologram_run(confidic, dimensions_pdf):
@@ -206,9 +210,9 @@ def metabologram_run(confidic, dimensions_pdf):
         for j in comparisondico.keys():
             indexesdico[indexer] = {'path': i, 'comparison': j, 'title': comparisondico[j]['title'] }
             indexer += 1
-
-    for indexer in range(len(indexesdico)):
-        subdict = indexesdico[indexer]
+    
+    out_path = path_to_metabologram_plots(confD['metabologram_out_dir'])
+    for indexer, subdict in enumerate(indexesdico.values()):
         fig = plt.figure(figsize=dimensions_pdf)
         fig.tight_layout()
         print(f"Plotting metabologram {indexer+1} out of {len(indexesdico)}", end="\r")
@@ -233,25 +237,19 @@ def metabologram_run(confidic, dimensions_pdf):
         annots = gatheredsub["elem_tag"]
         mappedcolors_list = gatheredsub["mycolors"]
 
-        if tf == False:
-            plt.pie(sizes_list,
-                    colors=mappedcolors_list,
-                    wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
-                    radius=1,
-                    startangle=90)
-        else:  # add metabolites to the plot
-            plt.pie(sizes_list,
-                    colors=mappedcolors_list,
-                    wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
-                    radius=1,
-                    startangle=90,
-                    labels=annots,  ## this one yiels the  labels annotated in the plot
-                    textprops={'fontsize': 8}
-                    )
-            ## white circles for artist patches
-        my_circle2 = plt.Circle((0, 0), radius=0.47, edgecolor="black", linewidth=1.6)
-        my_circle = plt.Circle((0, 0), radius=0.465, color="white")
-        fig.patches.extend([my_circle2, my_circle2])
+        plt.pie(sizes_list,
+                colors=mappedcolors_list,
+                wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
+                radius=1,
+                startangle=90,
+                labels=annots if tf else None,  ## this one yiels the  labels annotated in the plot
+                textprops={'fontsize': 8} if tf else None)
+        ## white circles for artist patches
+        plot_circles= [
+            plt.Circle((0, 0), radius=0.47, edgecolor="black", linewidth=1.6),
+            plt.Circle((0, 0), radius=0.465, color="white")
+        ]
+        fig.patches.extend(plot_circles)
         inner_dico = {'metabo_mean_val': gatheredsub.loc[gatheredsub.typemol == 'metabolite', 'log2FC'].mean(),
                       'gene_mean_val': gatheredsub.loc[gatheredsub.typemol == 'gene', 'log2FC'].mean()}
         inner_colorsD = inner_pie_colors(inner_dico, mycmap, gabs, mabs)
@@ -270,34 +268,22 @@ def metabologram_run(confidic, dimensions_pdf):
         # end donut
         ###
         # save pdf
-        fname = os.path.join(
-            path_to_metabologram_plots(confD['metabologram_out_dir']),
-            f'{subdict["path"]}_comparison{subdict["comparison"]}.pdf'
-        )
-        fig.savefig(fname=fname)
+        fname=f'{subdict["path"]}_comparison{subdict["comparison"]}.pdf'
+        write_metabologram_plot(fig,out_path,fname)
     # end for
     fig, axes = plt.subplots(ncols=2, nrows=1, figsize=dimensions_pdf)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # Remove warning internal heatmap (df.shape)
-        sns.heatmap([[]], ax=axes[0], cmap=mycmap, center=0, cbar=True,
-                    annot=False, yticklabels=False,
-                    square=True,
-                    vmin=-mabs, vmax=mabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
-                                                    'label': 'Metabolite',
-                                                    'drawedges': False})
-
-        sns.heatmap([[]], ax=axes[1], cmap=mycmap, center=0, cbar=True,
-                    annot=False, yticklabels=False,
-                    square=True,
-                    vmin=-gabs, vmax=gabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
-                                                    'label': 'Transcript',
-                                                    'drawedges': False})
-    fname = os.path.join(
-        path_to_metabologram_plots(confD['metabologram_out_dir']),
-        'legend.pdf'
-    )
-    fig.savefig(fname=fname)
+        vs=(mabs, gabs) ; labels=('Metabolite', 'Transcript')
+        for ax, v, label in zip(axes, vs, labels):
+            sns.heatmap([[]], ax=ax, cmap=mycmap, center=0, cbar=True,
+                        annot=False, yticklabels=False,
+                        square=True,
+                        vmin=-v, vmax=v, cbar_kws={'shrink': 0.9, 'aspect': 10,
+                                                        'label': label,
+                                                        'drawedges': False})
+    write_metabologram_plot(fig, out_path, 'legend.pdf')
 
     print("\nDone plotting!")
 
