@@ -15,10 +15,11 @@ from matplotlib.colors import Normalize
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib as mpolib
 import functions_general as fg
+import warnings
 
 
 def metabologram_args():
-    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
+    parser = argparse.ArgumentParser(prog="python -m DIMet.src.metabologram",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
@@ -138,6 +139,12 @@ def inner_pie_colors(inner_dico, mycmap,  gabs, mabs):
     genecolors_ = rgbas2hex(values2rgbas([geneval], mycmap, -gabs, gabs, center=0))
     return {'metab_color' : metabocolors_[0], 'gene_color': genecolors_[0]}
 
+def path_to_metabologram_plots(out_plot_dir):
+    out_plot_dir = os.path.expanduser(os.path.join(out_plot_dir, "metabologram/"))
+    fg.detect_and_create_dir(out_plot_dir)
+    return(out_plot_dir)
+
+
 
 def metabologram_run(confidic, dimensions_pdf):
 
@@ -187,20 +194,11 @@ def metabologram_run(confidic, dimensions_pdf):
 
     tf = True
 
-    if nbcompars == 1:
-        supplerows = 3
-    elif nbcompars == 2:
-        supplerows = 2
-    else:
-        supplerows = 1
-
     if dimensions_pdf is None:
-        dimensions_pdf = tuple(nbpaths * 7, supplerows * 9)
-    #sns.set_style({'font.family': 'serif', 'font.serif': ['Meiryo']})
-    fig, axes = plt.subplots(nrows=nbpaths + supplerows,
-                             ncols=nbcompars, figsize=dimensions_pdf)
-    fig.subplots_adjust(bottom=0, top=0.9, left=0, right=1,
-                        wspace=0.2, hspace=0.4)
+        dimensions_pdf = tuple(7, 5)
+    #sns.set_style({'f~/Documents/projects/DIMet/gb-ldh-TD/analysis01/results/plots/metabologramont.family': 'serif', 'font.serif': ['Meiryo']})
+    fig = plt.figure(figsize=dimensions_pdf)
+    fig.tight_layout()
     # prepare subsetters as indexesdico for axes.flat usage
     indexesdico = dict()
     indexer = 0
@@ -208,16 +206,18 @@ def metabologram_run(confidic, dimensions_pdf):
         for j in comparisondico.keys():
             indexesdico[indexer] = {'path': i, 'comparison': j, 'title': comparisondico[j]['title'] }
             indexer += 1
-    indexer = 0
-    for ax in axes.flat[:len(indexesdico)]:
-        ax = axes.flat[indexer]
-        print()
-        path_elems_here = pathdico[indexesdico[indexer]['path']]
+
+    for indexer in range(len(indexesdico)):
+        subdict = indexesdico[indexer]
+        fig = plt.figure(figsize=dimensions_pdf)
+        fig.tight_layout()
+        print(f"Plotting metabologram {indexer+1} out of {len(indexesdico)}", end="\r")
+        path_elems_here = pathdico[subdict['path']]
         gatheredsub = gathered.loc[gathered['name'].isin(path_elems_here), :]  # this will mess up the order
         compari_here = indexesdico[indexer]['comparison']
-        title_here = indexesdico[indexer]['title']
+        title_here = subdict['title']
         #ax.set_title(f"{indexesdico[indexer]['path']}\n {compari_here}\n")
-        ax.set_title(f"{indexesdico[indexer]['path']}\n {title_here}\n")
+        fig.suptitle(f"{subdict['path']}\n {title_here}\n")
         gatheredsub = gatheredsub.loc[gatheredsub['comparison'] == compari_here, :]
 
         ##################
@@ -234,66 +234,74 @@ def metabologram_run(confidic, dimensions_pdf):
         mappedcolors_list = gatheredsub["mycolors"]
 
         if tf == False:
-            ax.pie(sizes_list,
-                   colors=mappedcolors_list,
-                   wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
-                   radius=1,
-                   startangle=90)
+            plt.pie(sizes_list,
+                    colors=mappedcolors_list,
+                    wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
+                    radius=1,
+                    startangle=90)
         else:  # add metabolites to the plot
-            ax.pie(sizes_list,
-                   colors=mappedcolors_list,
-                   wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
-                   radius=1,
-                   startangle=90,
-
-                   labels=annots,  ## this one yiels the  labels annotated in the plot
-                   textprops={'fontsize': 8}
-                   )
+            plt.pie(sizes_list,
+                    colors=mappedcolors_list,
+                    wedgeprops={'width': 1, 'edgecolor': 'black', 'linewidth': 0.8},
+                    radius=1,
+                    startangle=90,
+                    labels=annots,  ## this one yiels the  labels annotated in the plot
+                    textprops={'fontsize': 8}
+                    )
             ## white circles for artist patches
         my_circle2 = plt.Circle((0, 0), radius=0.47, edgecolor="black", linewidth=1.6)
         my_circle = plt.Circle((0, 0), radius=0.465, color="white")
-        ax.add_patch(my_circle2)
-        ax.add_patch(my_circle)
+        fig.patches.extend([my_circle2, my_circle2])
         inner_dico = {'metabo_mean_val': gatheredsub.loc[gatheredsub.typemol == 'metabolite', 'log2FC'].mean(),
                       'gene_mean_val': gatheredsub.loc[gatheredsub.typemol == 'gene', 'log2FC'].mean()}
         inner_colorsD = inner_pie_colors(inner_dico, mycmap, gabs, mabs)
         # internal pie
-        ax.pie([50, 50],
-               colors=[inner_colorsD['metab_color'], inner_colorsD['gene_color']],
-               wedgeprops={'width': 0.41, 'edgecolor': 'black', 'linewidth': 0.7},
-               radius=0.41,
-               startangle=90,
-               labels=np.array([inner_dico['metabo_mean_val'], inner_dico['gene_mean_val']]).round(1),
-               labeldistance=0.2)
-        ax.axis('equal')
-        ax.legend('', frameon=False)  # https://www.statology.org/remove-legend-matplotlib/
+        plt.pie([50, 50],
+                colors=[inner_colorsD['metab_color'], inner_colorsD['gene_color']],
+                wedgeprops={'width': 0.41, 'edgecolor': 'black', 'linewidth': 0.7},
+                radius=0.41,
+                startangle=90,
+                labels=np.array([inner_dico['metabo_mean_val'], inner_dico['gene_mean_val']]).round(1),
+                labeldistance=0.2)
+        # ax.axis('equal')
+        # ax.legend('', frameon=False)  # https://www.statology.org/remove-legend-matplotlib/
         # ax.tight_layout()
         # ####
         # end donut
         ###
-        indexer += 1
+        # save pdf
+        fname = os.path.join(
+            path_to_metabologram_plots(confD['metabologram_out_dir']),
+            f'{subdict["path"]}_comparison{subdict["comparison"]}.pdf'
+        )
+        fig.savefig(fname=fname)
     # end for
+    fig, axes = plt.subplots(ncols=2, nrows=1, figsize=dimensions_pdf)
 
-    # fill last three panels with color bar key
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # Remove warning internal heatmap (df.shape)
+        sns.heatmap([[]], ax=axes[0], cmap=mycmap, center=0, cbar=True,
+                    annot=False, yticklabels=False,
+                    square=True,
+                    vmin=-mabs, vmax=mabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
+                                                    'label': 'Metabolite',
+                                                    'drawedges': False})
 
-    # do "fake" separated heatmaps to take the colorbar key separately for metabolites and for genes
-    sns.heatmap([[]], ax=axes.flat[-3], cmap=mycmap, center=0, cbar=True,
-                annot=False,
-                square=True,
-                vmin=-mabs, vmax=mabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
-                                                 'label': 'Metabolite',
-                                                 'drawedges': False})
-    # axes.flat[-2].text(-0.3, 0.7, "metabolite", rotation=90)
+        sns.heatmap([[]], ax=axes[1], cmap=mycmap, center=0, cbar=True,
+                    annot=False, yticklabels=False,
+                    square=True,
+                    vmin=-gabs, vmax=gabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
+                                                    'label': 'Transcript',
+                                                    'drawedges': False})
+    fname = os.path.join(
+        path_to_metabologram_plots(confD['metabologram_out_dir']),
+        'legend.pdf'
+    )
+    fig.savefig(fname=fname)
 
-    sns.heatmap([[]], ax=axes.flat[-2], cmap=mycmap, center=0, cbar=True,
-                annot=False,
-                square=True,
-                vmin=-gabs, vmax=gabs, cbar_kws={'shrink': 0.9, 'aspect': 10,
-                                                 'label': 'Transcript',
-                                                 'drawedges': False})
-    # axes.flat[-1].text(-0.3, 0.7, "gene", rotation=90)
-    out_file = os.path.expanduser(confD['metabologram_out_dir'])
-    plt.savefig( out_file + "metabologram_plot.pdf")
+    print("\nDone plotting!")
+
+
 
 
 if __name__ == "__main__":
@@ -303,7 +311,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
-    dimensions_pdf = (15, 20) # TODO transform into option from metabologram_config
+    out_path = os.path.expanduser(confidic['out_path'])
+    dimensions_pdf = (7, 5) # TODO transform into option from metabologram_config
     metabologram_run( confidic, dimensions_pdf)
 
 
