@@ -151,7 +151,7 @@ def write_metabologram_plot(fig, dir, fname):
 
 
 def metabologram_run(confidic, dimensions_pdf,
-                     edgecolors='black', linewidths=(1.6,1.3)):
+                     edgecolors=('#cecece','#8d8d8d'), linewidths=(1.6,1.2)):
     if type(edgecolors) is str:
         edgecolors = (edgecolors,)*2 
     if type(linewidths) is float or type(linewidths) is int:
