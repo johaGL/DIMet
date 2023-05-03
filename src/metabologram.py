@@ -23,8 +23,27 @@ def metabologram_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
+    aes_arg = parser.add_argument_group(title="Aesthetic arguments for plots")
+    aes_arg.add_argument('--edgecolor', type=str2tuple, default='#cecece,#8d8d8d',
+                         help="One or two color(s) for external and internal edges \
+of metaboligrams. Comma separated (default: %(default)s)")
+    aes_arg.add_argument('--linewidth', type=str2tuple, default='1.6,1.2',
+                         help="One or two width(s) for external and internal edges \
+of metaboligrams. Comma separated (default: %(default)s)")
 
     return parser
+
+def str2tuple(s):
+    if not type(s) is str:
+        raise TypeError(f'Argument {s} is not a string.')
+    elif not len(s):
+        raise ValueError('An empty string is not a valid argument')
+    s = [x.strip() for x in s.split(",")]
+    if len(s) < 2:
+        s = tuple(s*2)
+    else:
+        s = tuple(s[0:2])
+    return(s)
 
 
 def bars_args():
@@ -303,6 +322,15 @@ if __name__ == "__main__":
     confidic = fg.open_config_file(configfile)
     out_path = os.path.expanduser(confidic['out_path'])
     dimensions_pdf = (7, 5) # TODO transform into option from metabologram_config
-    metabologram_run( confidic, dimensions_pdf)
+    edgecolors = args.edgecolor
+    print(args)
+    try:
+        linewidths = tuple([float(x) for x in args.linewidth])
+    except ValueError:
+        print(f'Linewidth values {args.linewidth} are not floats.')
+        raise
+
+    metabologram_run( confidic, dimensions_pdf,
+                     edgecolors=edgecolors, linewidths=linewidths)
 
 
