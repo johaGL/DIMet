@@ -6,7 +6,6 @@ Uses only abundances
 
 @author: johanna
 """
-import sys
 import os
 import argparse
 import pandas as pd
@@ -16,29 +15,36 @@ import functions_general as fg
 
 
 def bars_args():
-    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="python -m DIMet.src.abundance_bars",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
 
     parser.add_argument('--palette',  default="pastel",
-                        help="qualitative or categorical palette name as in Seaborn library (Python)")
+                        help="qualitative or categorical palette name as in \
+                        Seaborn library (Python)")
 
-    parser.add_argument('--x_text', type=str, default="",
-                        help='abbreviations for x axis ticks text. First run default to get aware of exact ticks text.\
-                        Then write them separated by commas, example: "Ctl,Reac-a,Reac-b,..." ')
+    parser.add_argument(
+        '--x_text', type=str, default="",
+        help='abbreviations for x axis ticks text. \
+        First run default to get aware of exact ticks text. Then write them \
+        separated by commas, example: "Ctl,Reac-a,Reac-b,..." ')
 
     return parser
 
 
-def pile_up_abundance(abu_sel, metada_sel): 
+def pile_up_abundance(abu_sel, metada_sel):
     dfcompartment = abu_sel.T
     metabolites = dfcompartment.columns
     dfcompartment['name_to_plot'] = dfcompartment.index
     dfcompartment = pd.merge(dfcompartment, metada_sel, on='name_to_plot')
-    dafull = pd.DataFrame(columns=["timepoint", "condition", "metabolite", "abundance"])
+    dafull = pd.DataFrame(columns=["timepoint", "condition",
+                                   "metabolite", "abundance"])
     for z in range(len(metabolites)):
-        subdf = dfcompartment.loc[:, [metabolites[z], "timepoint", "condition"]]
+        subdf = dfcompartment.loc[:,
+                                  [metabolites[z], "timepoint", "condition"]]
         subdf["metabolite"] = metabolites[z]
         subdf["abundance"] = subdf[metabolites[z]]
         subdf = subdf.drop(columns=[metabolites[z]])
@@ -48,16 +54,20 @@ def pile_up_abundance(abu_sel, metada_sel):
     return dafull
 
 
-def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var, plotwidth,
+def printabundbarswithdots(piled_sel, selectedmets, CO, SMX,
+                           axisx_var, hue_var, plotwidth,
                            odirbars, axisx_labeltilt, wspace_subfigs, args):
     selected_metabs = selectedmets
-    sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
+    sns.set_style({"font.family": "sans-serif",
+                   "font.sans-serif": "Liberation Sans"})
     plt.rcParams.update({"font.size": 21})
     YLABE = "Abundance"
-    fig, axs = plt.subplots(1, len(selected_metabs), sharey=False, figsize=(plotwidth, 5.5))
+    fig, axs = plt.subplots(1, len(selected_metabs),
+                            sharey=False, figsize=(plotwidth, 5.5))
     #  constrained_layout=True)
     for il in range(len(selected_metabs)):
-        herep = piled_sel.loc[piled_sel["metabolite"] == selected_metabs[il], :]
+        herep = piled_sel.loc[
+                piled_sel["metabolite"] == selected_metabs[il], :]
         herep = herep.reset_index()
         sns.barplot(
             ax=axs[il],
@@ -86,7 +96,9 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var,
                 linewidth=1.5,
                 alpha=1
             )
-        except: # When Nan it throws error, avoid it
+        except Exception as e:
+            # When Nan it throws error, avoid it
+            print(e)
             pass
 
         axs[il].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
@@ -110,9 +122,8 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var,
     for il in range(len(selected_metabs)):
         axs[il].legend_.remove()
 
-
     fig.text(x=0.02, y=0.5, s=YLABE, va="center", rotation="vertical", size=26)
-    fig.suptitle(f"{CO} ({SMX} abundance)".upper())
+    # fig.suptitle(f"{CO} ({SMX} abundance)".upper())
     plt.subplots_adjust(top=0.76, bottom=0.2, wspace=wspace_subfigs, hspace=1)
     # plt.legend(handles=thehandles, labels=thelabels, loc='upper right',
     #            bbox_to_anchor=(-plotwidth/3, 1))
@@ -127,7 +138,8 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX, axisx_var, hue_var,
     return 0
 
 
-def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args) -> None:
+def run_steps_abund_bars(table_prefix,  metadatadf,
+                         out_plot_dir, confidic, args) -> None:
     time_sel = confidic["time_sel"]  # locate where it is used
     selectedmetsD = confidic["metabolites_to_plot"]  # locate where it is used
     condilevels = confidic["conditions"]  # <= locate where it is used
@@ -145,7 +157,8 @@ def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args
     # dynamically open the file based on prefix, compartment and suffix:
     for co in compartments:
         metada_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
-        fn = f'{out_path}results/prepared_tables/{table_prefix}--{co}--{suffix}.tsv'
+        the_folder = f'{out_path}results/prepared_tables/'
+        fn = f'{the_folder}{table_prefix}--{co}--{suffix}.tsv'
         abutab = pd.read_csv(fn, sep='\t', header=0, index_col=0)
 
         # metadata and abundances time of interest
@@ -154,13 +167,16 @@ def run_steps_abund_bars(table_prefix,  metadatadf, out_plot_dir, confidic, args
 
         # total piled-up data:
         piled_sel = pile_up_abundance(abu_sel, metada_sel)
-        piled_sel["condition"] = pd.Categorical(piled_sel["condition"], condilevels)
-        piled_sel["timepoint"] = pd.Categorical(piled_sel["timepoint"], time_sel)
+        piled_sel["condition"] = pd.Categorical(
+            piled_sel["condition"], condilevels)
+        piled_sel["timepoint"] = pd.Categorical(
+            piled_sel["timepoint"], time_sel)
 
         plotwidth = width_each_subfig * len(selectedmetsD[co])
 
         printabundbarswithdots(piled_sel, selectedmetsD[co], co, "TOTAL",
-                               axisx_var, hue_var, plotwidth, out_plot_dir, axisx_labeltilt,
+                               axisx_var, hue_var, plotwidth,
+                               out_plot_dir, axisx_labeltilt,
                                wspace_subfigs, args)
 
 
@@ -179,13 +195,12 @@ if __name__ == "__main__":
     metadatadf = fg.open_metadata(meta_path)
 
     abund_tab_prefix = confidic['name_abundance']
-    out_plot_dir= out_path + "results/plots/bars_Abundance/"
+    out_plot_dir = out_path + "results/plots/bars_Abundance/"
     fg.detect_and_create_dir(out_plot_dir)
-    run_steps_abund_bars( abund_tab_prefix,  metadatadf, out_plot_dir, confidic, args)
+    run_steps_abund_bars(abund_tab_prefix,  metadatadf,
+                         out_plot_dir, confidic, args)
 
-
-
-###############
+# ## END
 # https://stackoverflow.com/questions/42017049/how-to-add-error-bars-on-a-grouped-barplot-from-a-column
 # give allways scientific notation :
 # https://www.adamsmith.haus/python/answers/how-to-scale-an-axis-to-scientific-notation-in-a-matplotlib-plot-in-python

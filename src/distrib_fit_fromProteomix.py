@@ -3,18 +3,12 @@
 # Credits: Claire Lescoat, Macha Nikolski
 
 
-"""
-Remove proteins with number of NA above specified threshold
-#TODO: nombre de chiffre significatifs pour les paramètres
-"""
-
-
-import pandas as pd
-import numpy as np
-import scipy.stats as stats
 import warnings
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
 
 
 def compute_z_score(df: pd.DataFrame) -> pd.DataFrame:
@@ -28,13 +22,18 @@ def compute_z_score(df: pd.DataFrame) -> pd.DataFrame:
 
 def find_best_distribution(df: pd.DataFrame, out_histogram_distribution: str):
     """
-    Find best distribution among all the scipy.stats distribution and returns it with its parameters
+    Find best distribution among all the scipy.stats distribution
+    and returns it with its parameters
     """
-    dist = np.around(np.array((df['zscore']).astype(float)), 5)  # TODO : pourquoi arrondir ??
+    dist = np.around(np.array((df['zscore']).astype(float)),
+                     5)  # TODO : pourquoi arrondir ??
 
-    best_dist, best_dist_name, best_fit_params = get_best_fit(dist, out_histogram_distribution)
+    best_dist, best_dist_name, best_fit_params = get_best_fit(
+        dist,
+        out_histogram_distribution)
 
-    #logger.info("Best fit is", str(best_dist_name), "with", str(*best_fit_params))
+    # logger.info("Best fit is", str(best_dist_name),
+    # "with", str(*best_fit_params))
     args_param = dict(e.split('=') for e in best_fit_params.split(', '))
     for k, v in args_param.items():
         args_param[k] = float(v)
@@ -62,8 +61,10 @@ def get_best_fit(input_array, out_file):
     pdf = make_pdf(best_dist, best_fit_params)
 
     # parameters
-    param_names = (best_dist.shapes + ', loc, scale').split(', ') if best_dist.shapes else ['loc', 'scale']
-    param_str = ', '.join(['{}={:0.2f}'.format(k, v) for k, v in zip(param_names, best_fit_params)])
+    param_names = (best_dist.shapes + ', loc, scale').split(
+        ', ') if best_dist.shapes else ['loc', 'scale']
+    param_str = ', '.join(['{}={:0.2f}'.format(k, v) for k, v in
+                           zip(param_names, best_fit_params)])
     dist_str = '{} ({})'.format(best_fit_name, param_str)
 
     # Display
@@ -73,9 +74,11 @@ def get_best_fit(input_array, out_file):
 
 
 def plot_best_fit(data, dist_str, pdf, out_file):
-    # #plot methode alternative https://stackoverflow.com/questions/6620471/fitting-empirical-distribution-to-theoretical-ones-with-scipy-python
+    # plot methode alternative:
+    # https://stackoverflow.com/questions/6620471/fitting-empirical-distribution-to-theoretical-ones-with-scipy-python
     # plt.figure(figsize=(12, 8))
-    # ax = data.plot(kind='hist', bins=50, density=True, alpha=0.5, label = 'Data', legend = True)
+    # ax = data.plot(kind='hist', bins=50, density=True,
+    # alpha=0.5, label = 'Data', legend = True)
 
     plt.figure(figsize=(12, 8))
     plt.hist(data, bins="auto", density=True, alpha=0.5, label='Data')
@@ -98,8 +101,10 @@ def make_pdf(dist, params, size=10000):
     scale = params[-1]
 
     # Get sane start and end points of distribution
-    start = dist.ppf(0.01, *arg, loc=loc, scale=scale) if arg else dist.ppf(0.01, loc=loc, scale=scale)
-    end = dist.ppf(0.99, *arg, loc=loc, scale=scale) if arg else dist.ppf(0.99, loc=loc, scale=scale)
+    start = dist.ppf(0.01, *arg, loc=loc, scale=scale) if arg else dist.ppf(
+        0.01, loc=loc, scale=scale)
+    end = dist.ppf(0.99, *arg, loc=loc, scale=scale) if arg else dist.ppf(
+        0.99, loc=loc, scale=scale)
 
     # Build PDF and turn into pandas Series
     x = np.linspace(start, end, size)
@@ -122,22 +127,37 @@ def best_fit_distribution(data, bins=200):
     x = (x + np.roll(x, -1))[:-1] / 2.0
 
     # Distributions to check
-    # Get distribution list not hardcoded ? https://docs.scipy.org/doc/scipy-0.10.0/reference/tutorial/stats.html
-    # johaGL note: new scipy version does not have : stats.frechet_r ,   stats.frechet_l,
+    # Get distribution list not hardcoded ?
+    # https://docs.scipy.org/doc/scipy-0.10.0/reference/tutorial/stats.html
+    # johaGL note: new scipy version does not have :
+    # stats.frechet_r ,   stats.frechet_l,
     DISTRIBUTIONS = [
-        stats.alpha, stats.anglit, stats.arcsine, stats.beta, stats.betaprime, stats.bradford, stats.burr, stats.cauchy,
-        stats.chi, stats.chi2, stats.cosine, stats.dgamma, stats.dweibull, stats.erlang, stats.expon, stats.exponnorm,
-        stats.exponweib, stats.exponpow, stats.f, stats.fatiguelife, stats.foldcauchy, stats.foldnorm,
-        stats.genlogistic, stats.genpareto, stats.gennorm, stats.genexpon, stats.genextreme,
-        stats.gausshyper, stats.gamma, stats.gengamma, stats.genhalflogistic, stats.gilbrat, stats.gompertz,
-        stats.gumbel_r, stats.gumbel_l, stats.halfcauchy, stats.halflogistic, stats.halfnorm, stats.halfgennorm,
-        stats.hypsecant, stats.invgamma, stats.invgauss, stats.invweibull, stats.johnsonsb, stats.johnsonsu,
-        stats.ksone, stats.kstwobign, stats.laplace, stats.levy, stats.levy_l, stats.fisk, stats.logistic,
-        stats.loggamma, stats.loglaplace, stats.lognorm, stats.lomax, stats.maxwell, stats.mielke, stats.nakagami,
-        stats.ncx2, stats.ncf, stats.nct, stats.norm, stats.pareto, stats.pearson3, stats.powerlaw, stats.powerlognorm,
-        stats.powernorm, stats.rdist, stats.reciprocal, stats.rayleigh, stats.rice, stats.recipinvgauss,
-        stats.semicircular, stats.t, stats.triang, stats.truncexpon, stats.truncnorm, stats.tukeylambda, stats.uniform,
-        stats.vonmises, stats.vonmises_line, stats.wald, stats.weibull_min, stats.weibull_max, stats.wrapcauchy
+        stats.alpha, stats.anglit, stats.arcsine, stats.beta, stats.betaprime,
+        stats.bradford, stats.burr, stats.cauchy,
+        stats.chi, stats.chi2, stats.cosine, stats.dgamma, stats.dweibull,
+        stats.erlang, stats.expon, stats.exponnorm,
+        stats.exponweib, stats.exponpow, stats.f, stats.fatiguelife,
+        stats.foldcauchy, stats.foldnorm,
+        stats.genlogistic, stats.genpareto, stats.gennorm, stats.genexpon,
+        stats.genextreme,
+        stats.gausshyper, stats.gamma, stats.gengamma, stats.genhalflogistic,
+        stats.gilbrat, stats.gompertz,
+        stats.gumbel_r, stats.gumbel_l, stats.halfcauchy, stats.halflogistic,
+        stats.halfnorm, stats.halfgennorm,
+        stats.hypsecant, stats.invgamma, stats.invgauss, stats.invweibull,
+        stats.johnsonsb, stats.johnsonsu,
+        stats.ksone, stats.kstwobign, stats.laplace, stats.levy, stats.levy_l,
+        stats.fisk, stats.logistic,
+        stats.loggamma, stats.loglaplace, stats.lognorm, stats.lomax,
+        stats.maxwell, stats.mielke, stats.nakagami,
+        stats.ncx2, stats.ncf, stats.nct, stats.norm, stats.pareto,
+        stats.pearson3, stats.powerlaw, stats.powerlognorm,
+        stats.powernorm, stats.rdist, stats.reciprocal, stats.rayleigh,
+        stats.rice, stats.recipinvgauss,
+        stats.semicircular, stats.t, stats.triang, stats.truncexpon,
+        stats.truncnorm, stats.tukeylambda, stats.uniform,
+        stats.vonmises, stats.vonmises_line, stats.wald, stats.weibull_min,
+        stats.weibull_max, stats.wrapcauchy
     ]
 
     # Best holders
@@ -170,33 +190,36 @@ def best_fit_distribution(data, bins=200):
                     best_params = params
                     best_sse = sse
 
-
         except Exception:
             pass
 
     return best_distribution.name, best_params
 
 
-def compute_p_value(df: pd.DataFrame, test: str, best_dist, args_param) -> pd.DataFrame:
+def compute_p_value(df: pd.DataFrame, test: str, best_dist,
+                    args_param) -> pd.DataFrame:
     if test == 'right-tailed':
         df['pvalue'] = 1 - best_dist.cdf(df['zscore'], **args_param)
     elif test == 'two-sided':
-        df['pvalue'] = 2 * (1 - best_dist.cdf(abs(df['zscore']), **args_param))
+        df['pvalue'] = 2 * (
+                    1 - best_dist.cdf(abs(df['zscore']), **args_param))
     else:
         print("WARNING: two-tailed or not")
     return df
 
 
-def update_res_with_specific_proteins(specific_proteins: pd.DataFrame, reference: str, test: str) -> pd.DataFrame:
+def update_res_with_specific_proteins(specific_proteins: pd.DataFrame,
+                                      reference: str,
+                                      test: str) -> pd.DataFrame:
     """
     Update p-value for protein if study include specific proteins
     """
     if test == 'two-tailed':
         specific_proteins['pvalue'] = 0
     elif test == 'right-tailed':
-        #mask = (specific_proteins['ratio'] == 0.01)
-        #specific_proteins['ratio']['pvalue'] = 0
-        specific_proteins['pvalue'] = np.where((specific_proteins['ratio'] == 0.001), 1, 0)
-
+        # mask = (specific_proteins['ratio'] == 0.01)
+        # specific_proteins['ratio']['pvalue'] = 0
+        specific_proteins['pvalue'] = np.where(
+            (specific_proteins['ratio'] == 0.001), 1, 0)
 
     return specific_proteins

@@ -78,7 +78,7 @@ def remove_extensions_names_measures(confidic) -> dict:
     for k in keys_names:
         tmp = confidic[k]
         if tmp is not None:
-            tmp = re.sub(".csv|.tsv|.CSV|.TSV|\s", "", tmp)
+            tmp = re.sub('.csv|.tsv|.CSV|.TSV', '', tmp)
             confidic[k] = tmp
     return confidic
 

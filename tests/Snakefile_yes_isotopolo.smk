@@ -149,7 +149,7 @@ rule end:
          f'{primary_config_path}',
          f'{outdir}results/prepared_tables/prep.log',
          f'{outdir}results/differential_analysis/diff.log',
-            f'{outdir}results/plots/log/bars.log'
+         f'{outdir}results/plots/log/bars.log'
     output:
         f'{outdir}results/plots/log/end.log'
     shell:

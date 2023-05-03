@@ -45,15 +45,6 @@ numbers_size : 13
 
 # Fractional Contributions lineplot configuration
 # -----------------------------
-# if defining groups, try to group them by similarity in values
-# or leave blank as in  the other toy examples
-groups_toplot_frac_contribs:
-  endo:
-    0: [ a-KG, 2-OHGLu]
-    1: [ 6-PG, 2_3-PG]
-  exo:
-    0: [ 6-PG, 2_3-PG] 
-    1: [ a-KG, 2-OHGLu]
 
 
 # -----------------------------
