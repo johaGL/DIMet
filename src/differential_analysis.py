@@ -25,6 +25,17 @@ def diff_args():
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
 
+    # parser.add_argument("--multiclass_analysis",
+    #                     action=argparse.BooleanOptionalAction,
+    #                     default=False,
+    #                     help="Uses Kruskal-Wallis (instead ANOVA)")
+    #
+    # parser.add_argument("--time_course",
+    #                     action=argparse.BooleanOptionalAction,
+    #                     default=False,
+    #                     help="performs differential analysis, sequentially,"
+    #                          "comparing t+1 vs t")
+
     # Before reduction and gmean, way to replace zeros:
     parser.add_argument("--abundance_replace_zero_with",
                         default="min", type=str, help="min | min/n | VALUE")
@@ -42,6 +53,17 @@ def diff_args():
                         default="min", type=str,
                         help="min | min/n | VALUE")
 
+    parser.add_argument(
+        "--multitest_correction", default='fdr_bh',
+        help="see : https://www.statsmodels.org/dev/generated/\
+        statsmodels.stats.multitest.multipletests.html")
+
+    parser.add_argument(
+        "--qualityDistanceOverSpan", default=-0.5, type=float,
+        help="By metabolite, for samples (x, y) the distance is calculated,\
+        and span is max(x U y) - min(x U y).  A 'distance/span' inferior\
+        to this value excludes the metabolite from testing (pvalue=NaN).")
+
     # by default include all the types of measurements:
 
     parser.add_argument('--abundances',
@@ -53,16 +75,6 @@ def diff_args():
     parser.add_argument('--isotopologues',
                         action=argparse.BooleanOptionalAction, default=True)
 
-    parser.add_argument(
-        "--qualityDistanceOverSpan", default=-0.3, type=float,
-        help="By metabolite, for samples (x, y) the distance is calculated,\
-        and span is max(x U y) - min(x U y).  A 'distance/span' inferior\
-        to this value excludes the metabolite from testing (pvalue=NaN).")
-
-    parser.add_argument(
-        "--multitest_correction", default='fdr_bh',
-        help="see : https://www.statsmodels.org/dev/generated/\
-        statsmodels.stats.multitest.multipletests.html")
     return parser
 
 
@@ -507,15 +519,6 @@ def steps_fitting_method(ratiosdf, out_histo_file):
     return ratiosdf
 
 
-def compute_p_adjusted(df: pd.DataFrame,
-                       correction_method: str) -> pd.DataFrame:
-    rej, pval_corr = ssm.multipletests(df['pvalue'].values,
-                                       alpha=float('0.05'),
-                                       method=correction_method)[:2]
-    df['padj'] = pval_corr
-    return df
-
-
 def compute_padj_version2(df, correction_alpha, correction_method):
     tmp = df.copy()
     # inspired from R documentation in p.adjust :
@@ -524,14 +527,14 @@ def compute_padj_version2(df, correction_alpha, correction_method):
     (sgs, corrP, _, _) = ssm.multipletests(tmp["pvalue"],
                                            alpha=float(correction_alpha),
                                            method=correction_method)
-    df["padj"] = corrP
+    df = df.assign(padj=corrP)
     truepadj = []
     for v, w in zip(df["pvalue"], df["padj"]):
         if np.isnan(v):
             truepadj.append(v)
         else:
             truepadj.append(w)
-    df["padj"] = truepadj
+    df = df.assign(padj=truepadj)
 
     return df
 
@@ -661,6 +664,189 @@ def run_differential_steps(measurements: pd.DataFrame,
                            header=True, sep='\t')
 
 
+def run_multiclass(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
+                    out_file_elements: dict, confidic,
+                   method_multiclass, args) -> None:
+
+    out_dir = out_file_elements['odir']
+    prefix = out_file_elements['prefix']
+    co = out_file_elements['co']
+    suffix = out_file_elements['suffix']
+
+    fg.detect_and_create_dir(f"{out_dir}/extended/")
+    fg.detect_and_create_dir(f"{out_dir}/filtered/")
+
+    def create_dictio_arrays(row, metadata):
+        all_classes = metadata['condition'].unique().tolist()
+        dico_out = dict()
+        for group in all_classes:
+            samples = metadata.loc[
+                metadata['condition'] == group, 'name_to_plot']
+            dico_out[group] = row[samples].to_numpy()
+        return dico_out
+
+    def compute_multiclass_KW(df, metadata):
+        for i, row in df.iterrows():
+            the_dictionary_of_arrays = create_dictio_arrays(row, metadata)
+            # using kruskal on three or more groups
+            stat_result, pval_result = scipy.stats.kruskal(
+               *the_dictionary_of_arrays.values(), axis=0,
+                nan_policy='omit'
+            )
+            df.at[i, 'statistic'] = stat_result
+            df.at[i, 'pvalue'] = pval_result
+        return df
+
+    # separate by timepoint, when several
+    timepoints = metadatadf['timepoint'].unique().tolist()
+    for tpoint in timepoints:
+        metada_tp = metadatadf.loc[metadatadf['timepoint'] == tpoint, :]
+        measures_tp = measurements[metada_tp['name_to_plot']]
+        measures_tp = calc_reduction(measures_tp, metada_tp)
+        if method_multiclass == "KW":
+            multi_result = compute_multiclass_KW(measures_tp,  metada_tp)
+
+        multi_result = compute_padj_version2(
+            multi_result, 0.05, args.multitest_correction)
+
+        # reorder the columns:
+        input_cols = [i for i in multi_result.columns if i.startswith("input")]
+        resu_cols = ['statistic', 'pvalue', 'padj']
+        remaining_cols = [i for i in multi_result.columns if
+                          (i not in resu_cols) & (not i.startswith("input_"))]
+        new_order = resu_cols
+        new_order.extend(remaining_cols)
+        new_order.extend(input_cols)
+        multi_result = multi_result[new_order]
+        otsv = f"{prefix}--{co}--{tpoint}-{method_multiclass}-multiclass-{suffix}.tsv"
+        multi_result.to_csv(
+            f"{out_dir}/extended/{otsv}",
+            index_label="metabolite", header=True, sep='\t')
+        # filtered by thresholds :
+        padj_cutoff = confidic['thresholds']['padj']
+        filtered_df = multi_result.loc[multi_result['padj'] <= padj_cutoff]
+        otv = f'{prefix}--{co}--{tpoint}-{method_multiclass}-multiclass-{suffix}.tsv'
+        filtered_df.to_csv(f"{out_dir}/filtered/{otv}",
+                           index_label="metabolite",
+                           header=True, sep='\t')
+
+
+def run_time_course(measurements: pd.DataFrame,
+                           metadatadf: pd.DataFrame, out_file_elements: dict,
+                           confidic: dict, whichtest: str, args) -> None:
+    out_dir = out_file_elements['odir']
+    prefix = out_file_elements['prefix']
+    co = out_file_elements['co']
+    suffix = out_file_elements['suffix']
+
+    fg.detect_and_create_dir(f"{out_dir}/extended/")
+    fg.detect_and_create_dir(f"{out_dir}/filtered/")
+
+    for condition in metadatadf['condition'].unique().tolist():
+        metada_cd =  metadatadf.loc[metadatadf['condition'] == condition, :]
+
+        auto_set_comparisons_l = list()
+        ordered_timenum = metada_cd['timenum'].unique() # already is numpy
+        ordered_timenum = np.sort(np.array(ordered_timenum))
+        l = 1
+        for h in range(len(ordered_timenum)-1):
+            contrast = [str(ordered_timenum[l]), str(ordered_timenum[h])]
+            auto_set_comparisons_l.append(contrast)
+            l += 1
+
+        for contrast in auto_set_comparisons_l:
+            strcontrast = '_'.join(contrast)
+            metada_cd = metada_cd.assign(
+                timenum=metada_cd["timenum"].astype('str'))
+            df4c, metad4c = fg.prepare4contrast(measurements, metada_cd,
+                                                ['timenum'], contrast)
+
+            df4c = df4c[(df4c.T != 0).any()]  # delete rows being zero everywhere
+            # sort them by 'newcol' the column created by prepare4contrast
+            metad4c = metad4c.sort_values("newcol")
+            df4c = calc_reduction(df4c, metad4c)
+            # adds nan_count_samples column :
+            df4c = fg.countnan_samples(df4c, metad4c)
+            df4c = distance_or_overlap(df4c, metad4c, contrast)
+            df4c = compute_span_incomparison(df4c, metad4c, contrast)
+            df4c['distance/span'] = df4c.distance.div(df4c.span_allsamples)
+            ratiosdf = calc_ratios(df4c, metad4c, contrast)
+            ratiosdf, df_bad = separate_before_stats(ratiosdf)
+
+
+            result_test_df = run_statistical_test(ratiosdf, metad4c,
+                                                  contrast, whichtest)
+            result_test_df.set_index("metabolite", inplace=True)
+            ratiosdf = pd.merge(ratiosdf, result_test_df,
+                                left_index=True, right_index=True)
+
+            ratiosdf["log2FC"] = np.log2(ratiosdf['FC'])
+
+            ratiosdf, df_no_padj = separate_before_compute_padj(
+                ratiosdf,
+                args.qualityDistanceOverSpan)
+            ratiosdf = compute_padj_version2(ratiosdf, 0.05,
+                                             args.multitest_correction)
+
+            # re-integrate the "bad" sub-dataframes to the full dataframe
+            df_bad = complete_columns_for_bad(df_bad, ratiosdf)
+            df_no_padj = complete_columns_for_bad(df_no_padj, ratiosdf)
+            ratiosdf = pd.concat([ratiosdf, df_no_padj])
+            if df_bad.shape[0] >= 1:
+                ratiosdf = pd.concat([ratiosdf, df_bad])
+
+            ratiosdf["compartment"] = co
+            ratiosdf = reorder_columns_diff_end(ratiosdf)
+            ratiosdf = ratiosdf.sort_values(['padj', 'distance/span'],
+                                            ascending=[True, False])
+            otsv = f"{prefix}--{co}--{condition}-{strcontrast}-{whichtest}-{suffix}.tsv"
+            ratiosdf.to_csv(
+                f"{out_dir}/extended/{otsv}",
+                index_label="metabolite", header=True, sep='\t')
+            # filtered by thresholds :
+            filtered_df = filter_diff_results(
+                ratiosdf,
+                confidic['thresholds']['padj'],
+                confidic['thresholds']['absolute_log2FC'])
+            otv = f'{prefix}--{co}--{condition}-{strcontrast}-{whichtest}-{suffix}_filter.tsv'
+            filtered_df.to_csv(f"{out_dir}/filtered/{otv}",
+                               index_label="metabolite",
+                               header=True, sep='\t')
+
+
+def options_diff2groups_valid(confidic):
+    authorize = True
+    for k in ["grouping", "comparisons", "statistical_test", "thresholds"]:
+        try:
+            confidic[k]
+        except KeyError:
+            authorize = False
+            print(k, "not set in .yml file")
+    return authorize
+
+
+def multiclass_timecourse_diff2groups(measurements, meta_co,
+                                         out_file_elems, confidic,
+                                         whichtest, args):
+    try:
+        method_multiclass = confidic['multiclass']
+        run_multiclass(measurements, meta_co, out_file_elems,
+                       confidic, method_multiclass, args)
+    except KeyError:
+        pass
+
+    try:
+        method_time_course = confidic['time_course']
+        run_time_course(measurements, meta_co, out_file_elems,
+                       confidic, method_time_course, args)
+    except KeyError:
+        pass
+
+    if options_diff2groups_valid(confidic):
+        run_differential_steps(measurements, meta_co, out_file_elems,
+                               confidic, whichtest, args)
+
+
 def wrapper_for_abund(clean_tables_path, table_prefix,
                       metadatadf, confidic, args) -> None:
     out_diff_abun = out_path + "results/differential_analysis/abundance/"
@@ -679,9 +865,10 @@ def wrapper_for_abund(clean_tables_path, table_prefix,
                                             value=val_instead_zero)
         out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix,
                           'co': co, 'suffix': suffix}
-        run_differential_steps(measurements, meta_co,
-                               out_file_elems,
-                               confidic, whichtest, args)
+
+        multiclass_timecourse_diff2groups(measurements, meta_co,
+                                          out_file_elems,
+                                          confidic, whichtest, args)
 
 
 def wrapper_for_mefc(clean_tables_path, table_prefix,
@@ -703,9 +890,11 @@ def wrapper_for_mefc(clean_tables_path, table_prefix,
                                             value=val_instead_zero)
         out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
                           'co': co, 'suffix': suffix}
-        run_differential_steps(measurements, meta_co,
-                               out_file_elems,
-                               confidic, whichtest, args)
+        #run_differential_steps(measurements, meta_co, out_file_elems, confidic, whichtest, args)
+        multiclass_timecourse_diff2groups(measurements, meta_co,
+                                          out_file_elems,
+                                          confidic, whichtest, args)
+
 
 
 def wrapper_for_isoAbsol(clean_tables_path, table_prefix,
@@ -727,9 +916,11 @@ def wrapper_for_isoAbsol(clean_tables_path, table_prefix,
                                             value=val_instead_zero)
         out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
                           'co': co, 'suffix': suffix}
-        run_differential_steps(measurements, meta_co,
-                               out_file_elems,
-                               confidic, whichtest, args)
+
+        #run_differential_steps(measurements, meta_co,  out_file_elems,  confidic, whichtest, args)
+        multiclass_timecourse_diff2groups(measurements, meta_co,
+                                          out_file_elems,
+                                          confidic, whichtest, args)
 
 
 def wrapper_for_isoProp(clean_tables_path, table_prefix,
@@ -753,14 +944,16 @@ def wrapper_for_isoProp(clean_tables_path, table_prefix,
         out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
                           'co': co, 'suffix': suffix}
 
-        run_differential_steps(measurements, meta_co,
-                               out_file_elems,
-                               confidic, whichtest, args)
+        #run_differential_steps(measurements, meta_co, out_file_elems, confidic, whichtest, args)
+
+        multiclass_timecourse_diff2groups(measurements, meta_co,
+                                          out_file_elems,
+                                          confidic, whichtest, args)
 
 
 if __name__ == "__main__":
-    print("\n  -*- searching for Differentially Abundant-or-Marked \
-           Metabolites (DAM) -*-\n")
+    print("\n  -*- searching for   \
+           Differentially Abundant-or-Marked Metabolites (DAM) -*-\n")
     parser = diff_args()
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
