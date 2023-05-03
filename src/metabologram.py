@@ -24,12 +24,23 @@ def metabologram_args():
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
     aes_arg = parser.add_argument_group(title="Aesthetic arguments for plots")
+    aes_arg.add_argument('--fig-width', type=float, default=7, metavar="W",
+                         help="width of output figure in inches (default: %(default)s)")
+    aes_arg.add_argument('--fig-height', type=float, default=5, metavar="H",
+                         help="height of output figure in inches (default: %(default)s)")
+    aes_arg.add_argument('--format', type=str, default="pdf",
+                         choices=list(plt.gcf().canvas.get_supported_filetypes().keys()),
+                         help="format of output figure without leading '.' (default: %(default)s)")
+    aes_arg.add_argument('--dpi', type=dpi_type, default="figure",
+                         help="dpi of output figure (default: %(default)s's dpi value)")
     aes_arg.add_argument('--edgecolor', type=str2tuple, default='#cecece,#8d8d8d',
-                         help="One or two color(s) for external and internal edges \
-of metaboligrams. Comma separated (default: %(default)s)")
+                         metavar="COL(,COL)",
+                         help="one or two color(s) for peripheral and central edges \
+of metabolograms. Comma separated (default: %(default)s)")
     aes_arg.add_argument('--linewidth', type=str2tuple, default='1.6,1.2',
-                         help="One or two width(s) for external and internal edges \
-of metaboligrams. Comma separated (default: %(default)s)")
+                         metavar="W(,W)",
+                         help="one or two width(s) for peripheral and central edges \
+of metabolograms. Comma separated (default: %(default)s)")
 
     return parser
 
@@ -45,6 +56,15 @@ def str2tuple(s):
         s = tuple(s[0:2])
     return(s)
 
+def dpi_type(v):
+    err_msg = f'dpi value must be numeric or "figure", not {v}'
+    try:
+        v = float(v)
+    except:
+        v = v.lower()
+        if v != "figure":
+            raise TypeError(err_msg)
+    return(v)
 
 def bars_args():
     parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
@@ -163,13 +183,13 @@ def path_to_metabologram_plots(out_plot_dir):
     fg.detect_and_create_dir(out_plot_dir)
     return(out_plot_dir)
 
-def write_metabologram_plot(fig, dir, fname):
+def write_metabologram_plot(fig, dir, fname, dpi):
     fname = os.path.join(dir, fname)
-    fig.savefig(fname=fname)
+    fig.savefig(fname=fname, dpi=dpi)
 
 
 
-def metabologram_run(confidic, dimensions_pdf,
+def metabologram_run(confidic, dimensions_pdf, format, dpi,
                      edgecolors=('#cecece','#8d8d8d'), linewidths=(1.6,1.2)):
     if type(edgecolors) is str:
         edgecolors = (edgecolors,)*2 
@@ -291,8 +311,8 @@ def metabologram_run(confidic, dimensions_pdf,
         # end donut
         ###
         # save pdf
-        fname=f'{subdict["path"]}_comparison{subdict["comparison"]}.pdf'
-        write_metabologram_plot(fig,out_path,fname)
+        fname=f'{subdict["path"]}_comparison{subdict["comparison"]}.{format}'
+        write_metabologram_plot(fig,out_path,fname, dpi)
     # end for
     fig, axes = plt.subplots(ncols=2, nrows=1, figsize=dimensions_pdf)
 
@@ -306,7 +326,7 @@ def metabologram_run(confidic, dimensions_pdf,
                         vmin=-v, vmax=v, cbar_kws={'shrink': 0.9, 'aspect': 10,
                                                         'label': label,
                                                         'drawedges': False})
-    write_metabologram_plot(fig, out_path, 'legend.pdf')
+    write_metabologram_plot(fig, out_path, f'legend.{format}', dpi)
 
     print("\nDone plotting!")
 
@@ -321,7 +341,7 @@ if __name__ == "__main__":
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     out_path = os.path.expanduser(confidic['out_path'])
-    dimensions_pdf = (7, 5) # TODO transform into option from metabologram_config
+    dimensions_pdf = (args.fig_width, args.fig_height)
     edgecolors = args.edgecolor
     print(args)
     try:
@@ -330,7 +350,7 @@ if __name__ == "__main__":
         print(f'Linewidth values {args.linewidth} are not floats.')
         raise
 
-    metabologram_run( confidic, dimensions_pdf,
+    metabologram_run( confidic, dimensions_pdf, args.format, args.dpi,
                      edgecolors=edgecolors, linewidths=linewidths)
 
 
