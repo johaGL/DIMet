@@ -16,12 +16,37 @@ import matplotlib.ticker as mticker
 import functions_general as fg
 
 
-
 def stacked_args():
-    parser = argparse.ArgumentParser(prog="python -m DIMet.src.abundance_bars",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="python -m DIMet.src.abundance_bars",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
+
+    parser.add_argument("--separated_plots_by_condition",
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="print one pdf plot file by condition")
+
+    parser.add_argument("--max_nb_carbons_possible", type=int,
+                        default=24,
+                        help="number of carbons, defines colors")
+
+    parser.add_argument("--plots_height", type=float,
+                        default=4.8,
+                        help="height for all the subplots")
+
+    parser.add_argument("--sharey",
+                        action=argparse.BooleanOptionalAction,
+                        default=False,
+                        help="share y axis across subplots")
+
+    parser.add_argument("--x_ticks_text_size", type=float,
+                        default=18)
+
+    parser.add_argument("--y_ticks_text_size", type=float,
+                        default=19)
 
     return parser
 
@@ -36,7 +61,7 @@ def isotopol_prop_2df4plot(df_co, metada_co, levelshours_str):
         0.01                           0          Control        xxxxxx
 
       is transformed into:
-          timenum    condition    isotopolgFull        Isotopologue 
+          timenum    condition    isotopolgFull        Isotopologue
           0           control      L-Phenylala...    0.01
 
     """
@@ -56,12 +81,14 @@ def isotopol_prop_2df4plot(df_co, metada_co, levelshours_str):
     )
     df4plot["timenum"] = pd.Categorical(df4plot["timenum"], levelshours_str)
     # iteratively pile up
-    for z in range(len(metabolites)):  # corrected! error I had : -30)): now ok :)
+    for z in range(len(metabolites)):
         subdf = dfcompartment.loc[:, [metabolites[z], "timenum", "condition"]]
         subdf['timenum'] = subdf['timenum'].astype(str)
-        subdf["isotopolgFull"] = metabolites[z]  # 1st colname as cell value, reps
+        # 1st colname as cell value, reps
+        subdf["isotopolgFull"] = metabolites[z]
         subdf["Isotopologue Contribution (%)"] = subdf[metabolites[z]] * 100
-        subdf = subdf.drop(columns=[metabolites[z]])  # 1st col no longer needed
+        # 1st col no longer needed
+        subdf = subdf.drop(columns=[metabolites[z]])
         df4plot = pd.concat([df4plot, subdf])
         del subdf
 
@@ -82,11 +109,13 @@ def massageisotopologues(df4plot):
     df4plot["m+x"] = xu["m+x"]
     # dealing with weird values: bigger than 100 and less than 0 :
     df4plot.loc[
-        df4plot["Isotopologue Contribution (%)"] > 100, "Isotopologue Contribution (%)"
+        df4plot["Isotopologue Contribution (%)"] > 100,
+        "Isotopologue Contribution (%)"
     ] = 100
 
     df4plot.loc[
-        df4plot["Isotopologue Contribution (%)"] < 0, "Isotopologue Contribution (%)"
+        df4plot["Isotopologue Contribution (%)"] < 0,
+        "Isotopologue Contribution (%)"
     ] = 0
 
     return df4plot
@@ -97,7 +126,9 @@ def preparemeansreplicates(df4plot, selectedmets):
     returns a dictionary of dataframes, keys are metabolites
     """
     dfcopy = df4plot.copy()
-    dfcopy = dfcopy.groupby(["condition", "metabolite", "m+x", "timenum"]).mean("Isotopologue Contribution %")
+    dfcopy = dfcopy.groupby(
+        ["condition", "metabolite", "m+x", "timenum"])\
+        .mean("Isotopologue Contribution %")
     dfcopy = dfcopy.reset_index()
 
     dfs_Dico = dict()
@@ -110,52 +141,69 @@ def preparemeansreplicates(df4plot, selectedmets):
         dfs_Dico[i] = tmp
     return dfs_Dico
 
-def addcombinedconditime(dfs_Dico, combined_tc_levels ):
+
+def addcombinedconditime(dfs_Dico, combined_tc_levels):
     """
     add column 'timeANDcondi' to each  metabolite dataframe in Dico
     """
     for metab in dfs_Dico.keys():
-        #dfs_Dico['time_cat'] = dfs_Dico['timepoint'].astype(str).replace("T", "")
-        #dfs_Dico['time_cat'] = dfs_Dico['time_cat'].str.replace("h", "")
-        dfs_Dico[metab]["timeANDcondi"] = dfs_Dico[metab]["timenum"] + " : " + \
-            dfs_Dico[metab]["condition"]
-        dfs_Dico[metab]["timeANDcondi"] = pd.Categorical(dfs_Dico[metab]["timeANDcondi"],
-                                                         combined_tc_levels)
+        dfs_Dico[metab]["timeANDcondi"] = \
+            dfs_Dico[metab]["timenum"] + " : " + dfs_Dico[metab]["condition"]
+
+        dfs_Dico[metab]["timeANDcondi"] = pd.Categorical(
+            dfs_Dico[metab]["timeANDcondi"],
+            combined_tc_levels)
     return dfs_Dico
 
 
-def yieldpalsauto():
-    n = 25
-    species = [i for i in range(n)]
-    # first 0 to n_a: spectral
-    n_a = 7
-    print(f"this DIMet version supports isotopologues coloring until m+{n} species")
-    spectralPal = sns.color_palette("Spectral", n_a)
-    spectralPal = list(spectralPal)[::-1]
-    palsautoD = dict()
-    k = 0
-    while k < n_a:
-        palsautoD[species[k]] = spectralPal[k]
-        k += 1
-    # last until 24
-    n_b = n
-    addedpal = sns.color_palette("PuOr", 25-n_a)
-    addedpal = list(addedpal)
-    j = 0
-    while k < n_b: # k starts in 12
-        palsautoD[species[k]] = addedpal[j]
-        k += 1
-        j += 1
-    return palsautoD
+def addcategoricaltime(dfs_Dico, levelstime_str):
+    """
+    existing column 'timenum' as categorical, with specific order.
+    Each metabolite dataframe in Dico is processed.
+    """
+    for metab in dfs_Dico.keys():
+        dfs_Dico[metab]["timenum"] = pd.Categorical(
+            dfs_Dico[metab]["timenum"],
+            levelstime_str)
+    return dfs_Dico
 
 
-def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
-                   xlabyesno,  wspace_stacks, numbers_size ):
+def give_colors_carbons(nb_of_carbons):
+    color_d = dict()
+    color_d[0] = "lightgray"  # m+0
+    # set colors m+1 to m+8 from Spectral palette,
+    # with custom spaced selected colors (validated)
+    spectralPal = sns.color_palette("Spectral", 30)
+    color_d[1] = spectralPal[29]
+    color_d[2] = spectralPal[26]
+    color_d[3] = spectralPal[21]
+    color_d[4] = spectralPal[17]
+    color_d[5] = spectralPal[10]
+    color_d[6] = spectralPal[6]
+    color_d[7] = spectralPal[2]
+    color_d[8] = spectralPal[0]
+    # rest of the colors from tab20b palette
+    added_pal = sns.color_palette("tab20b", 20)
+    i = 9
+    j = 19
+    while i <= nb_of_carbons:
+        color_d[i] = added_pal[j]
+        j = j - 1
+        i += 1
+
+    return color_d
+
+
+def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
+                   figu_width, xlabyesno,  wspace_stacks, numbers_size,
+                   x_to_plot, x_ticks_text_tilt):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
-    palsautoD = yieldpalsauto()
+    palsautoD = give_colors_carbons(args.max_nb_carbons_possible)
 
-    sns.set_style({"font.family": "sans-serif", "font.sans-serif": "Liberation Sans"})
-    f, axs = plt.subplots(1, len(selectedmets), sharey=False, figsize=(figu_width, 4.8))
+    sns.set_style({"font.family": "sans-serif",
+                   "font.sans-serif": "Liberation Sans"})
+    f, axs = plt.subplots(1, len(selectedmets), sharey=args.sharey,
+                          figsize=(figu_width, args.plots_height))
     plt.rcParams.update({"font.size": 20})
 
     for z in range(len(selectedmets)):
@@ -164,9 +212,9 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
         sns.histplot(
             ax=axs[z],
             data=dfs_Dico[selectedmets[z]],
-            x="timeANDcondi",
-            # Use the value variable here to turn histogram counts into weighted
-            # values.
+            x=x_to_plot,
+            # Use the value variable here to turn histogram counts into
+            # weighted values.
             weights="Isotopologue Contribution (%)",
             hue="m+x",
             multiple="stack",
@@ -179,8 +227,11 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
             legend=False,
         )
         #
-        axs[z].tick_params(axis="x", labelrotation=90, labelsize=18)
-        axs[z].tick_params(axis="y", length=3, labelsize=19)
+        axs[z].tick_params(axis="x",
+                           labelrotation=x_ticks_text_tilt,
+                           labelsize=args.x_ticks_text_size)
+        axs[z].tick_params(axis="y", length=3,
+                           labelsize=19)
         axs[z].set_ylim([0, 100])
 
         for bar in axs[z].patches:
@@ -190,11 +241,11 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
                 thebarvalue = 100  # no decimals if 100
             if round(bar.get_height(), 1) >= 4:
                 axs[z].text(
-                    # Put the text in the middle of each bar. get_x returns the start
-                    # so we add half the width to get to the middle.
+                    # Put the text in the middle of each bar. get_x returns
+                    # the start so we add half the width to get to the middle.
                     bar.get_x() + bar.get_width() / 2,
-                    # Vertically, add the height of the bar to the start of the bar,
-                    # along with the offset.
+                    # Vertically, add the height of the bar to the start of
+                    # the bar, along with the offset.
                     (bar.get_height() / 2) + (bar.get_y()) + 2,  #
                     # This is actual value we'll show.
                     thebarvalue,
@@ -217,39 +268,42 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, figu_width,
     for ax in axs:
         ylabels = ax.get_yticks().tolist()
         ax.yaxis.set_major_locator(mticker.FixedLocator(ylabels))
-        ax.set_yticklabels([100 - int(i) for i in ylabels])  # invert y , step2
+        ax.set_yticklabels([100 - int(i) for i in ylabels])  # invert y, step2
 
     if xlabyesno == "no":
         for ax in axs:
             xlabelshere = ax.get_xticks()
             ax.set_xticklabels(["" for i in xlabelshere])
 
-    f.subplots_adjust(hspace=0.5, wspace=wspace_stacks, top=0.85, bottom=0.26, left=0.15, right=0.99)
-    f.suptitle(f"compartment : {co.upper()}  \n", fontsize=20)
-    f.text(0.03, 0.57, "Isotopologue Contribution (%)\n", va="center", rotation="vertical", size=20)
-    f.savefig(outfilename, format="pdf")
+    f.subplots_adjust(hspace=0.5, wspace=wspace_stacks, top=0.85,
+                      bottom=0.26, left=0.15, right=0.99)
+    # f.suptitle(f"compartment {co.upper()}  \n", fontsize=20)
+    f.text(0.03, 0.57, "Isotopologue Contribution (%)\n", va="center",
+           rotation="vertical", size=20)
+    f.savefig(outfilename,
+              bbox_inches="tight", format="pdf")
     plt.close()
     return 0  # end the new version foo
 
 
-def add_joker_tolabs(condilevels, levelshours_str):
-    condilevels += ["joker"]  # joker to add space among time categories
+def add_xemptyspace_tolabs(condilevels, levelshours_str):
+    condilevels += ["xemptyspace"]  # to add space among time categories
     combined_tc_levels = list()
     for x in levelshours_str:
         for y in condilevels:
-            if y == "joker":
+            if y == "xemptyspace":
                 combined_tc_levels.append(str(x))
             else:
                 combined_tc_levels.append(f'{x} : {y}')
     return condilevels, combined_tc_levels
 
 
-def simplelabs(condilevels, levelshours_str):
+def time_plus_condi_labs(condilevels, levelshours_str):
     combined_tc_levels = list()
     for x in levelshours_str:
         for y in condilevels:
             combined_tc_levels.append(f'{x} : {y}')
-    return condilevels, combined_tc_levels
+    return combined_tc_levels
 
 
 def givelabelstopalsD(palsautoD):
@@ -260,62 +314,98 @@ def givelabelstopalsD(palsautoD):
 
 
 def save_isotopol_stacked_plot(table_prefix, metadatadf,
-                               out_plot_dir, confidic, args) :
+                               out_plot_dir, confidic, args):
     out_path = os.path.expanduser(confidic['out_path'])
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
 
     condilevels = confidic["conditions"]  # <= locate where it is used
     width_each_stack = float(confidic["width_each_stack"])
+
     wspace_stacks = float(confidic["wspace_stacks"])
     numbers_size = int(confidic["numbers_size"])
 
     levelshours_str = [str(i) for i in sorted(metadatadf['timenum'].unique())]
 
-    # condilevels, combined_tc_levels = add_joker_tolabs(condilevels, levelshours_str)
-    condilevels, combined_tc_levels = simplelabs(condilevels, levelshours_str)
     # dynamically open the file based on prefix, compartment and suffix:
     for co in compartments:
         metada_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
-        fn = f'{out_path}results/prepared_tables/{table_prefix}--{co}--{suffix}.tsv'
+        the_folder = f'{out_path}results/prepared_tables/'
+        fn = f'{the_folder}{table_prefix}--{co}--{suffix}.tsv'
         adf = pd.read_csv(fn, sep='\t', header=0, index_col=0)
 
         # note that pandas automatically transform any 99.9% in decimal 0.999
-        df4plot = isotopol_prop_2df4plot(adf, metada_co,   levelshours_str)
+        df4plot = isotopol_prop_2df4plot(adf, metada_co, levelshours_str)
 
         df4plot = massageisotopologues(df4plot)
 
         selectedmets = confidic['metabolites_to_plot'][co]
-        outfname = "{}isotopologues_stacked{}.pdf".format(out_plot_dir, co)
 
-        dfs_Dico = preparemeansreplicates( df4plot,  selectedmets )
+        dfs_Dico = preparemeansreplicates(df4plot,  selectedmets)
 
-        dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
-        dfs_Dico.keys()  # just the metabolites subframes, one co
-        figu_width = width_each_stack * len(selectedmets)  # note, change width
-        complexstacked(
-            co, selectedmets, dfs_Dico, outfname,
-            figu_width, xlabyesno="yes",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
-        )
-        plt.close()
-        # new :
-        outfnameNoXlab = "{}isotopologues_stacked{}_noxlab.pdf".format(out_plot_dir, co)
-        complexstacked(
-            co, selectedmets, dfs_Dico,  outfnameNoXlab,
-            figu_width, xlabyesno="no",  wspace_stacks=wspace_stacks, numbers_size=numbers_size
-        )
+        # adapt width to nb of metabolites
+        figu_width = width_each_stack * len(selectedmets)
+
+        if args.separated_plots_by_condition:
+            for condition in condilevels:
+                outfname = "{}isotopologues_stack_{}--{}.pdf".\
+                    format(out_plot_dir, condition, co)
+                metada_this_condi = metada_co.loc[
+                    metada_co['condition'] == condition, :]
+                df_this_condi = adf[metada_this_condi['name_to_plot']]
+                df4plot = isotopol_prop_2df4plot(df_this_condi,
+                                                 metada_this_condi,
+                                                 levelshours_str)
+                df4plot = massageisotopologues(df4plot)
+                dfs_Dico = preparemeansreplicates(df4plot,  selectedmets)
+                dfs_Dico = addcategoricaltime(dfs_Dico, levelshours_str)
+                complexstacked(
+                    co, selectedmets, dfs_Dico, outfname, args,
+                    figu_width, xlabyesno="yes", wspace_stacks=wspace_stacks,
+                    numbers_size=numbers_size, x_to_plot="timenum",
+                    x_ticks_text_tilt=0
+                )
+                plt.close()
+        else:
+            # condilevels, combined_tc_levels = add_xemptyspace_tolabs(
+            #                               condilevels, levelshours_str)
+            combined_tc_levels = time_plus_condi_labs(condilevels,
+                                                      levelshours_str)
+
+            dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
+
+            outfname = "{}isotopologues_stack--{}.pdf".format(out_plot_dir,
+                                                              co)
+            complexstacked(
+                co, selectedmets, dfs_Dico, outfname, args,
+                figu_width, xlabyesno="yes",  wspace_stacks=wspace_stacks,
+                numbers_size=numbers_size, x_to_plot="timeANDcondi",
+                x_ticks_text_tilt=90
+            )
+            plt.close()
+            # new :
+            outfnameNoXlab = "{}isotopologues_stack--{}_noxlab.pdf".\
+                format(out_plot_dir, co)
+            complexstacked(
+                co, selectedmets, dfs_Dico,  outfnameNoXlab, args,
+                figu_width, xlabyesno="no",  wspace_stacks=wspace_stacks,
+                numbers_size=numbers_size, x_to_plot="timeANDcondi",
+                x_ticks_text_tilt=90
+            )
 
         # legend alone
-        plt.figure()
-        palsautoD = yieldpalsauto()
+        plt.figure(figsize=(4, args.max_nb_carbons_possible * 0.6))
+        palsautoD = give_colors_carbons(args.max_nb_carbons_possible)
         palsautoD_labeled = givelabelstopalsD(palsautoD)
         myhandless = []
         for c in palsautoD_labeled.keys():
-            paobj = mpatches.Patch(facecolor=palsautoD_labeled[c], label=c, edgecolor="black")
+            paobj = mpatches.Patch(facecolor=palsautoD_labeled[c],
+                                   label=c, edgecolor="black")
             myhandless.append(paobj)
         plt.legend(handles=myhandless, labelspacing=0.01)
         plt.axis("off")
-        plt.savefig(f"{out_plot_dir}isotopologues_stackedlegend.pdf", format="pdf")
+        plt.savefig(f"{out_plot_dir}legend_isotopologues_stackedbars.pdf",
+                    format="pdf")
 
     return 0
 
@@ -341,5 +431,4 @@ if __name__ == "__main__":
     fg.detect_and_create_dir(out_plot_dir)
     save_isotopol_stacked_plot(isotopol_prop_tab_prefix, metadatadf,
                                out_plot_dir, confidic, args)
-    
-    
+# END
