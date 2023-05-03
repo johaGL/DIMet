@@ -192,6 +192,8 @@ def save_pca_plots(title, pc_df, var_explained_df, col1, col2, pointlabels,
         f'{out_plot_dir}pca_{title.replace(" ", "-")}_label{yesnolabel}.pdf',
         format="pdf")
 
+    plt.close()
+
 
 def run_steps_pca(type_measure: str, table_prefix: str,
                   metadatadf: pd.DataFrame,

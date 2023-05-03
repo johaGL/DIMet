@@ -78,7 +78,7 @@ def remove_extensions_names_measures(confidic) -> dict:
     for k in keys_names:
         tmp = confidic[k]
         if tmp is not None:
-            tmp = re.sub(".csv|.tsv|.CSV|.TSV|\s", "", tmp)
+            tmp = re.sub('.csv|.tsv|.CSV|.TSV', '', tmp)
             confidic[k] = tmp
     return confidic
 
@@ -128,7 +128,7 @@ def isotopologues_meaning_df(isotopologues_full_list):
     return df
 
 
-def prepare4contrast(idf, ametadata, grouping, contrast):
+def prepare4contrast(idf, ametadata, grouping: list, contrast: list):
     """
     grouping,  example :  ['condition', 'timepoint' ]
           if (for a sample)  condition = "treatment" and  timepoint = "t12h",
@@ -301,6 +301,7 @@ def give_ratios_df(df1, geomInterest, geomControl):
 
 
 def countnan_samples(df, metad4c):
+    """ only works if two classes or levels """
     vecout = []
     grs = metad4c['newcol'].unique()
     gr1 = metad4c.loc[metad4c['newcol'] == grs[0], 'name_to_plot']
