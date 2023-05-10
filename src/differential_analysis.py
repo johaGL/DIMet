@@ -134,7 +134,7 @@ def check_validity_configuration_file_diff(confidic: dict,
                 confidic[k] = [confidic[k]]
             for group in confidic[k]:
                 if not group in metadatadf.columns:
-                    raise ValueError(f'{v} grouping key not found in metadata.')
+                    raise ValueError(f'{group} grouping key not found in metadata.')
         elif k == 'comparisons':
             if not all([len(l) == 2 for l in confidic[k]]):
                 raise ValueError('comparisons should not involve more than 2 conditions')
