@@ -18,6 +18,11 @@ from distrib_fit_fromProteomix import \
     compute_z_score, find_best_distribution, compute_p_value
 
 
+timetest_methods = ('MW', 'KW', 'ranksum', 'Wcox', 'Tt', 'BrMu',
+                    'prm-scipy', 'disfit', 'none')
+multest_methods = ('bonferroni', 'sidak', 'holm-sidak', 'holm',
+                    'simes-hochberg', 'hommel', 'fdr_bh', 'fdr_by',
+                    'fdr_tsbh', 'fdr_tsbky')
 def diff_args():
     parser = argparse.ArgumentParser(
         prog="python -m DIMet.src.differential_analysis",
@@ -38,31 +43,43 @@ def diff_args():
 
     # Before reduction and gmean, way to replace zeros:
     parser.add_argument("--abundance_replace_zero_with",
-                        default="min", type=str, help="min | min/n | VALUE")
+                        default="min", type=zero_repl_arg,
+                        help="chose a way to replace zero-value abundances \
+(min | min/n | VALUE)")
 
     parser.add_argument("--meanEnrichOrFracContrib_replace_zero_with",
                         metavar="MEorFC_replace_zero_with",
-                        default="min", type=str,
-                        help="min | min/n | VALUE")
+                        default="min", type=zero_repl_arg,
+                        help="chose a way to replace zero-value enrichments  \
+(min | min/n | VALUE)")
 
     parser.add_argument("--isotopologueProp_replace_zero_with",
-                        default="min", type=str,
-                        help="min | min/n | VALUE")
+                        default="min", type=zero_repl_arg,
+                        help="chose a way to replace zero-value proportions of \
+isotopologues  (min | min/n | VALUE)")
 
     parser.add_argument("--isotopologueAbs_replace_zero_with",
-                        default="min", type=str,
-                        help="min | min/n | VALUE")
+                        default="min", type=zero_repl_arg,
+                        help="chose a way to replace absolute zero-values of \
+isotopologues (min | min/n | VALUE)")
 
     parser.add_argument(
-        "--multitest_correction", default='fdr_bh',
+        "--multitest_correction", default='fdr_bh', choices=multest_methods,
         help="see : https://www.statsmodels.org/dev/generated/\
-        statsmodels.stats.multitest.multipletests.html")
+statsmodels.stats.multitest.multipletests.html")
 
     parser.add_argument(
         "--qualityDistanceOverSpan", default=-0.5, type=float,
         help="By metabolite, for samples (x, y) the distance is calculated,\
         and span is max(x U y) - min(x U y).  A 'distance/span' inferior\
         to this value excludes the metabolite from testing (pvalue=NaN).")
+    
+    parser.add_argument('--multiclass_test', choices=('KW', 'none'),
+                        type=str, default='none',
+                        help='chose a test for more than 2 classes')
+    parser.add_argument('--time_course', choices=timetest_methods,
+                        type=str, default='none',
+                        help='chose a test for 2-by-2 comparison of time-points')
 
     # by default include all the types of measurements:
 
@@ -78,36 +95,78 @@ def diff_args():
     return parser
 
 
-def validate_zero_repl_arg(zero_repl_arg: str) -> None:
-    isvalid = False
-    if zero_repl_arg == "min":
-        isvalid = True
-    elif zero_repl_arg.startswith("min/"):
-        try:
-            float(str(zero_repl_arg.split("/")[1]))
-            isvalid = True
-        except ValueError:
-            pass
+def zero_repl_arg(zero_repl_arg: str) -> None:
+    zero_repl_arg = zero_repl_arg.lower()
+    err_msg = 'replace_zero_with argument is not correctly formatted'
+    if zero_repl_arg.startswith("min"):
+        if zero_repl_arg == "min":
+            n=int(1)
+        else:
+            try:
+                n=float(str(zero_repl_arg.split("/")[1]))
+            except:
+                raise ValueError(err_msg)
+        def foo(x,n):
+            return(min(x)/n)
     else:
         try:
-            float(args.zero_repl_arg)
-            isvalid = True
-        except ValueError:
-            pass
+            n=float(str(zero_repl_arg))
+        except:
+            raise ValueError(err_msg)
+        def foo(x,n):
+            return(n)
+    return {'repZero': foo, 'n': n}
 
-    assert isvalid, "Your value for zero replacement is not valid"
+
+def check_validity_configuration_file_diff(confidic: dict,
+                                           metadatadf: pd.DataFrame) -> None:
+    # fg.auto_check_validity_configuration_file(confidic)
+    expected_keys = ['grouping',
+                     'comparisons',
+                     'statistical_test',
+                     'thresholds']
+    has_key = fg.check_dict_has_keys(confidic, expected_keys)
+    missing_keys = np.array(expected_keys)[~has_key].tolist()
+    assert all(has_key), f"{missing_keys} : missing in configuration file! "
+    for k in expected_keys:
+        if k == 'grouping':
+            if type(confidic[k]) is str:
+                confidic[k] = [confidic[k]]
+            for group in confidic[k]:
+                if not group in metadatadf.columns:
+                    raise ValueError(f'{group} grouping key not found in metadata.')
+        elif k == 'comparisons':
+            if not all([len(l) == 2 for l in confidic[k]]):
+                raise ValueError('comparisons should not involve more than 2 conditions')
+        elif k == 'statistical_test':
+            expected_keys_sub = ['abundances',
+                                 'meanE_or_fracContrib',
+                                 'isotopologue_abs',
+                                 'isotopologue_prop']
+            has_key = fg.check_dict_has_keys(confidic[k], expected_keys_sub)
+            missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
+            assert all(has_key), f"statistical_test -> {missing_keys} : \
+missing in configuration file!"
+            known_test=fg.check_dict_has_known_values(confidic[k], timetest_methods + (None,))
+            unknown_tests=np.array(list(confidic[k].values()))[~known_test]
+            assert all(known_test), f'statistical_test -> {unknown_tests} : \
+not valid tests!'
+        else:
+            expected_keys_sub = ['padj',
+                                 'absolute_log2FC']
+            has_key = fg.check_dict_has_keys(confidic[k], expected_keys_sub)
+            missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
+            assert all(has_key), f"thresholds -> {missing_keys} : \
+missing in configuration file!"
+            
+    
 
 
 def arg_repl_zero2value(argum_zero_rep: str, df: pd.DataFrame) -> float:
-    if argum_zero_rep.startswith("min"):
-        try:
-            divisor_min = float(argum_zero_rep.split("/")[1])
-        except IndexError:
-            divisor_min = 1
-        value_out = df[df > 0].min().min() / divisor_min
-    else:
-        value_out = float(args.zero_repl_arg)
-    return value_out
+    repZero = argum_zero_rep['repZero']
+    n = argum_zero_rep['n']
+    replacement = repZero(df[df > 0].apply(repZero, n=1), n=n)
+    return replacement
 
 
 def flag_has_replicates(ratiosdf: pd.DataFrame):
@@ -828,30 +887,50 @@ def options_diff2groups_valid(confidic):
 def multiclass_timecourse_diff2groups(measurements, meta_co,
                                          out_file_elems, confidic,
                                          whichtest, args):
-    try:
-        method_multiclass = confidic['multiclass']
+    method_multiclass = args.multiclass_test
+    if method_multiclass and method_multiclass.lower() != "none":       #not None
         run_multiclass(measurements, meta_co, out_file_elems,
-                       confidic, method_multiclass, args)
-    except KeyError:
-        pass
+                        confidic, method_multiclass, args)
 
-    try:
-        method_time_course = confidic['time_course']
+    method_time_course = args.time_course
+    if method_time_course and method_time_course.lower() != "none":      #not None
         run_time_course(measurements, meta_co, out_file_elems,
-                       confidic, method_time_course, args)
-    except KeyError:
-        pass
+                        confidic, method_time_course, args)
 
     if options_diff2groups_valid(confidic):
         run_differential_steps(measurements, meta_co, out_file_elems,
                                confidic, whichtest, args)
 
-
-def wrapper_for_abund(clean_tables_path, table_prefix,
-                      metadatadf, confidic, args) -> None:
-    out_diff_abun = out_path + "results/differential_analysis/abundance/"
-    fg.detect_and_create_dir(out_diff_abun)
-    whichtest = confidic['statistical_test']['abundances']
+modes_specs={
+    'abund':{
+        'dir': 'abundance',
+        'test_key': 'abundances'
+    },
+    'mefc': {
+        'dir': 'meanE_fracContr',
+        'test_key': 'meanE_or_fracContrib'
+    },
+    'isoabsol': {
+        'dir': 'isotopol_abs',
+        'test_key': 'isotopologue_abs'
+    },
+    'isoprop': {
+        'dir': 'isotopol_prop',
+        'test_key': 'isotopologue_prop'
+    }
+}
+    
+def perform_tests(mode: str, clean_tables_path, table_prefix,
+                  metadatadf, confidic, args) -> None:
+    mode=mode.lower()
+    if not mode in modes_specs.keys():
+        raise ValueError(f'unknown mode "{mode}", \
+possible values are {list(modes_specs)}')
+    
+    out_diff = out_path + "results/differential_analysis/" + \
+               modes_specs[mode]['dir']
+    fg.detect_and_create_dir(out_diff)
+    whichtest = confidic['statistical_test'][modes_specs[mode]['test_key']]
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
     # dynamically open the file based on prefix, compartment and suffix:
@@ -863,88 +942,8 @@ def wrapper_for_abund(clean_tables_path, table_prefix,
             args.abundance_replace_zero_with, measurements)
         measurements = measurements.replace(to_replace=0,
                                             value=val_instead_zero)
-        out_file_elems = {'odir': out_diff_abun, 'prefix': table_prefix,
-                          'co': co, 'suffix': suffix}
-
-        multiclass_timecourse_diff2groups(measurements, meta_co,
-                                          out_file_elems,
-                                          confidic, whichtest, args)
-
-
-def wrapper_for_mefc(clean_tables_path, table_prefix,
-                     metadatadf, confidic, args) -> None:
-    out_diff = out_path + "results/differential_analysis/meanE_fracContr/"
-    fg.detect_and_create_dir(out_diff)
-    whichtest = confidic['statistical_test']['meanE_or_fracContrib']
-    suffix = confidic['suffix']
-    compartments = metadatadf['short_comp'].unique().tolist()
-    # dynamically open the file based on prefix, compartment and suffix:
-    for co in compartments:
-        meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
-        fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
-        val_instead_zero = arg_repl_zero2value(
-            args.meanEnrichOrFracContrib_replace_zero_with,
-            measurements)
-        measurements = measurements.replace(to_replace=0,
-                                            value=val_instead_zero)
         out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
                           'co': co, 'suffix': suffix}
-        #run_differential_steps(measurements, meta_co, out_file_elems, confidic, whichtest, args)
-        multiclass_timecourse_diff2groups(measurements, meta_co,
-                                          out_file_elems,
-                                          confidic, whichtest, args)
-
-
-
-def wrapper_for_isoAbsol(clean_tables_path, table_prefix,
-                         metadatadf, confidic, args) -> None:
-    out_diff = out_path + "results/differential_analysis/isotopol_abs/"
-    fg.detect_and_create_dir(out_diff)
-    whichtest = confidic['statistical_test']['isotopologue_abs']
-    suffix = confidic['suffix']
-    compartments = metadatadf['short_comp'].unique().tolist()
-    # dynamically open the file based on prefix, compartment and suffix:
-    for co in compartments:
-        meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
-        fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
-        val_instead_zero = arg_repl_zero2value(
-            args.isotopologueAbs_replace_zero_with,
-            measurements)
-        measurements = measurements.replace(to_replace=0,
-                                            value=val_instead_zero)
-        out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
-                          'co': co, 'suffix': suffix}
-
-        #run_differential_steps(measurements, meta_co,  out_file_elems,  confidic, whichtest, args)
-        multiclass_timecourse_diff2groups(measurements, meta_co,
-                                          out_file_elems,
-                                          confidic, whichtest, args)
-
-
-def wrapper_for_isoProp(clean_tables_path, table_prefix,
-                        metadatadf, confidic, args) -> None:
-    out_diff = out_path + "results/differential_analysis/isotopol_prop/"
-    fg.detect_and_create_dir(out_diff)
-    whichtest = confidic['statistical_test']['isotopologue_prop']
-    suffix = confidic['suffix']
-    compartments = metadatadf['short_comp'].unique().tolist()
-    # dynamically open the file based on prefix, compartment and suffix:
-    for co in compartments:
-        meta_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
-        fn = f'{clean_tables_path}{table_prefix}--{co}--{suffix}.tsv'
-        measurements = pd.read_csv(fn, sep='\t', header=0, index_col=0)
-
-        val_instead_zero = arg_repl_zero2value(
-            args.isotopologueProp_replace_zero_with,
-            measurements)
-        measurements = measurements.replace(to_replace=0,
-                                            value=val_instead_zero)
-        out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
-                          'co': co, 'suffix': suffix}
-
-        #run_differential_steps(measurements, meta_co, out_file_elems, confidic, whichtest, args)
 
         multiclass_timecourse_diff2groups(measurements, meta_co,
                                           out_file_elems,
@@ -956,49 +955,52 @@ if __name__ == "__main__":
            Differentially Abundant-or-Marked Metabolites (DAM) -*-\n")
     parser = diff_args()
     args = parser.parse_args()
+    print(args)
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
     confidic = fg.remove_extensions_names_measures(confidic)
+    print(confidic)
 
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
     metadatadf = fg.open_metadata(meta_path)
+    check_validity_configuration_file_diff(confidic, metadatadf)
 
     # 1- abund
     if args.abundances:
         print("processing abundances")
-        validate_zero_repl_arg(args.abundance_replace_zero_with)
+        mode="abund"
         abund_tab_prefix = confidic['name_abundance']
-        wrapper_for_abund(clean_tables_path, abund_tab_prefix,
-                          metadatadf, confidic, args)
+        perform_tests(mode, clean_tables_path, abund_tab_prefix,
+                      metadatadf, confidic, args)
 
     # 2- ME or FC
     if args.meanEnrich_or_fracContrib:
         print("processing mean enrichment or fractional contributions")
-        validate_zero_repl_arg(args.meanEnrichOrFracContrib_replace_zero_with)
+        mode="mefc"
         fraccon_tab_prefix = confidic['name_meanE_or_fracContrib']
-        wrapper_for_mefc(clean_tables_path, fraccon_tab_prefix,
+        perform_tests(mode, clean_tables_path, fraccon_tab_prefix,
                          metadatadf, confidic, args)
 
     # 3- isotopologues
     if args.isotopologues:
+        mode="isoabsol"
         isos_abs_tab_prefix = confidic['name_isotopologue_abs']
         isos_prop_tab_prefix = confidic['name_isotopologue_prop']
         if (isos_abs_tab_prefix is not np.nan) and \
                 (isos_abs_tab_prefix != "None") and \
                 (isos_abs_tab_prefix is not None):
             print("processing absolute isotopologues")
-            validate_zero_repl_arg(args.isotopologueAbs_replace_zero_with)
-            wrapper_for_isoAbsol(clean_tables_path, isos_abs_tab_prefix,
-                                 metadatadf, confidic, args)
+            perform_tests(mode, clean_tables_path, isos_abs_tab_prefix,
+                          metadatadf, confidic, args)
         else:
             print("processing isotopologues (values given as proportions)")
-            validate_zero_repl_arg(args.isotopologueProp_replace_zero_with)
-            wrapper_for_isoProp(clean_tables_path, isos_prop_tab_prefix,
-                                metadatadf, confidic, args)
+            mode="isoprop"
+            perform_tests(mode, clean_tables_path, isos_prop_tab_prefix,
+                          metadatadf, confidic, args)
 
     print("end")
 # #END
