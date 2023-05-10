@@ -18,12 +18,12 @@ from distrib_fit_fromProteomix import \
     compute_z_score, find_best_distribution, compute_p_value
 
 
+timetest_methods = ('MW', 'KW', 'ranksum', 'Wcox', 'Tt', 'BrMu',
+                    'prm-scipy', 'disfit', 'none')
+multest_methods = ('bonferroni', 'sidak', 'holm-sidak', 'holm',
+                    'simes-hochberg', 'hommel', 'fdr_bh', 'fdr_by',
+                    'fdr_tsbh', 'fdr_tsbky')
 def diff_args():
-    timetest_methods = ('MW', 'KW', 'ranksum', 'Wcox', 'Tt', 'BrMu',
-                        'prm-scipy', 'disfit', 'none')
-    multest_methods = ('bonferroni', 'sidak', 'holm-sidak', 'holm',
-                       'simes-hochberg', 'hommel', 'fdr_bh', 'fdr_by',
-                       'fdr_tsbh', 'fdr_tsbky')
     parser = argparse.ArgumentParser(
         prog="python -m DIMet.src.differential_analysis",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -116,6 +116,50 @@ def zero_repl_arg(zero_repl_arg: str) -> None:
         def foo(x,n):
             return(n)
     return {'repZero': foo, 'n': n}
+
+
+def check_validity_configuration_file_diff(confidic: dict,
+                                           metadatadf: pd.DataFrame) -> None:
+    # fg.auto_check_validity_configuration_file(confidic)
+    expected_keys = ['grouping',
+                     'comparisons',
+                     'statistical_test',
+                     'thresholds']
+    has_key = fg.check_dict_has_keys(confidic, expected_keys)
+    missing_keys = np.array(expected_keys)[~has_key].tolist()
+    assert all(has_key), f"{missing_keys} : missing in configuration file! "
+    for k in expected_keys:
+        if k == 'grouping':
+            if type(confidic[k]) is str:
+                confidic[k] = [confidic[k]]
+            for group in confidic[k]:
+                if not group in metadatadf.columns:
+                    raise ValueError(f'{v} grouping key not found in metadata.')
+        elif k == 'comparisons':
+            if not all([len(l) == 2 for l in confidic[k]]):
+                raise ValueError('comparisons should not involve more than 2 conditions')
+        elif k == 'statistical_test':
+            expected_keys_sub = ['abundances',
+                                 'meanE_or_fracContrib',
+                                 'isotopologue_abs',
+                                 'isotopologue_prop']
+            has_key = fg.check_dict_has_keys(confidic[k], expected_keys_sub)
+            missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
+            assert all(has_key), f"statistical_test -> {missing_keys} : \
+missing in configuration file!"
+            known_test=fg.check_dict_has_known_values(confidic[k], timetest_methods + (None,))
+            unknown_tests=np.array(list(confidic[k].values()))[~known_test]
+            assert all(known_test), f'statistical_test -> {unknown_tests} : \
+not valid tests!'
+        else:
+            expected_keys_sub = ['padj',
+                                 'absolute_log2FC']
+            has_key = fg.check_dict_has_keys(confidic[k], expected_keys_sub)
+            missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
+            assert all(has_key), f"thresholds -> {missing_keys} : \
+missing in configuration file!"
+            
+    
 
 
 def arg_repl_zero2value(argum_zero_rep: str, df: pd.DataFrame) -> float:
@@ -844,12 +888,12 @@ def multiclass_timecourse_diff2groups(measurements, meta_co,
                                          out_file_elems, confidic,
                                          whichtest, args):
     method_multiclass = args.multiclass_test
-    if method_multiclass:       #not None
+    if method_multiclass and method_multiclass.lower() != "none":       #not None
         run_multiclass(measurements, meta_co, out_file_elems,
                         confidic, method_multiclass, args)
 
     method_time_course = args.time_course
-    if method_time_course:      #not None
+    if method_time_course and method_time_course.lower() != "none":      #not None
         run_time_course(measurements, meta_co, out_file_elems,
                         confidic, method_time_course, args)
 
@@ -912,17 +956,18 @@ if __name__ == "__main__":
     parser = diff_args()
     args = parser.parse_args()
     print(args)
-    exit(0)
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
     confidic = fg.remove_extensions_names_measures(confidic)
+    print(confidic)
 
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
     metadatadf = fg.open_metadata(meta_path)
+    check_validity_configuration_file_diff(confidic, metadatadf)
 
     # 1- abund
     if args.abundances:
