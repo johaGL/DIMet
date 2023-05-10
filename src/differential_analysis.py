@@ -843,19 +843,15 @@ def options_diff2groups_valid(confidic):
 def multiclass_timecourse_diff2groups(measurements, meta_co,
                                          out_file_elems, confidic,
                                          whichtest, args):
-    try:
-        method_multiclass = confidic['multiclass']
+    method_multiclass = args.multiclass_test
+    if method_multiclass:       #not None
         run_multiclass(measurements, meta_co, out_file_elems,
-                       confidic, method_multiclass, args)
-    except KeyError:
-        pass
+                        confidic, method_multiclass, args)
 
-    try:
-        method_time_course = confidic['time_course']
+    method_time_course = args.time_course
+    if method_time_course:      #not None
         run_time_course(measurements, meta_co, out_file_elems,
-                       confidic, method_time_course, args)
-    except KeyError:
-        pass
+                        confidic, method_time_course, args)
 
     if options_diff2groups_valid(confidic):
         run_differential_steps(measurements, meta_co, out_file_elems,
@@ -915,6 +911,8 @@ if __name__ == "__main__":
            Differentially Abundant-or-Marked Metabolites (DAM) -*-\n")
     parser = diff_args()
     args = parser.parse_args()
+    print(args)
+    exit(0)
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
