@@ -1,0 +1,57 @@
+# -----------------------------
+# Config file for *DIMet*
+# Note: for indentation use space (never tab!): 2 space indents
+# coments start with #
+# -----------------------------
+
+# -----------------------------
+# necesary to all steps
+# -----------------------------
+
+metadata_path : ~/toy_metabologram/data/metadata_toy2.csv
+
+name_abundance : rawAbundances
+name_meanE_or_fracContrib : FracContribution_C
+name_isotopologue_prop : CorrectedIsotopologues # isotopologue proportions
+name_isotopologue_abs : null  # isotopologue absolute values (for toy_metabologram not avail)
+
+conditions : 
+ - Control # first must be control
+ - L-Cycloserine 
+ 
+suffix : cyc1
+out_path : ~/toy_metabologram/analysis001/
+
+
+# -----------------------------
+# differential analysis
+# -----------------------------
+# # for two-clases comparison
+grouping :  # see explanation at the  end
+  - condition
+  - timepoint  
+
+comparisons :   # for each pair,last must be control
+  - [L-Cycloserine_T0, Control_T0]         
+              
+statistical_test:
+  abundances: prm-scipy  
+  meanE_or_fracContrib: MW
+  isotopologue_abs: null
+  isotopologue_prop: MW
+  
+
+# thresholds     
+thresholds:
+  padj: 1
+  absolute_log2FC: 0.3
+
+
+# grouping: column that is a combination of 2 metadata categories,
+# new category thus generated, is ready for comparison. Example :
+#  Control (a condition) combined with T0 (a timepoint), yields Control_T0
+#  L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
+#  thus now, we are able to compare L-Cyclo_T0 against Control_T0 .
+
+# -------------------- end of config file ---------------------         
+# NOTE: Metabolograms need a separated configuration file
