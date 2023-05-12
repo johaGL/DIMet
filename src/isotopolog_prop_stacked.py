@@ -29,6 +29,12 @@ def stacked_args():
                         default=False,
                         help="print one pdf plot file by condition")
 
+    parser.add_argument("--appearance_separated_time",
+                        action=argparse.BooleanOptionalAction,
+                        default=True,
+                        help="when distinct timepoints and conditions\
+                              put empty space separating timepoints")
+
     parser.add_argument("--max_nb_carbons_possible", type=int,
                         default=24,
                         help="number of carbons, defines colors")
@@ -170,7 +176,8 @@ def addcategoricaltime(dfs_Dico, levelstime_str):
 
 def give_colors_carbons(nb_of_carbons):
     color_d = dict()
-    color_d[0] = "lightgray"  # m+0
+    # color_d[0] = "lightgray"  # m+0
+    color_d[0] = "#410257"
     # set colors m+1 to m+8 from Spectral palette,
     # with custom spaced selected colors (validated)
     spectralPal = sns.color_palette("Spectral", 30)
@@ -180,7 +187,7 @@ def give_colors_carbons(nb_of_carbons):
     color_d[4] = spectralPal[17]
     color_d[5] = spectralPal[10]
     color_d[6] = spectralPal[6]
-    color_d[7] = spectralPal[2]
+    color_d[7] = spectralPal[3]
     color_d[8] = spectralPal[0]
     # rest of the colors from tab20b palette
     added_pal = sns.color_palette("tab20b", 20)
@@ -194,7 +201,7 @@ def give_colors_carbons(nb_of_carbons):
     return color_d
 
 
-def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
+def complexstacked(selectedmets, dfs_Dico, outfilename, args,
                    figu_width, xlabyesno,  wspace_stacks, numbers_size,
                    x_to_plot, x_ticks_text_tilt):
     """plot highly custom, recommended that selectedmets <= 6 subplots"""
@@ -207,7 +214,6 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
     plt.rcParams.update({"font.size": 20})
 
     for z in range(len(selectedmets)):
-
         axs[z].set_title(selectedmets[z])
         sns.histplot(
             ax=axs[z],
@@ -221,28 +227,49 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
             palette=palsautoD,
             # Add  borders to the bars.
             edgecolor="black",
-            # Shrink the bars a bit so they don't touch.
+            # Shrink the bars a bit, so they don't touch.
             shrink=0.85,
             alpha=1,
             legend=False,
         )
         #
+        for xtick in axs[z].get_xticklabels():
+            if xtick.get_text().endswith("xemptyspace"):
+                xtick.set_color("white")
+            else:
+                xtick.set_color("black")
+
         axs[z].tick_params(axis="x",
                            labelrotation=x_ticks_text_tilt,
                            labelsize=args.x_ticks_text_size)
+
         axs[z].tick_params(axis="y", length=3,
                            labelsize=19)
         axs[z].set_ylim([0, 100])
 
+        # Inner text
+        # if numbers_size is zero, set alpha equally, to make it invisible
+        if numbers_size <= 0:
+            numbers_alpha = 0
+        else:
+            numbers_alpha = 1
+        # for defining the color of inner text in bar when M0
+        rgba_eq_hex_410257 = \
+            (0.2549019607843137, 0.00784313725490196, 0.3411764705882353, 1.0)
+
         for bar in axs[z].patches:
-            # assign stacked bars text color
+            # assign stacked bars inner text color
+            inner_text_color = "black"
+            here_rgba = bar.get_facecolor()
+            if here_rgba == rgba_eq_hex_410257:
+                inner_text_color = "white"
             thebarvalue = round(bar.get_height(), 1)
             if thebarvalue >= 100:
                 thebarvalue = 100  # no decimals if 100
             if round(bar.get_height(), 1) >= 4:
                 axs[z].text(
-                    # Put the text in the middle of each bar. get_x returns
-                    # the start so we add half the width to get to the middle.
+                    # Put the text in the middle of each bar. get_x returns t
+                    # he start, so we add half the width to get to the middle.
                     bar.get_x() + bar.get_width() / 2,
                     # Vertically, add the height of the bar to the start of
                     # the bar, along with the offset.
@@ -251,7 +278,9 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
                     thebarvalue,
                     # Center the labels and style them a bit.
                     ha="center",
+                    color=inner_text_color,
                     size=numbers_size,
+                    alpha=numbers_alpha
                 )  # end axs[z].text
             else:
                 continue
@@ -270,15 +299,23 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
         ax.yaxis.set_major_locator(mticker.FixedLocator(ylabels))
         ax.set_yticklabels([100 - int(i) for i in ylabels])  # invert y, step2
 
+    # when panel without x labels
     if xlabyesno == "no":
         for ax in axs:
-            xlabelshere = ax.get_xticks()
-            ax.set_xticklabels(["" for i in xlabelshere])
+            ax.get_xaxis().set_ticks([])
 
     f.subplots_adjust(hspace=0.5, wspace=wspace_stacks, top=0.85,
                       bottom=0.26, left=0.15, right=0.99)
     # f.suptitle(f"compartment {co.upper()}  \n", fontsize=20)
-    f.text(0.03, 0.57, "Isotopologue Contribution (%)\n", va="center",
+
+    def dynamic_xposition_ylabeltext(plotwidth) -> float:
+        position_float = (plotwidth * 0.00145)
+        if position_float < 0.01:
+            position_float = 0.01
+        return position_float
+
+    f.text(dynamic_xposition_ylabeltext(figu_width),
+           0.57, "Isotopologue Contribution (%)\n", va="center",
            rotation="vertical", size=20)
     f.savefig(outfilename,
               bbox_inches="tight", format="pdf")
@@ -287,12 +324,17 @@ def complexstacked(co, selectedmets, dfs_Dico, outfilename, args,
 
 
 def add_xemptyspace_tolabs(condilevels, levelshours_str):
-    condilevels += ["xemptyspace"]  # to add space among time categories
+    condilevels.extend(["xemptyspace"])  # to add space among time categories
     combined_tc_levels = list()
+    tmp = condilevels.copy()
+    condilevels = list()  # warranty uniqueness
+    for i in tmp:
+        if i not in condilevels:
+            condilevels.append(i)
     for x in levelshours_str:
         for y in condilevels:
             if y == "xemptyspace":
-                combined_tc_levels.append(str(x))
+                combined_tc_levels.append(str(x)+"xemptyspace")
             else:
                 combined_tc_levels.append(f'{x} : {y}')
     return condilevels, combined_tc_levels
@@ -315,6 +357,11 @@ def givelabelstopalsD(palsautoD):
 
 def save_isotopol_stacked_plot(table_prefix, metadatadf,
                                out_plot_dir, confidic, args):
+    try:
+        time_sel = confidic["time_sel"]
+    except KeyError:
+        time_sel = "all-time-points"
+
     out_path = os.path.expanduser(confidic['out_path'])
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
@@ -324,12 +371,18 @@ def save_isotopol_stacked_plot(table_prefix, metadatadf,
 
     wspace_stacks = float(confidic["wspace_stacks"])
     numbers_size = int(confidic["numbers_size"])
+    x_ticks_text_tilt_usr = 90   # changing tilt gives bad result, let fixed
 
     levelshours_str = [str(i) for i in sorted(metadatadf['timenum'].unique())]
 
     # dynamically open the file based on prefix, compartment and suffix:
     for co in compartments:
-        metada_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
+        if time_sel == "all-time-points":
+            metada_co = metadatadf.loc[metadatadf['short_comp'] == co, :]
+        else:
+            metada_co = metadatadf.loc[
+                        (metadatadf['short_comp'] == co) &
+                        (metadatadf['timepoint'].isin(time_sel)), :]
         the_folder = f'{out_path}results/prepared_tables/'
         fn = f'{the_folder}{table_prefix}--{co}--{suffix}.tsv'
         adf = pd.read_csv(fn, sep='\t', header=0, index_col=0)
@@ -360,39 +413,41 @@ def save_isotopol_stacked_plot(table_prefix, metadatadf,
                 dfs_Dico = preparemeansreplicates(df4plot,  selectedmets)
                 dfs_Dico = addcategoricaltime(dfs_Dico, levelshours_str)
                 complexstacked(
-                    co, selectedmets, dfs_Dico, outfname, args,
+                    selectedmets, dfs_Dico, outfname, args,
                     figu_width, xlabyesno="yes", wspace_stacks=wspace_stacks,
                     numbers_size=numbers_size, x_to_plot="timenum",
-                    x_ticks_text_tilt=0
+                    x_ticks_text_tilt=x_ticks_text_tilt_usr
                 )
                 plt.close()
         else:
-            # condilevels, combined_tc_levels = add_xemptyspace_tolabs(
-            #                               condilevels, levelshours_str)
-            combined_tc_levels = time_plus_condi_labs(condilevels,
-                                                      levelshours_str)
+            if args.appearance_separated_time:
+                condilevels, combined_tc_levels = add_xemptyspace_tolabs(
+                                               condilevels, levelshours_str)
+            else:
+                combined_tc_levels = time_plus_condi_labs(condilevels,
+                                                          levelshours_str)
 
             dfs_Dico = addcombinedconditime(dfs_Dico, combined_tc_levels)
 
             outfname = "{}isotopologues_stack--{}.pdf".format(out_plot_dir,
                                                               co)
             complexstacked(
-                co, selectedmets, dfs_Dico, outfname, args,
+                selectedmets, dfs_Dico, outfname, args,
                 figu_width, xlabyesno="yes",  wspace_stacks=wspace_stacks,
                 numbers_size=numbers_size, x_to_plot="timeANDcondi",
-                x_ticks_text_tilt=90
+                x_ticks_text_tilt=x_ticks_text_tilt_usr
             )
             plt.close()
             # new :
             outfnameNoXlab = "{}isotopologues_stack--{}_noxlab.pdf".\
                 format(out_plot_dir, co)
             complexstacked(
-                co, selectedmets, dfs_Dico,  outfnameNoXlab, args,
+                selectedmets, dfs_Dico,  outfnameNoXlab, args,
                 figu_width, xlabyesno="no",  wspace_stacks=wspace_stacks,
                 numbers_size=numbers_size, x_to_plot="timeANDcondi",
-                x_ticks_text_tilt=90
+                x_ticks_text_tilt=x_ticks_text_tilt_usr
             )
-
+            plt.close()
         # legend alone
         plt.figure(figsize=(4, args.max_nb_carbons_possible * 0.6))
         palsautoD = give_colors_carbons(args.max_nb_carbons_possible)

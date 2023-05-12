@@ -24,7 +24,7 @@ def bars_args():
 
     parser.add_argument('--palette',  default="pastel",
                         help="qualitative or categorical palette name as in \
-                        Seaborn library (Python)")
+                        Seaborn or Matplotlib libraries (Python)")
 
     parser.add_argument(
         '--x_text', type=str, default="",
@@ -64,7 +64,7 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX,
     YLABE = "Abundance"
     fig, axs = plt.subplots(1, len(selected_metabs),
                             sharey=False, figsize=(plotwidth, 5.5))
-    #  constrained_layout=True)
+
     for il in range(len(selected_metabs)):
         herep = piled_sel.loc[
                 piled_sel["metabolite"] == selected_metabs[il], :]
@@ -81,7 +81,7 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX,
             errcolor="black",
             errwidth=1.7,
             errorbar='sd',
-            capsize=0.2
+            capsize=0.12
         )
         try:
             sns.stripplot(
@@ -122,19 +122,27 @@ def printabundbarswithdots(piled_sel, selectedmets, CO, SMX,
     for il in range(len(selected_metabs)):
         axs[il].legend_.remove()
 
-    fig.text(x=0.02, y=0.5, s=YLABE, va="center", rotation="vertical", size=26)
-    # fig.suptitle(f"{CO} ({SMX} abundance)".upper())
-    plt.subplots_adjust(top=0.76, bottom=0.2, wspace=wspace_subfigs, hspace=1)
-    # plt.legend(handles=thehandles, labels=thelabels, loc='upper right',
-    #            bbox_to_anchor=(-plotwidth/3, 1))
+    plt.subplots_adjust(left=0.2, top=0.76, bottom=0.2,
+                        wspace=wspace_subfigs, hspace=1)
     # plt.tight_layout(pad = 0.01, w_pad = -2, h_pad=0.1)
-    plt.savefig(f"{odirbars}bars_{CO}_{SMX}.pdf", format="pdf")
+
+    def dynamic_xposition_ylabeltext(plotwidth) -> float:
+        position_float = (plotwidth * 0.00145)
+        if position_float < 0.01:
+            position_float = 0.01
+        return position_float
+
+    fig.text(x=dynamic_xposition_ylabeltext(plotwidth),
+             y=0.5, s=YLABE,
+             va="center", rotation="vertical", size=26)
+    # fig.suptitle(f"{CO} ({SMX} abundance)".upper())
+    plt.savefig(f"{odirbars}bars_{CO}_{SMX}.pdf",
+                bbox_inches="tight", format="pdf")
     plt.close()
     plt.figure()
     plt.legend(handles=thehandles, labels=thelabels, loc='upper right')
     plt.axis("off")
     plt.savefig(f"{odirbars}legend.pdf", format="pdf")
-
     return 0
 
 
@@ -174,7 +182,8 @@ def run_steps_abund_bars(table_prefix,  metadatadf,
 
         plotwidth = width_each_subfig * len(selectedmetsD[co])
 
-        printabundbarswithdots(piled_sel, selectedmetsD[co], co, "TOTAL",
+        printabundbarswithdots(piled_sel, selectedmetsD[co], co,
+                               "total abundance",
                                axisx_var, hue_var, plotwidth,
                                out_plot_dir, axisx_labeltilt,
                                wspace_subfigs, args)

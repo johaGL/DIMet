@@ -98,8 +98,26 @@ It will automatically generate :
 
 ## Get plots
 
-readme construction
+Using the same toy1 example, you can easily plot the metabolites:
 
+
+Bars showing the total abundances:
+```
+python -m DIMet.src.abundances_bars ~/toy1/analysis001/config-1-001.yml 
+```
+Stacked bars showing Isotopologues proportions:
+```
+python -m DIMet.src.isotopolog_prop_stacked ~/toy1/analysis001/config-1-001.yml 
+```
+Line-plots showing Mean Enrichment (which is also known as Fractional
+Contributions):
+```
+python -m DIMet.src.MEorFC_lineplot ~/toy1/analysis001/config-1-001.yml 
+```
+
+Note that the abundances' bars include within the same plot
+the "stripplot", which are the dots corresponding
+to the values of each one of the biological replicates.
 
 
 ## Differential analysis
@@ -122,7 +140,7 @@ Currently statistical methods that are included in DIMet are:
 - prm-scipy : permutations test
 - disfit : distribution fitting (of the z-score of the ratios), disfit needs several hundreds of metabolites to be trustful.
 
-These methods rely on the related statistical functions available in the [scipy](https://docs.scipy.org/doc/scipy/reference/stats.html) library. 
+which rely on the statistical methods offered by [scipy](https://docs.scipy.org/doc/scipy/reference/stats.html) library. 
 
 The thresholds permit to obtain the results filtered by :
  - adjusted pvalue (_padj_) and 
@@ -163,7 +181,6 @@ readme in construction
 -----------------------------------
 
 
-
 # Detailed guide
 
 ## Some words before `prepare`
@@ -193,7 +210,7 @@ Clean, ready to analyze data is necessary for DIMet to perform the downstream an
 
 ## The "Metadata"
 
-Here the first lines of the required metadata table, which must be a .csv (comma delimited) file : 
+Here the first lines of the required metadata table, which must be a 'tab' delimited file : 
 
 | name_to_plot            | timepoint | condition | timenum | short_comp  |  original_name |
 |-------------------|-----------|-----------|-------|------------|--------------- |
@@ -201,7 +218,10 @@ Here the first lines of the required metadata table, which must be a .csv (comma
 | Control\_cell\_T0-2 | T0        | Control   | 0     | cell       | MCF001089_TD02 |
 | Control\_cell\_T0-3 | T0        | Control   | 0     | cell       |  MCF001089_TD03|
 
-You can create it with any spreadsheet program such as Excel or Google Sheets or LibreOfice Calc. At the moment of saving your file you specify that the delimiter must be a comma, see https://support.microsoft.com/en-us/office/save-a-workbook-to-text-format-txt-or-csv-3e9a9d6c-70da-4255-aa28-fcacf1f081e6. 
+You can create it with any spreadsheet program such as Excel or Google Sheets or 
+LibreOfice Calc. At the moment of saving your file you specify that the delimiter 
+must be a tab or tabular (see https://support.microsoft.com/en-us/office/import-or-export-text-txt-or-csv-files-5250ac4c-663c-47ce-937b-339e391393ba).
+The extension of the file must be .csv
 
 Column names in metadata must be exactly: 
  - original\_name
@@ -247,14 +267,23 @@ example with two categories to combine:
   - condition
 ```
 
-When two categories, DIMet combines these 2 metadata categories,
- thus new category thus generated, is ready for comparison. Example :
+When two categories are given, DIMet internally combines these 2 metadata categories,
+consequently a new category is generated, and it is ready for comparison. 
+This is how DIMet operates:
  
-  * Control (a condition) combined with T0 (timepoint), yields "Control_T0"
-   *  L-Cyclo (another condition) combined with T0 (timepoint) yields "L-Cyclo_T0"
-   *  thus now, we are able to compare L-Cyclo_T0 against Control_T0 .
+  * "Control" (a condition) combined with "T0" (timepoint), yields "Control_T0"
+   *  "L-Cyclo" (another condition) combined with "T0" (timepoint) yields "L-Cyclo_T0"
+   *  thus now, we are able to compare "L-Cyclo_T0" against "Control_T0".
 
-
+Please see 'toy2/' example, if you have two categories to combine.
+In the section "comparisons" (.yml file) just use the "_" symbol among
+the condition and time-point words, with no spaces. 
+For example:
+``` 
+ comparisons:
+   - [ L-Cyclo_T0, Control_T0 ]
+```
+says to DIMet to compute L-Cyclo_T0 *versus* Control_T0. 
 
 #### Running Differential Analysis
       
@@ -340,25 +369,7 @@ Use the 'issues' of this github repo for any question that you could not answer 
 Feel free to contact us so we can help you to make your data a suitable input for DIMet.
 
 
- 
-### References
 
-[1] Bruntz, R. C., Lane, A. N., Higashi, R. M., & Fan, T. W. M. (2017). Exploring cancer metabolism using stable isotope-resolved metabolomics (SIRM). Journal of Biological Chemistry, 292(28), 11601-11609.
-
-[2] Buescher, J. M. et al. A roadmap for interpreting (13)C metabolite labeling patterns from cells. Curr Opin Biotechnol 34, 189–201, https://doi.org/10.1016/j.copbio.2015.02.003 (2015).
-
-[3] Guyon J, Fernandez‐Moncada I, Larrieu C, M, Bouchez C, L, Pagano Zottola AC, Galvis J,...& Daubon T, (2022). Lactate dehydrogenases promote glioblastoma growth and invasion via a metabolic symbiosis, EMBO Molecular Medicine, e15343
-
-
-
-
-
-## things to do
-- go to settings-> action -> enable repo modification
-
- 
- 
- 
 ### References
 
 [1] Bruntz, R. C., Lane, A. N., Higashi, R. M., & Fan, T. W. M. (2017). Exploring cancer metabolism using stable isotope-resolved metabolomics (SIRM). Journal of Biological Chemistry, 292(28), 11601-11609.
