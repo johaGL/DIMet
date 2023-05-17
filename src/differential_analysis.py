@@ -3,7 +3,7 @@
 """
 Created on Thu Jul 21 14:32:27 2022
 
-@author: johannah
+@author: johanna
 """
 import argparse
 import os
@@ -18,28 +18,20 @@ from distrib_fit_fromProteomix import \
     compute_z_score, find_best_distribution, compute_p_value
 
 
-timetest_methods = ('MW', 'KW', 'ranksum', 'Wcox', 'Tt', 'BrMu',
-                    'prm-scipy', 'disfit', 'none')
+availtest_methods = ('MW', 'KW', 'ranksum', 'Wcox', 'Tt', 'BrMu',
+                     'prm-scipy', 'disfit', 'none')
+
 multest_methods = ('bonferroni', 'sidak', 'holm-sidak', 'holm',
-                    'simes-hochberg', 'hommel', 'fdr_bh', 'fdr_by',
-                    'fdr_tsbh', 'fdr_tsbky')
+                   'simes-hochberg', 'hommel', 'fdr_bh', 'fdr_by',
+                   'fdr_tsbh', 'fdr_tsbky')
+
+
 def diff_args():
     parser = argparse.ArgumentParser(
         prog="python -m DIMet.src.differential_analysis",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
-
-    # parser.add_argument("--multiclass_analysis",
-    #                     action=argparse.BooleanOptionalAction,
-    #                     default=False,
-    #                     help="Uses Kruskal-Wallis (instead ANOVA)")
-    #
-    # parser.add_argument("--time_course",
-    #                     action=argparse.BooleanOptionalAction,
-    #                     default=False,
-    #                     help="performs differential analysis, sequentially,"
-    #                          "comparing t+1 vs t")
 
     # Before reduction and gmean, way to replace zeros:
     parser.add_argument("--abundance_replace_zero_with",
@@ -73,13 +65,14 @@ statsmodels.stats.multitest.multipletests.html")
         help="By metabolite, for samples (x, y) the distance is calculated,\
         and span is max(x U y) - min(x U y).  A 'distance/span' inferior\
         to this value excludes the metabolite from testing (pvalue=NaN).")
-    
-    parser.add_argument('--multiclass_test', choices=('KW', 'none'),
+
+    parser.add_argument('--multiclass_analysis', choices=('KW', 'none'),
                         type=str, default='none',
                         help='chose a test for more than 2 classes')
-    parser.add_argument('--time_course', choices=timetest_methods,
+
+    parser.add_argument('--time_course', choices=availtest_methods,
                         type=str, default='none',
-                        help='chose a test for 2-by-2 comparison of time-points')
+                        help='chose a test for comparison of time-points')
 
     # by default include all the types of measurements:
 
@@ -100,31 +93,49 @@ def zero_repl_arg(zero_repl_arg: str) -> None:
     err_msg = 'replace_zero_with argument is not correctly formatted'
     if zero_repl_arg.startswith("min"):
         if zero_repl_arg == "min":
-            n=int(1)
+            n = int(1)  # n is the denominator, default is 1
         else:
             try:
-                n=float(str(zero_repl_arg.split("/")[1]))
-            except:
+                n = float(str(zero_repl_arg.split("/")[1]))
+            except Exception as e:
+                print(e)
                 raise ValueError(err_msg)
-        def foo(x,n):
-            return(min(x)/n)
+
+        def foo(x, n):
+            return min(x)/n
+
     else:
         try:
-            n=float(str(zero_repl_arg))
-        except:
+            n = float(str(zero_repl_arg))
+        except Exception as e:
+            print(e)
             raise ValueError(err_msg)
-        def foo(x,n):
-            return(n)
+
+        def foo(x, n):
+            return n
+
     return {'repZero': foo, 'n': n}
 
 
-def check_validity_configuration_file_diff(confidic: dict,
-                                           metadatadf: pd.DataFrame) -> None:
-    # fg.auto_check_validity_configuration_file(confidic)
+def verify_thresholds_defined(confidic) -> bool:
+    if 'thresholds' not in confidic.keys():
+        raise KeyError("thresholds --> NOT defined by user. Abort")
+
+    expected_keys_sub = ['padj',
+                         'absolute_log2FC']
+    has_key = fg.check_dict_has_keys(confidic['thresholds'], expected_keys_sub)
+    missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
+    assert all(has_key), f"thresholds -> {missing_keys} : \
+           missing in configuration file!"
+    return True
+
+
+def check_validity_configfile_diff2group(confidic: dict,
+                                         metadatadf: pd.DataFrame) -> bool:
     expected_keys = ['grouping',
                      'comparisons',
-                     'statistical_test',
-                     'thresholds']
+                     'statistical_test']
+
     has_key = fg.check_dict_has_keys(confidic, expected_keys)
     missing_keys = np.array(expected_keys)[~has_key].tolist()
     assert all(has_key), f"{missing_keys} : missing in configuration file! "
@@ -133,11 +144,13 @@ def check_validity_configuration_file_diff(confidic: dict,
             if type(confidic[k]) is str:
                 confidic[k] = [confidic[k]]
             for group in confidic[k]:
-                if not group in metadatadf.columns:
-                    raise ValueError(f'{group} grouping key not found in metadata.')
+                if group not in metadatadf.columns:
+                    raise ValueError(f'{group} grouping key not found '
+                                     f'in metadata.')
         elif k == 'comparisons':
-            if not all([len(l) == 2 for l in confidic[k]]):
-                raise ValueError('comparisons should not involve more than 2 conditions')
+            if not all([len(ali) == 2 for ali in confidic[k]]):
+                raise ValueError('comparisons should not involve more '
+                                 'than 2 conditions')
         elif k == 'statistical_test':
             expected_keys_sub = ['abundances',
                                  'meanE_or_fracContrib',
@@ -146,20 +159,16 @@ def check_validity_configuration_file_diff(confidic: dict,
             has_key = fg.check_dict_has_keys(confidic[k], expected_keys_sub)
             missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
             assert all(has_key), f"statistical_test -> {missing_keys} : \
-missing in configuration file!"
-            known_test=fg.check_dict_has_known_values(confidic[k], timetest_methods + (None,))
-            unknown_tests=np.array(list(confidic[k].values()))[~known_test]
+                   missing in configuration file!"
+            known_test = fg.check_dict_has_known_values(
+                confidic[k], availtest_methods + (None,))
+            unknown_tests = np.array(list(confidic[k].values()))[~known_test]
             assert all(known_test), f'statistical_test -> {unknown_tests} : \
-not valid tests!'
+                   not valid tests!, available: {availtest_methods}'
         else:
-            expected_keys_sub = ['padj',
-                                 'absolute_log2FC']
-            has_key = fg.check_dict_has_keys(confidic[k], expected_keys_sub)
-            missing_keys = np.array(expected_keys_sub)[~has_key].tolist()
-            assert all(has_key), f"thresholds -> {missing_keys} : \
-missing in configuration file!"
-            
-    
+            verify_thresholds_defined(confidic)
+
+    return True
 
 
 def arg_repl_zero2value(argum_zero_rep: str, df: pd.DataFrame) -> float:
@@ -328,12 +337,14 @@ def separate_before_compute_padj(ratiosdf, quality_dist_span):
 
 
 def compute_mann_whitney_allH0(vInterest, vBaseline):
-    # Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
-    # or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
-    # DO NOT : use_continuity False AND method "auto" at the same time.
-    # because "auto" will set continuity depending on ties and sample size.
-    # If ties in the data  and method "exact" (i.e use_continuity False)
-    # pvalues cannot be calculated, check scipy doc
+    """
+    Calculate Mann–Whitney U test (a.k.a Wilcoxon rank-sum test,
+    or Wilcoxon–Mann–Whitney test, or Mann–Whitney–Wilcoxon (MWW/MWU), )
+    DO NOT : use_continuity False AND method "auto" at the same time.
+    because "auto" will set continuity depending on ties and sample size.
+    If ties in the data  and method "exact" (i.e use_continuity False)
+    pvalues cannot be calculated, check scipy doc
+    """
     usta, p = scipy.stats.mannwhitneyu(vInterest, vBaseline,
                                        # method = "auto",
                                        use_continuity=False,
@@ -659,14 +670,12 @@ def run_differential_steps(measurements: pd.DataFrame,
     co = out_file_elements['co']
     suffix = out_file_elements['suffix']
 
-    fg.detect_and_create_dir(f"{out_dir}/extended/")
-    fg.detect_and_create_dir(f"{out_dir}/filtered/")
-
     for contrast in confidic['comparisons']:
         strcontrast = '_'.join(contrast)
         df4c, metad4c = fg.prepare4contrast(measurements, metadatadf,
                                             confidic['grouping'], contrast)
         df4c = df4c[(df4c.T != 0).any()]  # delete rows being zero everywhere
+        df4c = df4c.dropna(axis=0, how='all')
         # sort them by 'newcol' the column created by prepare4contrast
         metad4c = metad4c.sort_values("newcol")
         df4c = calc_reduction(df4c, metad4c)
@@ -724,7 +733,7 @@ def run_differential_steps(measurements: pd.DataFrame,
 
 
 def run_multiclass(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
-                    out_file_elements: dict, confidic,
+                   out_file_elements: dict, confidic,
                    method_multiclass, args) -> None:
 
     out_dir = out_file_elements['odir']
@@ -750,8 +759,7 @@ def run_multiclass(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
             # using kruskal on three or more groups
             stat_result, pval_result = scipy.stats.kruskal(
                *the_dictionary_of_arrays.values(), axis=0,
-                nan_policy='omit'
-            )
+               nan_policy='omit')
             df.at[i, 'statistic'] = stat_result
             df.at[i, 'pvalue'] = pval_result
         return df
@@ -761,7 +769,10 @@ def run_multiclass(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
     for tpoint in timepoints:
         metada_tp = metadatadf.loc[metadatadf['timepoint'] == tpoint, :]
         measures_tp = measurements[metada_tp['name_to_plot']]
+        measures_tp = measures_tp[(measures_tp.T != 0).any()]  # being zero
+        measures_tp = measures_tp.dropna(axis=0, how='all')
         measures_tp = calc_reduction(measures_tp, metada_tp)
+
         if method_multiclass == "KW":
             multi_result = compute_multiclass_KW(measures_tp,  metada_tp)
 
@@ -777,22 +788,24 @@ def run_multiclass(measurements: pd.DataFrame, metadatadf: pd.DataFrame,
         new_order.extend(remaining_cols)
         new_order.extend(input_cols)
         multi_result = multi_result[new_order]
-        otsv = f"{prefix}--{co}--{tpoint}-{method_multiclass}-multiclass-{suffix}.tsv"
+        preotsv = f'{prefix}--{co}--{tpoint}-{method_multiclass}'
+        otsv = f"{preotsv}-multiclass-{suffix}.tsv"
         multi_result.to_csv(
             f"{out_dir}/extended/{otsv}",
             index_label="metabolite", header=True, sep='\t')
         # filtered by thresholds :
         padj_cutoff = confidic['thresholds']['padj']
         filtered_df = multi_result.loc[multi_result['padj'] <= padj_cutoff]
-        otv = f'{prefix}--{co}--{tpoint}-{method_multiclass}-multiclass-{suffix}.tsv'
+        preotv = f'{prefix}--{co}--{tpoint}-{method_multiclass}'
+        otv = f'{preotv}-multiclass-{suffix}.tsv'
         filtered_df.to_csv(f"{out_dir}/filtered/{otv}",
                            index_label="metabolite",
                            header=True, sep='\t')
 
 
 def run_time_course(measurements: pd.DataFrame,
-                           metadatadf: pd.DataFrame, out_file_elements: dict,
-                           confidic: dict, whichtest: str, args) -> None:
+                    metadatadf: pd.DataFrame, out_file_elements: dict,
+                    confidic: dict, whichtest: str, args) -> None:
     out_dir = out_file_elements['odir']
     prefix = out_file_elements['prefix']
     co = out_file_elements['co']
@@ -802,16 +815,15 @@ def run_time_course(measurements: pd.DataFrame,
     fg.detect_and_create_dir(f"{out_dir}/filtered/")
 
     for condition in metadatadf['condition'].unique().tolist():
-        metada_cd =  metadatadf.loc[metadatadf['condition'] == condition, :]
+        metada_cd = metadatadf.loc[metadatadf['condition'] == condition, :]
 
         auto_set_comparisons_l = list()
-        ordered_timenum = metada_cd['timenum'].unique() # already is numpy
+        ordered_timenum = metada_cd['timenum'].unique()  # already is numpy
         ordered_timenum = np.sort(np.array(ordered_timenum))
-        l = 1
+
         for h in range(len(ordered_timenum)-1):
-            contrast = [str(ordered_timenum[l]), str(ordered_timenum[h])]
+            contrast = [str(ordered_timenum[h+1]), str(ordered_timenum[h])]
             auto_set_comparisons_l.append(contrast)
-            l += 1
 
         for contrast in auto_set_comparisons_l:
             strcontrast = '_'.join(contrast)
@@ -820,7 +832,8 @@ def run_time_course(measurements: pd.DataFrame,
             df4c, metad4c = fg.prepare4contrast(measurements, metada_cd,
                                                 ['timenum'], contrast)
 
-            df4c = df4c[(df4c.T != 0).any()]  # delete rows being zero everywhere
+            df4c = df4c[(df4c.T != 0).any()]  # delete rows being zero every
+            df4c = df4c.dropna(axis=0, how='all')
             # sort them by 'newcol' the column created by prepare4contrast
             metad4c = metad4c.sort_values("newcol")
             df4c = calc_reduction(df4c, metad4c)
@@ -831,7 +844,6 @@ def run_time_course(measurements: pd.DataFrame,
             df4c['distance/span'] = df4c.distance.div(df4c.span_allsamples)
             ratiosdf = calc_ratios(df4c, metad4c, contrast)
             ratiosdf, df_bad = separate_before_stats(ratiosdf)
-
 
             result_test_df = run_statistical_test(ratiosdf, metad4c,
                                                   contrast, whichtest)
@@ -858,7 +870,8 @@ def run_time_course(measurements: pd.DataFrame,
             ratiosdf = reorder_columns_diff_end(ratiosdf)
             ratiosdf = ratiosdf.sort_values(['padj', 'distance/span'],
                                             ascending=[True, False])
-            otsv = f"{prefix}--{co}--{condition}-{strcontrast}-{whichtest}-{suffix}.tsv"
+            preotsv = f'{prefix}--{co}--{condition}-{strcontrast}'
+            otsv = f"{preotsv}-{whichtest}-{suffix}.tsv"
             ratiosdf.to_csv(
                 f"{out_dir}/extended/{otsv}",
                 index_label="metabolite", header=True, sep='\t')
@@ -867,70 +880,82 @@ def run_time_course(measurements: pd.DataFrame,
                 ratiosdf,
                 confidic['thresholds']['padj'],
                 confidic['thresholds']['absolute_log2FC'])
-            otv = f'{prefix}--{co}--{condition}-{strcontrast}-{whichtest}-{suffix}_filter.tsv'
+
+            preotv = f'{prefix}--{co}--{condition}-{strcontrast}'
+            otv = f'{preotv}-{whichtest}-{suffix}_filter.tsv'
+
             filtered_df.to_csv(f"{out_dir}/filtered/{otv}",
                                index_label="metabolite",
                                header=True, sep='\t')
 
 
-def options_diff2groups_valid(confidic):
-    authorize = True
-    for k in ["grouping", "comparisons", "statistical_test", "thresholds"]:
-        try:
-            confidic[k]
-        except KeyError:
-            authorize = False
-            print(k, "not set in .yml file")
-    return authorize
+def multiclass_andor_timecourse_andor_diff2groups(
+        measurements, meta_co, out_file_elems,
+        confidic, modes_specs, mode, args):
 
+    method_multiclass = args.multiclass_analysis
+    if method_multiclass and method_multiclass.lower() != "none":
+        out_file_elems['odir'] = confidic['out_path'] + \
+                                 "results/multiclass_analysis/" + \
+                                 out_file_elems['modedir']+'/'
 
-def multiclass_timecourse_diff2groups(measurements, meta_co,
-                                         out_file_elems, confidic,
-                                         whichtest, args):
-    method_multiclass = args.multiclass_test
-    if method_multiclass and method_multiclass.lower() != "none":       #not None
+        fg.detect_and_create_dir(f"{out_file_elems['odir']}/extended/")
+        fg.detect_and_create_dir(f"{out_file_elems['odir']}/filtered/")
+
         run_multiclass(measurements, meta_co, out_file_elems,
-                        confidic, method_multiclass, args)
+                       confidic, method_multiclass, args)
 
     method_time_course = args.time_course
-    if method_time_course and method_time_course.lower() != "none":      #not None
+    if method_time_course and method_time_course.lower() != "none":
+        out_file_elems['odir'] = confidic['out_path'] + \
+                                 "results/timecourse_analysis/" + \
+                                 out_file_elems['modedir'] + '/'
+
+        fg.detect_and_create_dir(f"{out_file_elems['odir']}/extended/")
+        fg.detect_and_create_dir(f"{out_file_elems['odir']}/filtered/")
+
         run_time_course(measurements, meta_co, out_file_elems,
                         confidic, method_time_course, args)
 
-    if options_diff2groups_valid(confidic):
+    if 'grouping' in confidic.keys():
+        out_file_elems['odir'] = confidic['out_path'] + \
+                                 "results/differential_analysis/" + \
+                                 out_file_elems['modedir'] + '/'
+
+        fg.detect_and_create_dir(f"{out_file_elems['odir']}/extended/")
+        fg.detect_and_create_dir(f"{out_file_elems['odir']}/filtered/")
+
+        whichtest = confidic['statistical_test'][modes_specs[mode]['test_key']]
+
         run_differential_steps(measurements, meta_co, out_file_elems,
                                confidic, whichtest, args)
 
-modes_specs={
-    'abund':{
-        'dir': 'abundance',
-        'test_key': 'abundances'
-    },
-    'mefc': {
-        'dir': 'meanE_fracContr',
-        'test_key': 'meanE_or_fracContrib'
-    },
-    'isoabsol': {
-        'dir': 'isotopol_abs',
-        'test_key': 'isotopologue_abs'
-    },
-    'isoprop': {
-        'dir': 'isotopol_prop',
-        'test_key': 'isotopologue_prop'
-    }
-}
-    
+
 def perform_tests(mode: str, clean_tables_path, table_prefix,
                   metadatadf, confidic, args) -> None:
-    mode=mode.lower()
-    if not mode in modes_specs.keys():
+    modes_specs = {
+        'abund': {
+            'dir': 'abundance',
+            'test_key': 'abundances'
+        },
+        'mefc': {
+            'dir': 'meanE_fracContr',
+            'test_key': 'meanE_or_fracContrib'
+        },
+        'isoabsol': {
+            'dir': 'isotopol_abs',
+            'test_key': 'isotopologue_abs'
+        },
+        'isoprop': {
+            'dir': 'isotopol_prop',
+            'test_key': 'isotopologue_prop'
+        }
+    }
+    mode = mode.lower()
+    if mode not in modes_specs.keys():
         raise ValueError(f'unknown mode "{mode}", \
-possible values are {list(modes_specs)}')
-    
-    out_diff = out_path + "results/differential_analysis/" + \
-               modes_specs[mode]['dir']
-    fg.detect_and_create_dir(out_diff)
-    whichtest = confidic['statistical_test'][modes_specs[mode]['test_key']]
+                         possible values are {list(modes_specs)}')
+
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
     # dynamically open the file based on prefix, compartment and suffix:
@@ -942,12 +967,60 @@ possible values are {list(modes_specs)}')
             args.abundance_replace_zero_with, measurements)
         measurements = measurements.replace(to_replace=0,
                                             value=val_instead_zero)
-        out_file_elems = {'odir': out_diff, 'prefix': table_prefix,
-                          'co': co, 'suffix': suffix}
 
-        multiclass_timecourse_diff2groups(measurements, meta_co,
-                                          out_file_elems,
-                                          confidic, whichtest, args)
+        out_file_elems = {'modedir': modes_specs[mode]['dir'],
+                          'prefix': table_prefix,
+                          'co': co,
+                          'suffix': suffix}
+
+        multiclass_andor_timecourse_andor_diff2groups(
+            measurements, meta_co, out_file_elems,
+            confidic, modes_specs, mode, args)
+
+
+def pass_confidic_timecourse_multiclass_to_arg(confidic, args):
+    if (args.time_course != 'none') and ('time_course' in confidic.keys()):
+        raise ValueError("not allowed to set time_course twice: in .yml file"
+                         "and arg")
+    if (args.multiclass_analysis != 'none') and\
+            ('multiclass_analysis' in confidic.keys()):
+        raise ValueError("not allowed to set multiclass_analysis "
+                         "twice: .yml file and arg")
+    if args.time_course == 'none':
+        try:
+            args.time_course = confidic['time_course']
+        except KeyError:
+            pass
+    if args.multiclass_analysis == 'none':
+        try:
+            args.multiclass_analysis = confidic['multiclass_analysis']
+        except KeyError:
+            pass
+    return args
+
+
+def check_at_least_one_method_demanded(confidic, args) -> None:
+    diff_bool, time_bool, multiclass_bool = False, False, False
+    try:
+        confidic['grouping']
+        intends_2groups_analysis = True
+    except KeyError:
+        intends_2groups_analysis = False
+        pass
+
+    if verify_thresholds_defined(confidic):
+        if intends_2groups_analysis:
+            diff_bool = check_validity_configfile_diff2group(
+                confidic, metadatadf)
+
+        if args.multiclass_analysis != 'none':
+            multiclass_bool = True
+
+        if args.time_course != 'none':
+            time_bool = True
+
+    at_least_one_method_user = sum([diff_bool, multiclass_bool, time_bool])
+    assert at_least_one_method_user > 0, "No methods chosen, abort"
 
 
 if __name__ == "__main__":
@@ -955,24 +1028,27 @@ if __name__ == "__main__":
            Differentially Abundant-or-Marked Metabolites (DAM) -*-\n")
     parser = diff_args()
     args = parser.parse_args()
-    print(args)
+
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
     fg.auto_check_validity_configuration_file(confidic)
     confidic = fg.remove_extensions_names_measures(confidic)
-    print(confidic)
+
+    args = pass_confidic_timecourse_multiclass_to_arg(confidic, args)
 
     out_path = os.path.expanduser(confidic['out_path'])
+    confidic['out_path'] = out_path
     meta_path = os.path.expanduser(confidic['metadata_path'])
     clean_tables_path = out_path + "results/prepared_tables/"
 
     metadatadf = fg.open_metadata(meta_path)
-    check_validity_configuration_file_diff(confidic, metadatadf)
+
+    check_at_least_one_method_demanded(confidic, args)
 
     # 1- abund
     if args.abundances:
         print("processing abundances")
-        mode="abund"
+        mode = "abund"
         abund_tab_prefix = confidic['name_abundance']
         perform_tests(mode, clean_tables_path, abund_tab_prefix,
                       metadatadf, confidic, args)
@@ -980,14 +1056,14 @@ if __name__ == "__main__":
     # 2- ME or FC
     if args.meanEnrich_or_fracContrib:
         print("processing mean enrichment or fractional contributions")
-        mode="mefc"
+        mode = "mefc"
         fraccon_tab_prefix = confidic['name_meanE_or_fracContrib']
         perform_tests(mode, clean_tables_path, fraccon_tab_prefix,
-                         metadatadf, confidic, args)
+                      metadatadf, confidic, args)
 
     # 3- isotopologues
     if args.isotopologues:
-        mode="isoabsol"
+        mode = "isoabsol"
         isos_abs_tab_prefix = confidic['name_isotopologue_abs']
         isos_prop_tab_prefix = confidic['name_isotopologue_prop']
         if (isos_abs_tab_prefix is not np.nan) and \
@@ -998,7 +1074,7 @@ if __name__ == "__main__":
                           metadatadf, confidic, args)
         else:
             print("processing isotopologues (values given as proportions)")
-            mode="isoprop"
+            mode = "isoprop"
             perform_tests(mode, clean_tables_path, isos_prop_tab_prefix,
                           metadatadf, confidic, args)
 
