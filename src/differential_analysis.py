@@ -43,22 +43,22 @@ def diff_args():
                         metavar="MEorFC_replace_zero_with",
                         default="min", type=zero_repl_arg,
                         help="chose a way to replace zero-value enrichments  \
-(min | min/n | VALUE)")
+                              (min | min/n | VALUE)")
 
     parser.add_argument("--isotopologueProp_replace_zero_with",
                         default="min", type=zero_repl_arg,
                         help="chose a way to replace zero-value proportions of \
-isotopologues  (min | min/n | VALUE)")
+                              isotopologues  (min | min/n | VALUE)")
 
     parser.add_argument("--isotopologueAbs_replace_zero_with",
                         default="min", type=zero_repl_arg,
                         help="chose a way to replace absolute zero-values of \
-isotopologues (min | min/n | VALUE)")
+                              isotopologues (min | min/n | VALUE)")
 
     parser.add_argument(
         "--multitest_correction", default='fdr_bh', choices=multest_methods,
         help="see : https://www.statsmodels.org/dev/generated/\
-statsmodels.stats.multitest.multipletests.html")
+              statsmodels.stats.multitest.multipletests.html")
 
     parser.add_argument(
         "--qualityDistanceOverSpan", default=-0.5, type=float,
