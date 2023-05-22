@@ -1,5 +1,5 @@
 metabologram_out_dir : "~/toy_metabologram/analysis001/results/plots/"
-out_path : "~/toy_metabologram/analysis001/results/plots/"
+
 
 dir_deg : "~/toy_metabologram/analysis001/metabologram_data/DEG_tables/"
 

@@ -19,8 +19,9 @@ import warnings
 
 
 def metabologram_args():
-    parser = argparse.ArgumentParser(prog="python -m DIMet.src.metabologram",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        prog="python -m DIMet.src.metabologram",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('config', type=str,
                         help="configuration file in absolute path")
     parser.add_argument('--abs_values_scale', type=str2tuple,
@@ -28,22 +29,28 @@ def metabologram_args():
                         help="define absolute values for extremes in "
                              "color key bar: left, right")
     aes_arg = parser.add_argument_group(title="Aesthetic arguments for plots")
-    aes_arg.add_argument('--fig-width', type=float, default=7, metavar="W",
-                         help="width of output figure in inches (default: %(default)s)")
-    aes_arg.add_argument('--fig-height', type=float, default=5, metavar="H",
-                         help="height of output figure in inches (default: %(default)s)")
-    aes_arg.add_argument('--format', type=str, default="pdf",
-                         choices=list(
-                             plt.gcf().canvas.get_supported_filetypes().keys()),
-                         help="format of output figure without leading '.' (default: %(default)s)")
-    aes_arg.add_argument('--dpi', type=dpi_type, default="figure",
-                         help="dpi of output figure (default: %(default)s's dpi value)")
-    aes_arg.add_argument('--edgecolor', type=str2tuple,
-                         default='#000000,#000000',
-                         metavar="COL(,COL)",
-                         help="one or two color(s) for peripheral and central edges \
-                         of metabolograms. Comma separated (default: %(default)s)\
-                         example : #cecece,#8d8d8d")
+    aes_arg.add_argument(
+        '--fig-width', type=float, default=7, metavar="W",
+        help="width of output figure in inches (default: %(default)s)")
+    aes_arg.add_argument(
+        '--fig-height', type=float, default=5, metavar="H",
+        help="height of output figure in inches (default: %(default)s)")
+    aes_arg.add_argument(
+        '--format', type=str, default="pdf",
+        choices=list(
+                      plt.gcf().canvas.get_supported_filetypes().keys()),
+        help="format of output figure without leading '.' "
+             "(default: %(default)s)")
+    aes_arg.add_argument(
+        '--dpi', type=dpi_type, default="figure",
+        help="dpi of output figure (default: %(default)s's dpi value)")
+    aes_arg.add_argument(
+        '--edgecolor', type=str2tuple,
+        default='#000000,#000000',
+        metavar="COL(,COL)",
+        help="one or two color(s) for peripheral and central edges \
+        of metabolograms. Comma separated (default: %(default)s)\
+        example : #cecece,#8d8d8d")
     aes_arg.add_argument('--linewidth', type=str2tuple, default='1,1',
                          metavar="W(,W)",
                          help="one or two width(s) for peripheral and central edges \
@@ -69,7 +76,7 @@ def dpi_type(v):
     err_msg = f'dpi value must be numeric or "figure", not {v}'
     try:
         v = float(v)
-    except:
+    except ValueError:
         v = v.lower()
         if v != "figure":
             raise TypeError(err_msg)
@@ -82,7 +89,8 @@ def read_config(metabologram_config):
             confgramD = yaml.load(f, Loader=yaml.Loader)
     except Exception as err:
         print(
-            "Error when opening metabologram configuration file in {metabologram_dir}")
+            f"Error when opening metabologram configuration "
+            f"file in {metabologram_config}")
         print(err)
     return confgramD
 
@@ -116,7 +124,7 @@ def give_path_dico(pathways_files):
 def deg_dam_corresp(DEG_tables, DAM_tables, titles):
     assert (set(DEG_tables.keys()) == set(DAM_tables.keys())) and \
            (set(titles.keys()) == set(DEG_tables.keys())), \
-        "error with the numbering of DEG_tables DAM_tables and titles"
+           "error with the numbering of DEG_tables DAM_tables and titles"
     comparisondico = dict()
     for k in titles.keys():
         comparisondico[k] = {'gene': DEG_tables[k],
@@ -167,7 +175,8 @@ def rgbas2hex(rgbas_):
 
 def values2rgbas(myvalues, mycmap, vmin, vmax, center):
     if center == 0:
-        # Normalize data before giving colors, because map interval is [0,1] by matplotlib
+        # Normalize data before giving colors,
+        # because map interval is [0,1] by matplotlib
         # https://stackoverflow.com/questions/25408393/getting-individual-colors-from-a-color-map-in-matplotlib
         norm = Normalize(vmin=vmin, vmax=vmax)
         rgba_tuples = mycmap(norm(myvalues))
@@ -253,7 +262,6 @@ def metabologram_run(confidic, dimensions_pdf, format, dpi,
 
     mycmap = get_custom_color_palette_hash('#0070C0', 'white', '#D30000')
 
-    print(args.abs_values_scale)
     if args.abs_values_scale[0] == "none":
         mabs = max(abs(DAM_full['log2FC']))
     else:
@@ -267,7 +275,7 @@ def metabologram_run(confidic, dimensions_pdf, format, dpi,
     else:
         try:
             gabs = float(args.abs_values_scale[1])
-        except:
+        except ValueError:
             gabs = max(abs(DEG_full['log2FC']))
 
     DEG_full['mycolors'] = rgbas2hex(
@@ -287,7 +295,7 @@ def metabologram_run(confidic, dimensions_pdf, format, dpi,
     print("shaped data for metabologram")
 
     # also see :https://proplot.readthedocs.io/en/latest/why.html
-    ###################################### complicated grid
+    # ############### complicated grid ######################
     # PLOT GRID :
     # as many columns as comparisons,
     # as many rows as paths  + add supplementary row(s) for bars
@@ -353,7 +361,8 @@ def metabologram_run(confidic, dimensions_pdf, format, dpi,
         gatheredsub.loc[
             gatheredsub.typemol == "gene", "circportion"] = genecircportion
         gatheredsub.loc[
-            gatheredsub.typemol == "metabolite", "circportion"] = metabocircportion
+            gatheredsub.typemol == "metabolite",
+            "circportion"] = metabocircportion
 
         sizes_list = gatheredsub["circportion"]
         annots = gatheredsub["elem_tag"]
@@ -366,9 +375,9 @@ def metabologram_run(confidic, dimensions_pdf, format, dpi,
                 radius=1,
                 startangle=90,
                 labels=annots if tf else None,
-                ## this one yiels the  labels annotated in the plot
+                # this one yiels the  labels annotated in the plot
                 textprops={'fontsize': 8} if tf else None)
-        ## white circles for artist patches
+        # white circles for artist patches
         ax = fig.add_subplot()
 
         ax.add_patch(plt.Circle((0, 0), radius=0.49, edgecolor=edgecolors[0],
@@ -393,7 +402,8 @@ def metabologram_run(confidic, dimensions_pdf, format, dpi,
                                  inner_dico['gene_mean_val']]).round(1),
                 labeldistance=0.2)
         # ax.axis('equal')
-        # ax.legend('', frameon=False)  # https://www.statology.org/remove-legend-matplotlib/
+        # ax.legend('', frameon=False)
+        # https://www.statology.org/remove-legend-matplotlib/
         # ax.tight_layout()
         # ####
         # end donut
@@ -440,5 +450,3 @@ if __name__ == "__main__":
 
     metabologram_run(confidic, dimensions_pdf, args.format, args.dpi,
                      edgecolors, linewidths)
-
-
