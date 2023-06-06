@@ -1,0 +1,28 @@
+metabologram_out_dir : "~/toy_metabologram/analysis001/results/plots/"
+
+
+dir_deg : "~/toy_metabologram/analysis001/metabologram_data/DEG_tables/"
+
+DEG_tables:
+  1 : cycloT0_controlT0_DEG.csv
+ 
+  
+columns_deg : ['external_gene_name', 'log2FoldChange']
+
+
+dir_dam : "~/toy_metabologram/analysis001/metabologram_data/DAM_tables/"
+
+DAM_tables: 
+  1 : rawAbundances--cell--cyc1-L-Cycloserine_T0_Control_T0-prm-scipyMOD.csv 
+
+
+ 
+columns_dam : ['metabolite','log2FC']  
+
+pathways_files:
+  genes : "~/toy_metabologram/analysis001/metabologram_data/genes_pathways_custom.csv"
+  metabolites : "~/toy_metabologram/analysis001/metabologram_data/metabolites_path_custom.csv"
+
+titles:
+  1: "Cyclo 0h  vs.  Control 0h"
+

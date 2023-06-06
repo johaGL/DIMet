@@ -34,6 +34,20 @@ def open_config_file(confifile):
     return confidic
 
 
+def check_dict_has_keys(d: dict, expected_keys: list) -> np.array:
+    has_key = []
+    for k in expected_keys:
+        has_key.append(k in d.keys())
+    return np.array(has_key)
+
+
+def check_dict_has_known_values(d: dict, possible_values: list) -> np.array:
+    known_val = []
+    for v in d.values():
+        known_val.append(v in possible_values)
+    return np.array(known_val)
+
+
 def auto_check_validity_configuration_file(confidic) -> None:
     expected_keys = ['metadata_path',
                      'name_abundance',
@@ -43,8 +57,9 @@ def auto_check_validity_configuration_file(confidic) -> None:
                      'conditions',
                      'suffix',
                      'out_path']
-    for k in expected_keys:
-        assert k in confidic.keys(), f"{k} : missing in configuration file! "
+    has_key = check_dict_has_keys(confidic, expected_keys)
+    missing_keys = np.array(expected_keys)[~has_key].tolist()
+    assert all(has_key), f"{missing_keys} : missing in configuration file! "
 
 
 def verify_good_extensions_measures(confidic) -> None:
