@@ -7,10 +7,7 @@ Usage:
 ```
 conda activate dimet
 cd $HOME
-
-
-snakemake -s Snakefile.smk --cores 1 --config PRIMARY_CONFIG="~/toy1/analys001/config-1-001.yml"
-METABOLOGRAM_CONFIG="~/toy1/analysis001/metabologram_config.yml" --latency-wait 15
+snakemake -s DIMet/tests/Snakefile_common.smk --cores 1 --config PRIMARY_CONFIG="[MYFILE.yml]" --latency-wait 15
 
 ```
 
@@ -39,11 +36,7 @@ primary_config = open_config_file_snake_version(primary_config_path)
 
 outdir = os.path.expanduser(primary_config['out_path'])
 
-try:
-    metabolog_config_path = os.path.expanduser(config["METABOLOGRAM_CONFIG"])
-    metabologram_config = open_config_file_snake_version(metabolog_config_path)
-except:
-    metabologram_config = None
+
 
 
 
@@ -55,8 +48,7 @@ rule all:
         f'{outdir}results/differential_analysis/diff.log',
         f'{outdir}results/plots/log/bars.log',
         f'{outdir}results/plots/log/isotopol_prop_stacked.log',
-        f'{outdir}results/plots/log/lineplot.log',
-       # f'{outdir}results/plots/log/metabologram.log',          
+        f'{outdir}results/plots/log/lineplot.log',       
         f'{outdir}results/plots/log/end.log'
 
 
@@ -85,22 +77,22 @@ rule pca:
 
 rule differential:
     input:
-         f'{primary_config_path}',
-          f'{outdir}results/prepared_tables/prep.log'
+        f'{primary_config_path}',
+        f'{outdir}results/prepared_tables/prep.log'
     log:
-         f'{outdir}results/differential_analysis/diff.log'
+        f'{outdir}results/differential_analysis/diff.log'
 
     shell:
-         f"python -m DIMet.src.differential_analysis {primary_config_path} > {outdir}results/differential_analysis/diff.log"
+        f"python -m DIMet.src.differential_analysis {primary_config_path} > {outdir}results/differential_analysis/diff.log"
 
 
 
 rule bars:
     input:
-         f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/prep.log'
+        f'{primary_config_path}',
+        f'{outdir}results/prepared_tables/prep.log'
     log :  
-          f'{outdir}results/plots/log/bars.log'
+        f'{outdir}results/plots/log/bars.log'
     
     shell:
         f"python -m DIMet.src.abundances_bars {primary_config_path} > {outdir}results/plots/log/bars.log"
@@ -109,10 +101,10 @@ rule bars:
 
 rule stacked:
     input: 
-      f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/prep.log'
+        f'{primary_config_path}',
+        f'{outdir}results/prepared_tables/prep.log'
     log :  
-          f'{outdir}results/plots/log/isotopol_prop_stacked.log'
+        f'{outdir}results/plots/log/isotopol_prop_stacked.log'
     
     shell:
         f"python -m DIMet.src.isotopolog_prop_stacked {primary_config_path} > {outdir}results/plots/log/isotopol_prop_stacked.log"
@@ -120,28 +112,13 @@ rule stacked:
 
 rule lineplot:
     input:
-      f'{primary_config_path}',
-         f'{outdir}results/prepared_tables/prep.log'
+        f'{primary_config_path}',
+        f'{outdir}results/prepared_tables/prep.log'
     log :  
           f'{outdir}results/plots/log/lineplot.log'
     
     shell:
         f"python -m DIMet.src.MEorFC_lineplot {primary_config_path} > {outdir}results/plots/log/lineplot.log"
-
-
-
-if metabologram_config is not None: 
-    rule metabologram:
-        input:
-            f'{metabolog_config_path}',
-            f'{outdir}results/prepared_tables/prep.log',
-            f'{outdir}results/differential_analysis/diff.log'
-        log:
-             f'{outdir}results/plots/log/metabologram.log'
-
-        shell:
-             f"python -m DIMet.src.metabologram {metabolog_config_path} > {outdir}results/log/metabologram.log"
-
 
 
 rule end:

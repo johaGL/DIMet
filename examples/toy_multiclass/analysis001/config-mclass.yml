@@ -8,18 +8,21 @@
 # necesary to all steps
 # -----------------------------
 
-metadata_path : ~/toy1/data/metadata_toy1.csv 
+metadata_path : ~/toy_multiclass/data/metadata_mclass.csv
 
-name_abundance : AbundanceCorrected
-name_meanE_or_fracContrib : MeanEnrichment13C
-name_isotopologue_prop : IsotopologuesProp # isotopologue proportions
-name_isotopologue_abs : IsotopologuesAbs  # isotopologue absolute values
+name_abundance : rawAbundances
+name_meanE_or_fracContrib : FracContribution_C
+name_isotopologue_prop : CorrectedIsotopologues # isotopologue proportions
+name_isotopologue_abs : null  # isotopologue absolute values (for toy2 not avail)
 
 conditions : 
-  - sgLDHA # first must be control, when several
-
-suffix : ldh1
-out_path : ~/toy1/analysis001/
+ - Control # first must be control
+ - Inhibitor
+ - L-Cyclos
+ - Therapy
+ 
+suffix : mcla
+out_path : ~/toy_multiclass/analysis001/
 
 
 # -----------------------------
@@ -27,20 +30,23 @@ out_path : ~/toy1/analysis001/
 # -----------------------------
 # metabolites to plot:
 metabolites_to_plot:
-  endo: [Cit, Fru1P]
+  cell: ["Fructose_1,6-bisphosphate", # in "quotes" because has a comma inside
+         L-Lactic_acid, Pyruvic_acid, L-Malic_acid,
+         Fumaric_acid, L-Alanine, L-Glutamic_acid,
+         L-Glutamine, L-Aspartic_acid]
+  med:  [L-Lactic_acid, Pyruvic_acid, 
+           L-Alanine, L-Asparagine]
 
 
 # Abundances bars configuration
 # -----------------------------
-time_sel : 
+time_sel :
   - T0
-  - T24
 barcolor : timepoint
 axisx : condition
 axisx_labeltilt : 20 # 0 is no tilt
 width_each_subfig : 3
 wspace_subfigs : 1
-
 
 # Isotopologue Contribution plot configuration
 # -----------------------------
@@ -57,17 +63,16 @@ numbers_size : 13
 # -----------------------------
 # differential analysis
 # -----------------------------
-time_course: prm-scipy
 
      
 thresholds:
-  padj: 0.2
-  absolute_log2FC: 3
+  padj: 1
+  absolute_log2FC: 0.3
+  
+
+multiclass_analysis : KW
 
 
-# grouping:
-#   * the category we pick for comparison (here timepoint)
-#   * or, a combination of 2 metadata categories at choice (see toy 2)
 
 # -------------------- end of config file ---------------------         
 # NOTE: Metabolograms need a separated configuration file

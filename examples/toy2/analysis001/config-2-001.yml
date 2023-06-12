@@ -64,11 +64,11 @@ numbers_size : 13
 # -----------------------------
 grouping :  # see explanation at the  end
   - condition
-  - timepoint  
+
 
 comparisons :   # for each pair,last must be control
-  - [L-Cycloserine_T0, Control_T0]    
-  - [L-Cycloserine_T2h, Control_T2h]          
+  - [L-Cycloserine, Control]    
+         
               
 statistical_test:
   abundances: prm-scipy  

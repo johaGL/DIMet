@@ -1,20 +1,16 @@
-import os
-import yaml
-
 """
 Usage:
 
-```
 conda activate dimet
 cd $HOME
 
-
-snakemake -s Snaketoy0.smk --cores 1 --config PRIMARY_CONFIG="~/toy0/analys01/config-0-0.yml"
-METABOLOGRAM_CONFIG="~/toy0/analys01/metabologram_config.yml" --latency-wait 15
-
-```
+snakemake -s DIMet/tests/Snakefile_with_metabologram.smk --cores 1 --config PRIMARY_CONFIG="[MYFILE.yml]" METABOLOGRAM_CONFIG="[MYFILE2.yml]"
 
 """
+
+import os
+import yaml
+
 
 def open_config_file_snake_version(confifile):
     try:
@@ -53,9 +49,10 @@ rule all:
         f'{outdir}results/prepared_tables/prep.log' ,
         f'{outdir}results/plots/log/pca.log',
         f'{outdir}results/differential_analysis/diff.log',
-         f'{outdir}results/plots/log/bars.log',
-        f'{outdir}results/plots/log/metabologram.log'
-    output:        
+        f'{outdir}results/plots/log/bars.log',
+        f'{outdir}results/plots/log/lineplot.log',
+        f'{outdir}results/plots/log/metabologram.log',
+        f'{outdir}results/plots/log/isotopolplot.log',     
         f'{outdir}results/plots/log/end.log'
 
 
@@ -79,7 +76,7 @@ rule pca:
         f'{outdir}results/plots/log/pca.log'
 
     shell:
-         f"python -m DIMet.src.pca {primary_config_path} --draw_ellipses > {outdir}results/plots/log/pca.log"
+         f"python -m DIMet.src.pca {primary_config_path} > {outdir}results/plots/log/pca.log"
 
 
 
@@ -91,7 +88,7 @@ rule differential:
          f'{outdir}results/differential_analysis/diff.log'
 
     shell:
-         f"python -m DIMet.src.differential_analysis {primary_config_path} --no-isotopologues \
+         f"python -m DIMet.src.differential_analysis {primary_config_path} --qualityDistanceOverSpan -1 \
             > {outdir}results/differential_analysis/diff.log"
 
 
@@ -103,8 +100,32 @@ rule bars:
           f'{outdir}results/plots/log/bars.log'
     
     shell:
-        #f"python -m DIMet.src.abundances_bars --help > {outdir}results/plots/log/bars.log"
         f"python -m DIMet.src.abundances_bars {primary_config_path} > {outdir}results/plots/log/bars.log"
+
+
+
+rule lineplots:
+    input:
+         f'{primary_config_path}',
+         f'{outdir}results/prepared_tables/prep.log'
+    log :  
+          f'{outdir}results/plots/log/lineplot.log'
+    
+    shell:
+        f"python -m DIMet.src.MEorFC_lineplot {primary_config_path} > {outdir}results/plots/log/lineplot.log"
+
+
+
+rule isotopologues:
+    input:
+         f'{primary_config_path}',
+         f'{outdir}results/prepared_tables/prep.log'
+    log :  
+         f'{outdir}results/plots/log/isotopolplot.log'
+    
+    shell:
+        #f"python -m DIMet.src.abundances_bars --help > {outdir}results/plots/log/bars.log"
+        f"python -m DIMet.src.isotopolog_prop_stacked {primary_config_path} > {outdir}results/plots/log/isotopolplot.log"
 
 
 
@@ -126,8 +147,8 @@ rule end:
          f'{primary_config_path}',
          f'{outdir}results/prepared_tables/prep.log',
          f'{outdir}results/differential_analysis/diff.log',
-            f'{outdir}results/plots/log/bars.log',
-            f'{outdir}results/plots/log/metabologram.log'
+         f'{outdir}results/plots/log/bars.log',
+         f'{outdir}results/plots/log/metabologram.log'
 
     output:
         f'{outdir}results/plots/log/end.log'
