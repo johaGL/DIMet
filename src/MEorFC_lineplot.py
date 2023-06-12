@@ -321,8 +321,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
-    fg.auto_check_validity_configuration_file(confidic)
-    confidic = fg.remove_extensions_names_measures(confidic)
+    confidic = fg.remove_extensions_names_measures(
+        confidic,
+        ['name_meanE_or_fracContrib'])
 
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])

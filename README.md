@@ -122,15 +122,16 @@ to the values of each one of the biological replicates.
 
 ## Differential analysis
 
-Set your options following the toy examples, defining:
-1. grouping  
-2. comparisons : listing of the comparisons to be performed
-3. statistical_test : the statistical test to apply by type of measure
-4. thresholds : _padj_ and absolute_log2FC
+Three different possible analyses are offered (decide based on your experimental setup and biological questions):
+  - two-group univariate analysis
+  - time-course analysis
+  - multi-group analysis
 
-For complex grouping, check the [Details regarding the Differential Analysis](#details-regarding-the-differential-analysis).
+Set your options as explained in [Details regarding the Differential Analysis](#details-regarding-the-differential-analysis),
+do not forget to set your _padj_ and absolute_log2FC thresholds.
 
-Currently statistical methods that are included in DIMet are:
+
+Currently, statistical methods that are included in DIMet are:
 - MW : Mann Whitney
 - KW : Kruskall Wallis
 - ranksum : Wilcoxon's rank sum test
@@ -143,12 +144,12 @@ Currently statistical methods that are included in DIMet are:
 which rely on the statistical methods offered by [scipy](https://docs.scipy.org/doc/scipy/reference/stats.html) library. 
 
 The thresholds permit to obtain the results filtered by :
- - adjusted pvalue (_padj_) and 
+ -  adjusted pvalue (_padj_) and 
  -  absolute log2 fold change (log2FC)).
  
 #### Execute Differential Analysis 
 
-example:
+example, for running two-group univariate analysis:
 ```
 python -m DIMet.src.differential_analysis ~/toy1/analysis001/config-1-001.yml 
 
@@ -173,8 +174,14 @@ For explanations and advanced options, run `python -m DIMet.src.differential_ana
 
 ## Get Metabolograms
 
-readme in construction
+Use the [examples/toy_metabologram/](examples/toy_metabologram/), copy it in your `$HOME`, and run:
 
+```
+python3 -m DIMet.src.metabologram toy_metabologram/analysis001/config_metabologram.yml
+```
+The result are independent metabolograms as image files (by default in pdf format) that will be saved into the location `toy_metabologram/analysis001/results/plots/metabologram`. DIMet produces 1 metabologram by each pathway and each couple of DAM-DEG tables, and also 1 image file with the legend that is common to all the images produced.
+
+We have used KEGG lists of genes and our available metabolites, you can provide your own lists depending on your needs and your DAM-DEG tables.
 
 
 
@@ -251,8 +258,23 @@ The column 'short\_comp' is an abbreviation, coined by you, for the compartments
 
 It is highly recommended to have 3 or more replicates (n >=3) to keep an acceptable statistical power.
 
+Set your options in your .yml, as shown in [examples/](examples/)
 
-Define **grouping** in your configuration .yml file. This is the category we pick for comparison, example with only one category:
+ - For two-group univariate analysis, in your .yml you must specify:
+    * grouping: for complex grouping, check the 
+    * comparisons: list of the comparisons to be performed.
+    * statistical_test : the statistical test to apply, by type of measure.	
+
+ - For time-course analysis:
+    * time_course: see below the list of possible statistical methods.
+    
+ - multi-group analysis:
+    * multiclass_analysis : KW
+
+For all the three possibilities, your .yml you must specify:
+    * thresholds : _padj_ and absolute_log2FC
+
+For two-group univariate differential analysis, define **grouping** in your configuration .yml file. This is the category we pick for comparison, example with only one category:
  
 ``` 
 grouping :
@@ -271,7 +293,7 @@ When two categories are given, DIMet internally combines these 2 metadata catego
 consequently a new category is generated, and it is ready for comparison. 
 This is how DIMet operates:
  
-  * "Control" (a condition) combined with "T0" (timepoint), yields "Control_T0"
+   *  "Control" (a condition) combined with "T0" (timepoint), yields "Control_T0"
    *  "L-Cyclo" (another condition) combined with "T0" (timepoint) yields "L-Cyclo_T0"
    *  thus now, we are able to compare "L-Cyclo_T0" against "Control_T0".
 
@@ -289,7 +311,7 @@ says to DIMet to compute L-Cyclo_T0 *versus* Control_T0.
       
 There are advanced options (Optional arguments)  : 
 
-  - Before reduction and gmean, the way to replace zeros is by default using the min value of entire table.
+  - Before reduction and gmean, the way to replace zeros is by default using the min value of the entire table.
   There is a separate option for each type of measure, see `python -m DIMet.src.differential_analysis --help` 
       
   - exclude one or more type(s) of measure from the analysis (`--no-isotopologues` will exclude isotopologues).

@@ -366,7 +366,7 @@ def save_isotopol_stacked_plot(table_prefix, metadatadf,
     suffix = confidic['suffix']
     compartments = metadatadf['short_comp'].unique().tolist()
 
-    condilevels = confidic["conditions"]  # <= locate where it is used
+    condilevels = confidic["conditions"]
     width_each_stack = float(confidic["width_each_stack"])
 
     wspace_stacks = float(confidic["wspace_stacks"])
@@ -470,8 +470,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
-    fg.auto_check_validity_configuration_file(confidic)
-    confidic = fg.remove_extensions_names_measures(confidic)
+    confidic = fg.remove_extensions_names_measures(
+        confidic, ['name_isotopologue_prop'])
 
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
