@@ -150,7 +150,7 @@ def run_steps_abund_bars(table_prefix,  metadatadf,
                          out_plot_dir, confidic, args) -> None:
     time_sel = confidic["time_sel"]  # locate where it is used
     selectedmetsD = confidic["metabolites_to_plot"]  # locate where it is used
-    condilevels = confidic["conditions"]  # <= locate where it is used
+    condilevels = confidic["conditions"]
 
     axisx_labeltilt = int(confidic["axisx_labeltilt"])
     axisx_var = confidic["axisx"]
@@ -194,8 +194,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     configfile = os.path.expanduser(args.config)
     confidic = fg.open_config_file(configfile)
-    fg.auto_check_validity_configuration_file(confidic)
-    confidic = fg.remove_extensions_names_measures(confidic)
+    confidic = fg.remove_extensions_names_measures(
+        confidic, ['name_abundance'])
 
     out_path = os.path.expanduser(confidic['out_path'])
     meta_path = os.path.expanduser(confidic['metadata_path'])
