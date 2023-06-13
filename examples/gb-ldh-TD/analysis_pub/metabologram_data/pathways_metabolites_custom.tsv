@@ -1,0 +1,8 @@
+"KEGG_GLYCOLYSIS_GLUCONEOGENESIS"	"KEGG_CITRATE_CYCLE_TCA_CYCLE"	"KEGG_ALANINE_ASPARTATE_AND_GLUTAMATE_METABOLISM"
+"Pyr"	"Cit"	"Suc"
+"PEP"	"IsoCit"	"Glutamine"
+"Glc6P"	"a-KG"	"Glutamate"
+"FruBP"	"Suc"	"Fum"
+"Fru6P"	"Fum"	"Aspartate"
+"2_3-PG"	"Mal"	
+		"Alanine"

@@ -3,4 +3,4 @@ src/__pycache__/
 .idea
 examples/toy*/*/results/
 .snakemake/
-
+examples/.ipynb_checkpoints/
