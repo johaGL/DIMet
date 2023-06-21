@@ -1,0 +1,82 @@
+# This is gb-cycloser-TD configuration file 
+# Note: for indentation use space (never tab!), 2-space indents
+# coments start with #
+
+# -----------------------------
+# necesary to all steps
+# -----------------------------
+
+metadata_path : DIMet/examples/gb-cycloser-TD/data_pub/metadata_cycloser.csv
+
+name_abundance : rawAbundances
+name_meanE_or_fracContrib : FracContribution_C
+name_isotopologue_prop : CorrectedIsotopologues # isotopologue proportions
+name_isotopologue_abs : null  # isotopologue absolute values (for gb-cycloser-TD not avail)
+
+conditions : 
+ - L-Cycloserine 
+suffix : cyo
+out_path : DIMet/examples/gb-cycloser-TD/analysis_pub/
+
+
+# -----------------------------
+# Plots
+# -----------------------------
+# metabolites to plot:
+metabolites_to_plot:
+  cell: ["Fructose_1,6-bisphosphate", # in "quotes" because has a comma inside
+         L-Lactic_acid, Pyruvic_acid,
+         Fumaric_acid, L-Alanine,
+          L-Aspartic_acid,
+         L-Malic_acid,
+          L-Glutamic_acid,
+         L-Glutamine, ]
+  med:  [L-Lactic_acid, Pyruvic_acid, 
+           L-Alanine, L-Asparagine]
+
+
+# Abundances bars configuration
+# -----------------------------
+time_sel :
+  - T0
+  - T1h
+  - T2h
+  - T4h
+  - T6h
+  - T24h
+barcolor : condition
+axisx : timepoint
+axisx_labeltilt : 0 # 0 is no tilt
+width_each_subfig : 4.1
+wspace_subfigs : 0.4
+
+# Isotopologue Contribution plot configuration
+# -----------------------------
+width_each_stack : !!float 4.3
+wspace_stacks : !!float 0.4
+numbers_size : 9
+
+
+# Fractional Contributions lineplot configuration
+# -----------------------------
+# will run with defaults, see --help 
+
+
+# -----------------------------
+# differential analysis
+# -----------------------------
+time_course: ranksum
+     
+thresholds:
+  padj: 0.05
+  absolute_log2FC: 0.5
+
+
+# grouping: column that is a combination of 2 metadata categories,
+# new category thus generated, is ready for comparison. Example :
+#  Control (a condition) combined with T0 (a timepoint), yields Control_T0
+#  L-Cyclo (another condition) combined with T0 (same timepoint) yields L-Cyclo_T0
+#  thus now, we are able to compare L-Cyclo_T0 against Control_T0 .
+
+# -------------------- end of config file ---------------------         
+# NOTE: Metabolograms need a separated configuration file
