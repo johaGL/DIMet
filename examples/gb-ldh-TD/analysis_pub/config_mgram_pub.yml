@@ -1,0 +1,29 @@
+metabologram_out_dir : "DIMet/examples/gb-ldh-TD/analysis_pub/results/plots/"
+out_path : "DIMet/examples/gb-ldh-TD/analysis_pub/results/plots/"
+
+dir_deg : "DIMet/examples/gb-ldh-TD/analysis_pub/metabologram_data/DEG_tables/"
+
+DEG_tables:
+  1 : "control_hypoxie_ldha_ldhb_hypoxie_0_05.tsv" # for acompanying DAbundantM 
+  2 : "control_hypoxie_ldha_ldhb_hypoxie_0_05.tsv" # the same table because enrichment is not existant in Transcriptomics, for acompanying DMarkedM
+  
+columns_deg : ['external_gene_name', 'log2FoldChange']
+
+
+dir_dam : "DIMet/examples/gb-ldh-TD/analysis_pub/metabologram_data/DAM_tables/"
+
+DAM_tables: 
+  1 : AbundanceCorrected--en--L-sgLDHAB_T48_Cont_T48-ranksum.tsv
+  2 : MeanEnrichment13C--en--L-sgLDHAB_T48_Cont_T48-ranksum.tsv
+
+
+  
+columns_dam : ['metabolite','log2FC']  
+
+pathways_files:
+  genes : "DIMet/examples/gb-ldh-TD/analysis_pub/metabologram_data/pathways_genes_list_custom.tsv"
+  metabolites : "DIMet/examples/gb-ldh-TD/analysis_pub/metabologram_data/pathways_metabolites_custom.tsv"
+
+titles:
+  1: "Abundance : sgLDHA/B 48h vs Control 48h"
+  2: "Enrichment : sgLDHA/B 48h vs Control 48h"

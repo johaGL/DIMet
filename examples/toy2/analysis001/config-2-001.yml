@@ -40,9 +40,8 @@ metabolites_to_plot:
 # -----------------------------
 time_sel :
   - T0
-  - T2h
-barcolor : timepoint
-axisx : condition
+barcolor : condition
+axisx : timepoint
 axisx_labeltilt : 20 # 0 is no tilt
 width_each_subfig : 3
 wspace_subfigs : 1
@@ -64,17 +63,17 @@ numbers_size : 13
 # -----------------------------
 grouping :  # see explanation at the  end
   - condition
-  - timepoint  
+
 
 comparisons :   # for each pair,last must be control
-  - [L-Cycloserine_T0, Control_T0]    
-  - [L-Cycloserine_T2h, Control_T2h]          
+  - [L-Cycloserine, Control]    
+         
               
 statistical_test:
-  abundances: prm-scipy  
-  meanE_or_fracContrib: KW
+  abundances: KW 
+  meanE_or_fracContrib: prm-scipy
   isotopologue_abs: null
-  isotopologue_prop: KW
+  isotopologue_prop: prm-scipy
      
 thresholds:
   padj: 1

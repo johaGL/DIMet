@@ -30,8 +30,8 @@ metabolites_to_plot:
 # Abundances bars configuration
 # -----------------------------
 time_sel : [T0, T24]
-axisx : condition
-barcolor : timepoint
+axisx : timepoint
+barcolor : condition
 width_each_subfig : 3
 wspace_subfigs : 1
 axisx_labeltilt : 90 
@@ -58,9 +58,9 @@ comparisons :
   - [sgLDHA_T24, sgCont_T24]            
               
 statistical_test:
-  abundances: Tt   
-  meanE_or_fracContrib: KW
-  isotopologue_abs: KW 
+  abundances: KW   
+  meanE_or_fracContrib: ranksum
+  isotopologue_abs: ranksum
   isotopologue_prop: null
      
 thresholds:

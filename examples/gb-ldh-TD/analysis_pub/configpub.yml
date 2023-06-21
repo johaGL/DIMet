@@ -1,0 +1,83 @@
+# Note: for indentation use space (never tab!): 2 space indents
+# coments start with #
+
+# -----------------------------
+# necesary to all steps
+# -----------------------------
+
+metadata_path : DIMet/examples/gb-ldh-TD/data_pub/metadata_endo_ldh.csv
+
+
+name_abundance : AbundanceCorrected
+name_meanE_or_fracContrib : MeanEnrichment13C
+name_isotopologue_prop : IsotopologuesProp # isotopologue proportions
+name_isotopologue_abs : IsotopologuesAbs  # isotopologue absolute values
+
+
+conditions : [Cont, sgLDHAB] # first must be control, when several
+suffix : L
+out_path : DIMet/examples/gb-ldh-TD/analysis_pub/
+
+
+# -----------------------------
+# Plots
+# -----------------------------
+# metabolites to plot:
+metabolites_to_plot:
+  en: [PEP, Pyr, Cit, IsoCit, a-KG, Suc, Fum, Mal, Glutamine, 
+      Glutamate, Aspartate, Alanine, 2-OHGLu, Glc6P, Fru1P]
+
+
+# Abundances bars configuration
+# -----------------------------
+time_sel :  
+  - T48  # only show 48 hours everywhere
+barcolor : condition
+axisx : timepoint
+axisx_labeltilt : 0 # 0 is no tilt
+width_each_subfig : 2.2
+wspace_subfigs : 0.8
+
+
+# Isotopologue Contribution plot configuration
+# -----------------------------
+width_each_stack : !!float 1.8
+wspace_stacks : !!float 0.8
+numbers_size : 9
+
+
+# Fractional Contributions lineplot configuration
+# -----------------------------
+# will run with defaults, see --help 
+
+
+# -----------------------------
+# differential analysis
+# -----------------------------
+grouping : 
+  - condition
+  - timepoint  # explanation at the end of this section
+
+comparisons : 
+  - [sgLDHAB_T48, Cont_T48]  # for each pair, last must be control
+
+               
+statistical_test:
+  abundances: ranksum
+  meanE_or_fracContrib: ranksum
+  isotopologue_abs: ranksum 
+  isotopologue_prop: null
+     
+thresholds:
+  padj: 0.05
+  absolute_log2FC: 0
+
+
+
+#  -
+# grouping:
+#   * the category we pick for comparison (here timepoint)
+#   * or, a combination of 2 metadata categories at choice (see toy 2)
+
+# -------------------- end of config file ---------------------         
+# NOTE: Metabolograms need a separated configuration file
